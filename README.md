@@ -2,7 +2,7 @@
 
 A collection of interactive financial calculators built with vanilla JavaScript and Canvas API. No dependencies, no frameworks, no build step.
 
-**Live:** https://careycarroll.github.io/financial-calculator/
+**Live:** <https://careycarroll.github.io/financial-calculator/>
 
 ---
 
@@ -145,6 +145,9 @@ Key phases:
 - **Phase 6** — Stock Evaluator: IndexedDB cache for API responses (24h TTL), `formatRatio` import fix
 - **Phase 7** — Economics expansion: Consumer Theory page (price elasticity 4 modes, cross-price elasticity, expected utility, risk premium); font scale toggle (A⁻/A/A⁺) with canvas font scaling across all chart files
 - **Phase 8** — Consumer Theory expansion (April 2026): Arbitrary linear equation parser with scalar, shift variables, and parse confirmation display; Shift Analysis panel with live Scenario 2 comparison, D₂/S₂ dashed curve overlay, E₁/E₂ equilibrium dots, axis directional arrows; elasticity reference panel with highlighted classification row, formulas, and intuitions; stacked demand/supply elasticity result cards; market power explainer (curve shape → price vs. quantity power)
+- **Phase 9** — FIRE Dashboard Amortization Schedule: Year-by-year retirement amortization schedule showing contributions from current age through retirement; beginning and ending balances; annual investment growth and withdrawals; Nominal vs. Real (Today's $) purchasing power toggle; 5-year milestone interval toggle; phase filters (Accumulation vs. Retirement); KPI summary cards (Total Contributed, Growth Earned, Retirement Balance, Withdrawn, Final Balance); depletion tracking; and RFC 4180 CSV export.
+- **Phase 10** — Dynamic Career Milestones & Contribution Injections: Two-way synchronized range sliders for real-time calculation; Annual Contribution Growth escalator (%) to model salary merit raises; dynamic "+ Add Career Milestone" system allowing users to inject promotions, debt payoffs, catch-up contributions, and one-time lump-sum bonuses at specific ages; milestone pins and interactive badges on both the canvas growth projection chart and the amortization schedule; full localStorage persistence.
+- **Phase 11** — Retirement Expense Estimator & Life-Stage Expense Milestones: Guided Retirement Expense Estimator modal with category breakdowns (housing, utilities, food, healthcare, transportation, dependent costs, travel, buffer) and 4 quick presets (Lean, Moderate, Comfortable, Deluxe); eliminated vertical jump in the Retirement Lifecycle canvas chart; dynamic "+ Add Expense Milestone" system modeling life-stage spending changes at specific ages (e.g. children turning 18 & leaving home at age 49, mortgage payoff, Medicare at 65, one-time expenses); dynamic FIRE target adjustment reflecting lower baseline retirement spending; dynamic annual withdrawals and badges integrated into the Amortization Schedule, Drawdown simulations, and CSV export.
 
 ---
 
@@ -160,7 +163,7 @@ The price elasticity tab supports arbitrary linear demand/supply equations:
 
 **Own-price detection:** exact match on `p` or `P` defaults to own-price. If ambiguous, a dropdown appears. Shift variables get inline value fields that update the collapsed form live.
 
-**Shift Analysis:** after calculating, enter Scenario 2 values (blank = inherit Scenario 1). Chart overlays D₂/S₂ as dashed curves only when they differ from baseline. Axis arrows show direction of P* and Q* movement. Interpretation panel explains ΔP*, ΔQ*, Δεd, Δεs in plain economic language.
+**Shift Analysis:** after calculating, enter Scenario 2 values (blank = inherit Scenario 1). Chart overlays D₂/S₂ as dashed curves only when they differ from baseline. Axis arrows show direction of P and Q movement. Interpretation panel explains ΔP*, ΔQ*, Δεd, Δεs in plain economic language.
 
 ---
 

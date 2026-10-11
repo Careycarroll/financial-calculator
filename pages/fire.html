@@ -40,9 +40,20 @@
                 type="number"
                 id="fire-current-age" aria-required="true"
                 placeholder="e.g. 32"
+                value="32"
                 min="18"
                 max="80"
                 step="1"
+              />
+              <input
+                type="range"
+                id="fire-current-age-slider"
+                class="fire-slider"
+                value="32"
+                min="18"
+                max="75"
+                step="1"
+                aria-label="Adjust current age"
               />
             </div>
             <div class="form-group">
@@ -51,9 +62,20 @@
                 type="number"
                 id="fire-retire-age" aria-required="true"
                 placeholder="e.g. 55"
+                value="55"
                 min="25"
                 max="90"
                 step="1"
+              />
+              <input
+                type="range"
+                id="fire-retire-age-slider"
+                class="fire-slider"
+                value="55"
+                min="25"
+                max="85"
+                step="1"
+                aria-label="Adjust target retirement age"
               />
             </div>
           </div>
@@ -69,9 +91,41 @@
                 step="1"
                 value="90"
               />
+              <input
+                type="range"
+                id="fire-life-expectancy-slider"
+                class="fire-slider"
+                min="60"
+                max="105"
+                step="1"
+                value="90"
+                aria-label="Adjust life expectancy"
+              />
               <span class="form-hint">Used to project portfolio through retirement.</span>
             </div>
-            <div class="form-group"></div>
+            <div class="form-group">
+              <label for="fire-contrib-growth">Annual Contribution Growth (%)</label>
+              <input
+                type="number"
+                id="fire-contrib-growth"
+                placeholder="e.g. 0"
+                min="0"
+                max="15"
+                step="0.25"
+                value="0"
+              />
+              <input
+                type="range"
+                id="fire-contrib-growth-slider"
+                class="fire-slider"
+                min="0"
+                max="10"
+                step="0.25"
+                value="0"
+                aria-label="Adjust annual contribution growth percentage"
+              />
+              <span class="form-hint">Annual % increase in savings (e.g. 2–3% to match salary raises).</span>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -81,9 +135,20 @@
               <input
                 type="number"
                 id="fire-current-portfolio"
-                placeholder="e.g. 150000"
+                placeholder="e.g. 50000"
+                value="50000"
                 min="0"
                 step="any"
+              />
+              <input
+                type="range"
+                id="fire-current-portfolio-slider"
+                class="fire-slider"
+                value="50000"
+                min="0"
+                max="1000000"
+                step="5000"
+                aria-label="Adjust current portfolio value"
               />
             </div>
             <div class="form-group">
@@ -94,8 +159,19 @@
                 type="number"
                 id="fire-monthly-contribution"
                 placeholder="e.g. 2000"
+                value="2000"
                 min="0"
-                step="any"
+                step="100"
+              />
+              <input
+                type="range"
+                id="fire-monthly-contribution-slider"
+                class="fire-slider"
+                value="2000"
+                min="0"
+                max="10000"
+                step="100"
+                aria-label="Adjust monthly contribution by $100"
               />
             </div>
           </div>
@@ -111,6 +187,16 @@
                 step="any"
                 value="7"
               />
+              <input
+                type="range"
+                id="fire-annual-return-slider"
+                class="fire-slider"
+                min="1"
+                max="15"
+                step="0.25"
+                value="7"
+                aria-label="Adjust expected annual return"
+              />
             </div>
             <div class="form-group">
               <label for="fire-inflation">Expected Inflation Rate (%)</label>
@@ -123,7 +209,31 @@
                 step="any"
                 value="3"
               />
+              <input
+                type="range"
+                id="fire-inflation-slider"
+                class="fire-slider"
+                min="0"
+                max="10"
+                step="0.25"
+                value="3"
+                aria-label="Adjust expected inflation rate"
+              />
             </div>
+          </div>
+
+          <!-- Career Milestones & Contribution Injections -->
+          <div class="milestones-section">
+            <div class="milestones-header">
+              <div>
+                <h3 class="milestones-title">🎯 Career Milestones & Contribution Injections</h3>
+                <p class="milestones-subtitle">Account for promotions, savings boosts, or lump-sum injections (bonuses, equity vests) at specific ages.</p>
+              </div>
+              <button type="button" id="fire-add-milestone-btn" class="btn-add">
+                + Add Career Milestone
+              </button>
+            </div>
+            <div id="fire-milestones-list" class="milestones-list"></div>
           </div>
         </div>
 
@@ -178,15 +288,29 @@
             <h2 class="form-section-title">Retirement Expenses & Income</h2>
             <div class="form-row">
               <div class="form-group">
-                <label for="fire-annual-expenses"
-                  >Annual Expenses in Retirement ($)</label
-                >
+                <div class="label-with-action">
+                  <label for="fire-annual-expenses">Annual Expenses in Retirement ($)</label>
+                  <button type="button" id="fire-open-expenses-calculator-btn" class="btn-text-action" title="Open Retirement Expenses Estimator">
+                    🧮 Estimate Expenses
+                  </button>
+                </div>
                 <input
                   type="number"
                   id="fire-annual-expenses" aria-required="true"
                   placeholder="e.g. 60000"
+                  value="60000"
                   min="0"
                   step="any"
+                />
+                <input
+                  type="range"
+                  id="fire-annual-expenses-slider"
+                  class="fire-slider"
+                  value="60000"
+                  min="10000"
+                  max="200000"
+                  step="1000"
+                  aria-label="Adjust annual expenses in retirement"
                 />
                 <span class="form-hint"
                   >What you expect to spend per year in retirement (today's
@@ -206,6 +330,16 @@
                   step="any"
                   value="4"
                 />
+                <input
+                  type="range"
+                  id="fire-withdrawal-rate-slider"
+                  class="fire-slider"
+                  min="1"
+                  max="8"
+                  step="0.1"
+                  value="4"
+                  aria-label="Adjust safe withdrawal rate"
+                />
                 <span class="form-hint"
                   >The percentage you'll withdraw annually. 4% is the
                   traditional rule.</span
@@ -220,9 +354,20 @@
                 <input
                   type="number"
                   id="fire-other-income"
-                  placeholder="e.g. 20000"
+                  placeholder="e.g. 0"
+                  value="0"
                   min="0"
                   step="any"
+                />
+                <input
+                  type="range"
+                  id="fire-other-income-slider"
+                  class="fire-slider"
+                  value="0"
+                  min="0"
+                  max="80000"
+                  step="1000"
+                  aria-label="Adjust other annual retirement income"
                 />
                 <span class="form-hint"
                   >Social Security, pension, rental income, etc.</span
@@ -264,6 +409,20 @@
               </div>
             </div>
             
+
+            <!-- Life-Stage Expense Milestones -->
+            <div class="milestones-section expense-milestones-section">
+              <div class="milestones-header">
+                <div>
+                  <h3 class="milestones-title">📉 Life-Stage Expense Milestones</h3>
+                  <p class="milestones-subtitle">Account for future spending changes (e.g. kids moving out at 49, mortgage paid off, Medicare at 65).</p>
+                </div>
+                <button type="button" id="fire-add-expense-milestone-btn" class="btn-add">
+                  + Add Expense Milestone
+                </button>
+              </div>
+              <div id="fire-expense-milestones-list" class="milestones-list"></div>
+            </div>
 
             <button id="fire-calculate-btn" class="btn-primary" aria-label="Calculate FIRE Number">
               Calculate FIRE Number
@@ -372,6 +531,109 @@
               <span class="legend-item"><span class="legend-color" style="background:#f472b6"></span> 6% Withdrawal</span>
             </div>
           </div>
+
+          <!-- Retirement Amortization Schedule Table -->
+          <div id="fire-amortization-section" class="table-panel hidden" aria-label="Retirement Amortization Schedule">
+            <div class="table-header-flex">
+              <div>
+                <h2>Retirement Amortization Schedule</h2>
+                <p class="form-hint" style="margin-bottom: 1rem;">
+                  Year-by-year schedule of contributions, investment growth, withdrawals, and beginning & ending balances from current age through retirement.
+                </p>
+              </div>
+            </div>
+
+            <!-- Summary KPI Cards -->
+            <div class="amort-summary-cards" id="amort-summary-cards">
+              <div class="amort-card">
+                <span class="amort-card-label">Total Contributed</span>
+                <span id="amort-total-contributed" class="amort-card-value">—</span>
+              </div>
+              <div class="amort-card">
+                <span class="amort-card-label">Total Growth Earned</span>
+                <span id="amort-total-growth" class="amort-card-value accent">—</span>
+              </div>
+              <div class="amort-card">
+                <span class="amort-card-label">Portfolio at Retirement</span>
+                <span id="amort-peak-portfolio" class="amort-card-value">—</span>
+              </div>
+              <div class="amort-card">
+                <span class="amort-card-label">Total Withdrawn</span>
+                <span id="amort-total-withdrawn" class="amort-card-value">—</span>
+              </div>
+              <div class="amort-card">
+                <span class="amort-card-label" id="amort-final-label">Balance at Life Expectancy</span>
+                <span id="amort-final-balance" class="amort-card-value">—</span>
+              </div>
+            </div>
+
+            <!-- Controls: Values Mode, Interval, Phase Filter, Export CSV -->
+            <div class="table-controls amort-controls-bar">
+              <div class="amort-controls-group">
+                <span class="control-label">Values:</span>
+                <button id="amort-mode-nominal" class="btn-toggle active" type="button" aria-label="Show nominal future dollar values">
+                  Nominal ($)
+                </button>
+                <button id="amort-mode-real" class="btn-toggle" type="button" aria-label="Show inflation-adjusted today's dollar values">
+                  Today's $ (Real)
+                </button>
+              </div>
+
+              <div class="amort-controls-group">
+                <span class="control-label">Interval:</span>
+                <button id="amort-interval-all" class="btn-toggle active" type="button" aria-label="Show all years in schedule">
+                  All Years
+                </button>
+                <button id="amort-interval-5yr" class="btn-toggle" type="button" aria-label="Show 5-year milestones only">
+                  5-Yr Milestones
+                </button>
+              </div>
+
+              <div class="amort-controls-group">
+                <span class="control-label">Phase:</span>
+                <button id="amort-filter-all" class="btn-toggle active" type="button" aria-label="Show all phases">
+                  All
+                </button>
+                <button id="amort-filter-accum" class="btn-toggle" type="button" aria-label="Show accumulation phase only">
+                  Accumulation
+                </button>
+                <button id="amort-filter-retire" class="btn-toggle" type="button" aria-label="Show retirement phase only">
+                  Retirement
+                </button>
+              </div>
+
+              <div class="amort-controls-group amort-export-group">
+                <button id="amort-export-csv" class="btn-toggle" type="button" aria-label="Export retirement schedule to CSV">
+                  📥 Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrapper" id="fire-amortization-wrapper">
+              <table id="fire-amortization-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Age</th>
+                    <th scope="col">Year</th>
+                    <th scope="col">Phase</th>
+                    <th scope="col">Beginning Balance</th>
+                    <th scope="col">Contributions</th>
+                    <th scope="col">Investment Growth</th>
+                    <th scope="col">Withdrawals</th>
+                    <th scope="col">Other Income</th>
+                    <th scope="col">Ending Balance</th>
+                    <th scope="col">Total Contributed</th>
+                    <th scope="col">Total Growth</th>
+                  </tr>
+                </thead>
+                <tbody id="fire-amortization-body"></tbody>
+              </table>
+            </div>
+
+            <p class="form-hint" style="margin-top: 0.85rem;">
+              * Calculations assume compounding contributions during accumulation and annual withdrawals adjusted for inflation. Values in Today's $ are discounted to present purchasing power. Hover over any amount to view exact precision.
+            </p>
+          </div>
         </div>
 
         <!-- ==================== TAB 2: COAST FIRE ==================== -->
@@ -477,6 +739,145 @@
           </div>
         </div>
       </main>
+
+      <!-- ==================== RETIREMENT EXPENSES ESTIMATOR MODAL ==================== -->
+      <div id="fire-expense-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="expense-modal-title">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div>
+              <h2 id="expense-modal-title" class="modal-title">🧮 Retirement Expense Estimator</h2>
+              <p class="modal-subtitle">Break down your expected monthly living costs to calculate your annual retirement baseline.</p>
+            </div>
+            <button type="button" id="fire-expense-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Quick Presets -->
+            <div class="expense-presets">
+              <span class="presets-label">Quick Presets:</span>
+              <button type="button" class="btn-preset" data-preset="lean">Lean FIRE ($3,200/mo)</button>
+              <button type="button" class="btn-preset active" data-preset="moderate">Moderate ($5,000/mo)</button>
+              <button type="button" class="btn-preset" data-preset="comfortable">Comfortable ($7,500/mo)</button>
+              <button type="button" class="btn-preset" data-preset="deluxe">Deluxe ($10,000/mo)</button>
+            </div>
+
+            <div class="expense-grid">
+              <!-- Housing -->
+              <div class="expense-category">
+                <h4 class="category-title">🏠 Housing & Utilities</h4>
+                <div class="expense-field">
+                  <label for="exp-housing-mortgage">Mortgage / Rent ($/mo)</label>
+                  <input type="number" id="exp-housing-mortgage" min="0" step="50" value="1600" />
+                </div>
+                <div class="expense-field">
+                  <label for="exp-housing-tax">Property Tax & Insurance ($/mo)</label>
+                  <input type="number" id="exp-housing-tax" min="0" step="25" value="400" />
+                </div>
+                <div class="expense-field">
+                  <label for="exp-housing-utilities">Utilities & Internet ($/mo)</label>
+                  <input type="number" id="exp-housing-utilities" min="0" step="25" value="350" />
+                </div>
+              </div>
+
+              <!-- Living & Food -->
+              <div class="expense-category">
+                <h4 class="category-title">🛒 Food & Daily Living</h4>
+                <div class="expense-field">
+                  <label for="exp-living-groceries">Groceries & Household ($/mo)</label>
+                  <input type="number" id="exp-living-groceries" min="0" step="25" value="650" />
+                </div>
+                <div class="expense-field">
+                  <label for="exp-living-dining">Dining Out & Coffee ($/mo)</label>
+                  <input type="number" id="exp-living-dining" min="0" step="25" value="300" />
+                </div>
+              </div>
+
+              <!-- Healthcare -->
+              <div class="expense-category">
+                <h4 class="category-title">🩺 Healthcare</h4>
+                <div class="expense-field">
+                  <label for="exp-health-premium">Health Insurance Premium ($/mo)</label>
+                  <input type="number" id="exp-health-premium" min="0" step="25" value="500" />
+                  <span class="field-hint">Private/ACA before 65; Medicare after 65</span>
+                </div>
+                <div class="expense-field">
+                  <label for="exp-health-oop">Out-of-Pocket, Dental & Rx ($/mo)</label>
+                  <input type="number" id="exp-health-oop" min="0" step="25" value="150" />
+                </div>
+              </div>
+
+              <!-- Transportation -->
+              <div class="expense-category">
+                <h4 class="category-title">🚗 Transportation</h4>
+                <div class="expense-field">
+                  <label for="exp-transport-car">Vehicle Payment / Sinking Fund ($/mo)</label>
+                  <input type="number" id="exp-transport-car" min="0" step="25" value="250" />
+                </div>
+                <div class="expense-field">
+                  <label for="exp-transport-maint">Auto Insurance & Gas ($/mo)</label>
+                  <input type="number" id="exp-transport-maint" min="0" step="25" value="200" />
+                </div>
+              </div>
+
+              <!-- Children / Dependents -->
+              <div class="expense-category">
+                <h4 class="category-title">🧸 Children / Dependents (Current)</h4>
+                <div class="expense-field">
+                  <label for="exp-kids-monthly">Children Food, Activities & Care ($/mo)</label>
+                  <input type="number" id="exp-kids-monthly" min="0" step="50" value="0" />
+                  <span class="field-hint">Can drop off when kids turn 18 and leave home!</span>
+                </div>
+                <div class="expense-field">
+                  <label for="exp-kids-college">College / Education Support ($/mo)</label>
+                  <input type="number" id="exp-kids-college" min="0" step="50" value="0" />
+                </div>
+              </div>
+
+              <!-- Lifestyle & Fun -->
+              <div class="expense-category">
+                <h4 class="category-title">✈️ Travel & Entertainment</h4>
+                <div class="expense-field">
+                  <label for="exp-fun-travel">Travel & Vacations ($/mo)</label>
+                  <input type="number" id="exp-fun-travel" min="0" step="50" value="350" />
+                </div>
+                <div class="expense-field">
+                  <label for="exp-fun-hobbies">Hobbies & Subscriptions ($/mo)</label>
+                  <input type="number" id="exp-fun-hobbies" min="0" step="25" value="150" />
+                </div>
+              </div>
+
+              <!-- Misc & Buffer -->
+              <div class="expense-category">
+                <h4 class="category-title">🛡️ Buffer & Miscellaneous</h4>
+                <div class="expense-field">
+                  <label for="exp-misc-buffer">Unexpected & Personal ($/mo)</label>
+                  <input type="number" id="exp-misc-buffer" min="0" step="25" value="100" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Total summary inside modal -->
+            <div class="modal-summary-box">
+              <div class="summary-stat">
+                <span class="stat-label">Estimated Monthly Spending:</span>
+                <span id="exp-summary-monthly" class="stat-value">$5,000/mo</span>
+              </div>
+              <div class="summary-stat highlight">
+                <span class="stat-label">Total Annual Retirement Expenses:</span>
+                <span id="exp-summary-annual" class="stat-value">$60,000/yr</span>
+              </div>
+              <div id="exp-kids-tip" class="kids-dropoff-tip hidden">
+                💡 You have dependent expenses included. After applying, you can add an Expense Milestone to drop this expense at age 49!
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="fire-expense-modal-cancel" class="btn-secondary">Cancel</button>
+            <button type="button" id="fire-expense-modal-apply" class="btn-primary">Apply to Calculator ($60,000/yr)</button>
+          </div>
+        </div>
+      </div>
 
       <footer>
         <p>&copy; 2026 Financial Calculator</p>

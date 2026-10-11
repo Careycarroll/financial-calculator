@@ -1,7 +1,8 @@
 import {
   CONFIG, safeParseFloat, safeParseInt, formatCurrency,
   createChartContext, showChartLoading, hideChartLoading,
-  rafThrottle, validateInputs, showFieldError, bindFormEnter, drawLabelWithBackground
+  rafThrottle, validateInputs, showFieldError, bindFormEnter, drawLabelWithBackground,
+  autoScrollTables
 } from "./chart-utils.js";
 
 // ===== DOM ELEMENTS =====
@@ -40,15 +41,15 @@ tabCoastFire.addEventListener("click", () => {
 });
 
 // ===== EVENT LISTENERS =====
-fireCalculateBtn.addEventListener("click", handleFireCalculate);
-coastCalculateBtn.addEventListener("click", handleCoastCalculate);
+fireCalculateBtn.addEventListener("click", () => handleFireCalculate({ scroll: true }));
+coastCalculateBtn.addEventListener("click", () => handleCoastCalculate({ scroll: true }));
 
 // Enter key support
 bindFormEnter(() => {
   if (!coastFireTab.classList.contains("hidden")) {
-    handleCoastCalculate();
+    handleCoastCalculate({ scroll: true });
   } else {
-    handleFireCalculate();
+    handleFireCalculate({ scroll: true });
   }
 });
 
@@ -65,11 +66,109 @@ function getProfile() {
       safeParseFloat(document.getElementById("fire-current-portfolio").value, 0),
     monthlyContribution:
       safeParseFloat(document.getElementById("fire-monthly-contribution").value, 0),
+    contribGrowth:
+      safeParseFloat(document.getElementById("fire-contrib-growth")?.value, 0) / 100,
     annualReturn:
       safeParseFloat(document.getElementById("fire-annual-return").value) / 100,
     inflation:
       safeParseFloat(document.getElementById("fire-inflation").value) / 100,
   };
+}
+
+// ===== CONTRIBUTION TIMELINE & MILESTONES =====
+function getAnnualContributionSchedule(profile, milestones, totalYears) {
+  const sorted = Array.isArray(milestones)
+    ? [...milestones].sort((a, b) => a.age - b.age)
+    : [];
+
+  let currentMonthly = profile ? profile.monthlyContribution : 0;
+  const contribGrowth = profile ? (profile.contribGrowth || 0) : 0;
+  const currentAge = profile ? profile.currentAge : 32;
+  const schedule = [];
+
+  for (let y = 0; y < totalYears; y++) {
+    const age = currentAge + y;
+
+    if (y > 0 && contribGrowth > 0) {
+      currentMonthly = currentMonthly * (1 + contribGrowth);
+    }
+
+    const matching = sorted.filter((m) => m.age === age);
+    let lumpSum = 0;
+    const labels = [];
+
+    matching.forEach((m) => {
+      const amt = parseFloat(m.amount) || 0;
+      if (m.type === "new_monthly") {
+        currentMonthly = amt;
+        labels.push(m.note ? `${m.note} ($${Math.round(amt).toLocaleString()}/mo)` : `$${Math.round(amt).toLocaleString()}/mo`);
+      } else if (m.type === "delta_monthly") {
+        currentMonthly += amt;
+        labels.push(m.note ? `${m.note} (+$${Math.round(amt).toLocaleString()}/mo)` : `+$${Math.round(amt).toLocaleString()}/mo`);
+      } else if (m.type === "lump_sum") {
+        lumpSum += amt;
+        labels.push(m.note ? `${m.note} (+$${Math.round(amt).toLocaleString()} lump)` : `+$${Math.round(amt).toLocaleString()} lump`);
+      }
+    });
+
+    schedule.push({
+      yearIndex: y,
+      age,
+      monthlyContribution: currentMonthly,
+      annualRegularContribution: currentMonthly * 12,
+      lumpSum,
+      totalAnnualContribution: (currentMonthly * 12) + lumpSum,
+      milestoneBadge: labels.length ? labels.join("; ") : null,
+      hasMilestone: labels.length > 0,
+    });
+  }
+
+  return schedule;
+}
+
+// ===== EXPENSE TIMELINE & LIFE-STAGE MILESTONES =====
+function getAnnualExpenseSchedule(baseAnnualExpenses, milestones, currentAge, lifeExpectancy) {
+  const sorted = Array.isArray(milestones)
+    ? [...milestones].sort((a, b) => a.age - b.age)
+    : [];
+
+  let currentBase = baseAnnualExpenses;
+  const schedule = [];
+  const totalYears = (lifeExpectancy > currentAge) ? (lifeExpectancy - currentAge) : 60;
+
+  for (let y = 0; y < totalYears; y++) {
+    const age = currentAge + y;
+    const matching = sorted.filter((m) => m.age === age);
+    let oneTime = 0;
+    const labels = [];
+
+    matching.forEach((m) => {
+      const amt = parseFloat(m.amount) || 0;
+      if (m.type === "set_annual") {
+        currentBase = Math.max(0, amt);
+        labels.push(m.note ? `${m.note} ($${Math.round(amt).toLocaleString()}/yr)` : `$${Math.round(amt).toLocaleString()}/yr`);
+      } else if (m.type === "delta_annual") {
+        currentBase = Math.max(0, currentBase + amt);
+        const sign = amt >= 0 ? "+" : "-";
+        labels.push(m.note ? `${m.note} (${sign}$${Math.abs(Math.round(amt)).toLocaleString()}/yr)` : `${sign}$${Math.abs(Math.round(amt)).toLocaleString()}/yr`);
+      } else if (m.type === "one_time") {
+        oneTime += amt;
+        labels.push(m.note ? `${m.note} (+$${Math.round(amt).toLocaleString()} one-time)` : `+$${Math.round(amt).toLocaleString()} one-time`);
+      }
+    });
+
+    schedule.push({
+      yearIndex: y,
+      age,
+      baseAnnual: currentBase,
+      oneTime,
+      totalAnnual: currentBase + oneTime,
+      milestoneBadge: labels.length ? labels.join("; ") : null,
+      hasMilestone: labels.length > 0,
+    });
+  }
+
+  return schedule;
 }
 
 // ===== FUTURE VALUE WITH MONTHLY CONTRIBUTIONS =====
@@ -88,14 +187,35 @@ function futureValue(presentValue, monthlyContribution, annualRate, years) {
 // ===== YEARS TO REACH TARGET =====
 const MAX_PROJECTION_MONTHS = 1200; // 100 years — effectively infinity for FIRE projections
 
-function yearsToTarget(currentValue, monthlyContribution, annualRate, target) {
+function yearsToTarget(currentValue, monthlyContribution, annualRate, target, profile = null, milestones = []) {
   if (currentValue >= target) return 0;
 
   const monthlyRate = annualRate / 12;
   let balance = currentValue;
 
+  const hasDynamicSchedule = profile && (profile.contribGrowth > 0 || (Array.isArray(milestones) && milestones.length > 0));
+  const schedule = hasDynamicSchedule
+    ? getAnnualContributionSchedule(profile, milestones, Math.ceil(MAX_PROJECTION_MONTHS / 12) + 2)
+    : null;
+
   for (let month = 1; month <= MAX_PROJECTION_MONTHS; month++) {
-    balance = balance * (1 + monthlyRate) + monthlyContribution;
+    const yearIndex = Math.floor((month - 1) / 12);
+    let currentMonthly = monthlyContribution;
+
+    if (schedule && schedule[yearIndex]) {
+      const yearData = schedule[yearIndex];
+      currentMonthly = yearData.monthlyContribution;
+
+      // Add lump sum on first month of that year
+      if ((month - 1) % 12 === 0 && yearData.lumpSum > 0) {
+        balance += yearData.lumpSum;
+        if (balance >= target) {
+          return (month - 1) / 12;
+        }
+      }
+    }
+
+    balance = balance * (1 + monthlyRate) + currentMonthly;
     if (balance >= target) {
       return month / 12;
     }
@@ -122,7 +242,7 @@ function monthlyNeeded(currentValue, annualRate, target, years) {
 }
 
 // ===== FIRE NUMBER CALCULATION =====
-function handleFireCalculate() {
+function handleFireCalculate(options = { scroll: true }) {
   const profile = getProfile();
   const annualExpenses = safeParseFloat(
     document.getElementById("fire-annual-expenses").value, 0
@@ -144,34 +264,60 @@ function handleFireCalculate() {
       otherIncome = otherIncomeRaw / Math.pow(1 + inflation, years);
     }
   }
+
+  const shouldScroll = options && options.scroll !== false;
+
   // Validate
-  const valid = validateInputs([
-    { id: "fire-current-age",        label: "Current Age",          required: true, min: 18,  max: 100, integer: true },
-    { id: "fire-retire-age",         label: "Retirement Age",       required: true, min: 19,  max: 100, integer: true },
-    { id: "fire-life-expectancy",    label: "Life Expectancy",      required: true, min: 20,  max: 120, integer: true },
-    { id: "fire-annual-return",      label: "Annual Return",        required: true, min: 0,   max: 50  },
-    { id: "fire-inflation",          label: "Inflation Rate",       required: true, min: 0,   max: 20  },
-    { id: "fire-annual-expenses",    label: "Annual Expenses",      required: true, min: 1            },
-    { id: "fire-withdrawal-rate",    label: "Withdrawal Rate",      required: true, min: 0.1, max: 20  },
-  ], ".calc-form");
-  if (!valid) return;
+  if (shouldScroll) {
+    const valid = validateInputs([
+      { id: "fire-current-age",        label: "Current Age",          required: true, min: 18,  max: 100, integer: true },
+      { id: "fire-retire-age",         label: "Retirement Age",       required: true, min: 19,  max: 100, integer: true },
+      { id: "fire-life-expectancy",    label: "Life Expectancy",      required: true, min: 20,  max: 120, integer: true },
+      { id: "fire-annual-return",      label: "Annual Return",        required: true, min: 0,   max: 50  },
+      { id: "fire-inflation",          label: "Inflation Rate",       required: true, min: 0,   max: 20  },
+      { id: "fire-annual-expenses",    label: "Annual Expenses",      required: true, min: 1            },
+      { id: "fire-withdrawal-rate",    label: "Withdrawal Rate",      required: true, min: 0.1, max: 20  },
+    ], ".calc-form");
+    if (!valid) return;
+  } else {
+    // Silent check for live updates
+    if (!profile.currentAge || !profile.retireAge || profile.retireAge <= profile.currentAge) return;
+    if (!profile.lifeExpectancy || profile.lifeExpectancy <= profile.retireAge) return;
+    if (!annualExpenses || withdrawalRate <= 0) return;
+  }
 
   if (profile.retireAge <= profile.currentAge) {
-    showFieldError("fire-retire-age", "Retirement age must be greater than current age.");
+    if (shouldScroll) {
+      showFieldError("fire-retire-age", "Retirement age must be greater than current age.");
+    }
     return;
   }
   if (profile.lifeExpectancy <= profile.retireAge) {
-    showFieldError("fire-life-expectancy", "Life expectancy must be greater than retirement age.");
+    if (shouldScroll) {
+      showFieldError("fire-life-expectancy", "Life expectancy must be greater than retirement age.");
+    }
     return;
   }
 
   const yearsToRetire = profile.retireAge - profile.currentAge;
 
-  // Gross FIRE number always based on full expenses
-  const fireNumberToday = annualExpenses / withdrawalRate;
+  // Dynamic expense schedule considering life-stage milestones (e.g. kids moving out at 49)
+  const expenseSchedule = getAnnualExpenseSchedule(
+    annualExpenses,
+    expenseMilestones,
+    profile.currentAge,
+    profile.lifeExpectancy
+  );
+  const retireYearIndex = yearsToRetire;
+  const effectiveRetireExpenses = (expenseSchedule[retireYearIndex] && expenseSchedule[retireYearIndex].baseAnnual)
+    ? expenseSchedule[retireYearIndex].baseAnnual
+    : annualExpenses;
+
+  // Gross FIRE number based on effective retirement expenses
+  const fireNumberToday = effectiveRetireExpenses / withdrawalRate;
 
   // Portfolio must cover = expenses minus other income
-  const portfolioMustCover = Math.max(0, annualExpenses - otherIncome);
+  const portfolioMustCover = Math.max(0, effectiveRetireExpenses - otherIncome);
   const fireNumberAdjusted = portfolioMustCover / withdrawalRate;
 
   // FIRE number in future dollars (inflation adjusted) — gross, for display
@@ -190,12 +336,14 @@ function handleFireCalculate() {
   const coastInput = document.getElementById("coast-fire-number");
   coastInput.value = Math.round(fireNumberFuture);
 
-  // Years to FIRE at current rate — based on adjusted target
+  // Years to FIRE at current rate — based on adjusted target and dynamic career milestones
   const yearsAtCurrentRate = yearsToTarget(
     profile.portfolio,
     profile.monthlyContribution,
     profile.annualReturn,
     fireNumberAdjustedFuture,
+    profile,
+    careerMilestones,
   );
 
   const retireAgeAtCurrentRate = profile.currentAge + yearsAtCurrentRate;
@@ -262,7 +410,7 @@ function handleFireCalculate() {
   updateProgressBars(profile, fireNumberFuture);
 
   // Sensitivity table
-  displayFireSensitivity(annualExpenses, otherIncome, profile, yearsToRetire, profile.lifeExpectancy);
+  displayFireSensitivity(effectiveRetireExpenses, otherIncome, profile, yearsToRetire, profile.lifeExpectancy);
 
   // Show results
   document.getElementById("fire-number-results").classList.remove("hidden");
@@ -285,41 +433,69 @@ function handleFireCalculate() {
     hideChartLoading("fire-chart-canvas");
   });
 
-  // Lifecycle chart
-  const retirementPortfolio = futureValue(
-    profile.portfolio,
-    profile.monthlyContribution,
-    profile.annualReturn,
-    yearsToRetire,
+  // Amortization Schedule
+  const incomeStartAge = (incomeType === "fv")
+    ? safeParseFloat(document.getElementById("fire-income-start-age").value, profile.retireAge)
+    : profile.retireAge;
+
+  currentScheduleData = buildAmortizationSchedule(
+    profile,
+    annualExpenses,
+    otherIncome,
+    incomeStartAge,
+    withdrawalRate
   );
+  renderAmortizationSchedule();
+  document.getElementById("fire-amortization-section").classList.remove("hidden");
+
+  // Lifecycle chart (using actual peak accumulated portfolio with milestones)
+  const retirementPortfolio = (currentScheduleData && currentScheduleData.peakPortfolio > 0)
+    ? currentScheduleData.peakPortfolio
+    : futureValue(
+        profile.portfolio,
+        profile.monthlyContribution,
+        profile.annualReturn,
+        yearsToRetire,
+      );
   requestAnimationFrame(() => {
-    displayLifecycleChart(profile, retirementPortfolio, annualExpenses, otherIncome, fireNumberFuture);
+    displayLifecycleChart(profile, retirementPortfolio, effectiveRetireExpenses, otherIncome, fireNumberFuture);
     hideChartLoading("fire-lifecycle-canvas");
   });
 
-  document
-    .getElementById("fire-number-results")
-    .scrollIntoView({ behavior: "smooth" });
+  if (shouldScroll) {
+    document
+      .getElementById("fire-number-results")
+      .scrollIntoView({ behavior: "smooth" });
+  }
 }
 
 // ===== COAST FIRE CALCULATION =====
-function handleCoastCalculate() {
+function handleCoastCalculate(options = { scroll: true }) {
   const profile = getProfile();
   const fireTarget = safeParseFloat(
     document.getElementById("coast-fire-number").value
     );
 
+  const shouldScroll = options && options.scroll !== false;
+
   // Validate
-  const valid = validateInputs([
-    { id: "fire-current-age",     label: "Current Age",      required: true, min: 18, max: 100, integer: true },
-    { id: "fire-retire-age",      label: "Retirement Age",   required: true, min: 19, max: 100, integer: true },
-    { id: "fire-annual-return",   label: "Annual Return",    required: true, min: 0,  max: 50  },
-    { id: "coast-fire-number",    label: "FIRE Number",      required: true, min: 1            },
-  ], "#coast-fire-tab");
-  if (!valid) return;
+  if (shouldScroll) {
+    const valid = validateInputs([
+      { id: "fire-current-age",     label: "Current Age",      required: true, min: 18, max: 100, integer: true },
+      { id: "fire-retire-age",      label: "Retirement Age",   required: true, min: 19, max: 100, integer: true },
+      { id: "fire-annual-return",   label: "Annual Return",    required: true, min: 0,  max: 50  },
+      { id: "coast-fire-number",    label: "FIRE Number",      required: true, min: 1            },
+    ], "#coast-fire-tab");
+    if (!valid) return;
+  } else {
+    if (!profile.currentAge || !profile.retireAge || profile.retireAge <= profile.currentAge) return;
+    if (!fireTarget || fireTarget <= 0) return;
+  }
 
   if (profile.retireAge <= profile.currentAge) {
-    showFieldError("fire-retire-age", "Retirement age must be greater than current age.");
+    if (shouldScroll) {
+      showFieldError("fire-retire-age", "Retirement age must be greater than current age.");
+    }
     return;
   }
 
@@ -499,9 +675,11 @@ function handleCoastCalculate() {
     hideChartLoading("coast-chart-canvas");
   });
 
-  document
-    .getElementById("coast-fire-results")
-    .scrollIntoView({ behavior: "smooth" });
+  if (shouldScroll) {
+    document
+      .getElementById("coast-fire-results")
+      .scrollIntoView({ behavior: "smooth" });
+  }
 }
 
 // ===== PROGRESS BARS =====
@@ -580,12 +758,14 @@ function displayFireSensitivity(annualExpenses, otherIncome, profile, yearsToRet
     const tr = document.createElement("tr");
     const isActive = Math.abs(rate - currentRate) < 0.01;
 
-    const retirementPortfolio = futureValue(
-      profile.portfolio,
-      profile.monthlyContribution,
-      profile.annualReturn,
-      yearsToRetire,
-    );
+    const retirementPortfolio = (currentScheduleData && currentScheduleData.peakPortfolio > 0)
+      ? currentScheduleData.peakPortfolio
+      : futureValue(
+          profile.portfolio,
+          profile.monthlyContribution,
+          profile.annualReturn,
+          yearsToRetire,
+        );
     const rateWithdrawal = retirementPortfolio * r;
     const drawdown = buildDrawdownData(
       retirementPortfolio,
@@ -595,6 +775,8 @@ function displayFireSensitivity(annualExpenses, otherIncome, profile, yearsToRet
       profile.inflation,
       profile.retireAge,
       lifeExpectancy || 90,
+      expenseMilestones,
+      profile.currentAge,
     );
     const lastPoint = drawdown[drawdown.length - 1];
     const portfolioAtDeath = lastPoint ? lastPoint.portfolio : 0;
@@ -614,15 +796,27 @@ function displayFireSensitivity(annualExpenses, otherIncome, profile, yearsToRet
 
 
 // ===== DRAWDOWN SIMULATION =====
-function buildDrawdownData(startPortfolio, annualExpenses, otherIncome, annualReturn, inflation, retireAge, lifeExpectancy) {
+function buildDrawdownData(startPortfolio, annualExpenses, otherIncome, annualReturn, inflation, retireAge, lifeExpectancy, milestones = [], currentAge = null) {
   const data = [];
   let portfolio = startPortfolio;
   const retirementYears = lifeExpectancy - retireAge;
 
+  const baseAge = (currentAge !== null && currentAge !== undefined) ? currentAge : retireAge;
+  const expenseSchedule = (Array.isArray(milestones) && milestones.length > 0)
+    ? getAnnualExpenseSchedule(annualExpenses, milestones, baseAge, lifeExpectancy)
+    : null;
+  const expenseByAge = expenseSchedule ? new Map(expenseSchedule.map((s) => [s.age, s])) : null;
+
   for (let year = 0; year <= retirementYears; year++) {
     const age = retireAge + year;
     const inflationFactor = Math.pow(1 + inflation, year);
-    const expenses = annualExpenses * inflationFactor;
+
+    let expenseAtAge = annualExpenses;
+    if (expenseByAge && expenseByAge.has(age)) {
+      expenseAtAge = expenseByAge.get(age).totalAnnual;
+    }
+
+    const expenses = expenseAtAge * inflationFactor;
     const income = otherIncome * inflationFactor;
     const netWithdrawal = Math.max(0, expenses - income);
 
@@ -669,13 +863,33 @@ function displayLifecycleChart(profile, retirementPortfolio, annualExpenses, oth
   const retirementYears = profile.lifeExpectancy - profile.retireAge;
   const totalYears = yearsToRetire + retirementYears;
 
-  // Accumulation data
+  // Accumulation data — dynamic milestones & escalation schedule
   const accumData = [];
-  for (let year = 0; year <= yearsToRetire; year++) {
+  const contribSchedule = getAnnualContributionSchedule(profile, careerMilestones, yearsToRetire);
+  let accumBal = profile.portfolio;
+
+  accumData.push({
+    year: 0,
+    age: profile.currentAge,
+    portfolio: accumBal,
+  });
+
+  for (let year = 1; year <= yearsToRetire; year++) {
+    const yearContrib = contribSchedule[year - 1] || {
+      monthlyContribution: profile.monthlyContribution,
+      lumpSum: 0,
+    };
+    const balanceWithLump = accumBal + yearContrib.lumpSum;
+    accumBal = futureValue(
+      balanceWithLump,
+      yearContrib.monthlyContribution,
+      profile.annualReturn,
+      1
+    );
     accumData.push({
       year,
       age: profile.currentAge + year,
-      portfolio: futureValue(profile.portfolio, profile.monthlyContribution, profile.annualReturn, year),
+      portfolio: accumBal,
     });
   }
 
@@ -698,6 +912,8 @@ function displayLifecycleChart(profile, retirementPortfolio, annualExpenses, oth
       profile.inflation,
       profile.retireAge,
       profile.lifeExpectancy,
+      expenseMilestones,
+      profile.currentAge,
     );
   });
 
@@ -961,19 +1177,38 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
   const totalYears = Math.max(yearsToRetire + 10, 40);
   const dataPoints = [];
 
-  // Accumulation phase — with contributions up to retirement
-  for (let year = 0; year <= yearsToRetire; year++) {
-    const value = futureValue(
-      profile.portfolio,
-      profile.monthlyContribution,
+  // Accumulation phase — dynamic contributions and career milestones
+  const contribSchedule = getAnnualContributionSchedule(profile, careerMilestones, yearsToRetire);
+  let accumBalance = profile.portfolio;
+
+  dataPoints.push({
+    year: 0,
+    age: profile.currentAge,
+    value: accumBalance,
+    retired: false,
+    milestone: null,
+  });
+
+  for (let year = 1; year <= yearsToRetire; year++) {
+    const yearContrib = contribSchedule[year - 1] || {
+      monthlyContribution: profile.monthlyContribution,
+      lumpSum: 0,
+      milestoneBadge: null,
+    };
+    const balanceWithLump = accumBalance + yearContrib.lumpSum;
+    accumBalance = futureValue(
+      balanceWithLump,
+      yearContrib.monthlyContribution,
       profile.annualReturn,
-      year,
+      1
     );
+
     dataPoints.push({
       year,
       age: profile.currentAge + year,
-      value,
+      value: accumBalance,
       retired: false,
+      milestone: yearContrib.milestoneBadge,
     });
   }
 
@@ -1159,6 +1394,19 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
     offCtx.fillStyle = "rgba(45, 212, 191, 0.1)";
     offCtx.fill();
 
+    // Milestone marker pins on accumulation curve
+    accumPoints.filter((p) => p.milestone).forEach((p) => {
+      const mx = toX(p.year);
+      const my = toY(p.value);
+      offCtx.beginPath();
+      offCtx.arc(mx, my, 5, 0, Math.PI * 2);
+      offCtx.fillStyle = "#f59e0b";
+      offCtx.fill();
+      offCtx.strokeStyle = "#0f172a";
+      offCtx.lineWidth = 2;
+      offCtx.stroke();
+    });
+
     // Post-retirement drawdown line
     if (retirePoints.length > 0) {
       offCtx.strokeStyle = "#f59e0b";
@@ -1228,7 +1476,7 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
         // Dot on line
         ctx.beginPath();
         ctx.arc(hx, hy, 5, 0, Math.PI * 2);
-        ctx.fillStyle = "#2dd4bf";
+        ctx.fillStyle = point.milestone ? "#f59e0b" : "#2dd4bf";
         ctx.fill();
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 2;
@@ -1246,6 +1494,9 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
           `Portfolio: ${formatCurrency(point.value)}`,
           gapText,
         ];
+        if (point.milestone) {
+          tooltipLines.push(`🎯 ${point.milestone}`);
+        }
 
         ctx.font = window.CHART_FONTS.md;
         const tooltipWidth =
@@ -1303,16 +1554,23 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
         ctx.stroke();
 
         // Tooltip text
-        ctx.fillStyle = "#e2e8f0";
-        ctx.font = window.CHART_FONTS.boldMd;
-        ctx.textAlign = "left";
-        ctx.fillText(tooltipLines[0], tx + 10, ty + 18);
-
-        ctx.font = window.CHART_FONTS.md;
-        ctx.fillText(tooltipLines[1], tx + 10, ty + 38);
-
-        ctx.fillStyle = gap >= 0 ? "#2dd4bf" : "#f472b6";
-        ctx.fillText(tooltipLines[2], tx + 10, ty + 58);
+        tooltipLines.forEach((line, idx) => {
+          if (idx === 0) {
+            ctx.fillStyle = "#e2e8f0";
+            ctx.font = window.CHART_FONTS.boldMd;
+          } else if (idx === 1) {
+            ctx.fillStyle = "#e2e8f0";
+            ctx.font = window.CHART_FONTS.md;
+          } else if (idx === 2) {
+            ctx.fillStyle = gap >= 0 ? "#2dd4bf" : "#f472b6";
+            ctx.font = window.CHART_FONTS.md;
+          } else {
+            ctx.fillStyle = "#f59e0b";
+            ctx.font = window.CHART_FONTS.boldSm;
+          }
+          ctx.textAlign = "left";
+          ctx.fillText(line, tx + 10, ty + 18 + (idx * 20));
+        });
       }
     }
   }
@@ -1818,6 +2076,7 @@ const FIRE_FIELDS = [
   "fire-current-age",
   "fire-retire-age",
   "fire-life-expectancy",
+  "fire-contrib-growth",
   "fire-current-portfolio",
   "fire-monthly-contribution",
   "fire-annual-return",
@@ -1839,29 +2098,42 @@ function saveFireInputs() {
     }
   });
   localStorage.setItem(FIRE_STORAGE_KEY, JSON.stringify(data));
+  localStorage.setItem("fire_calculator_milestones", JSON.stringify(careerMilestones));
+  localStorage.setItem("fire_calculator_expense_milestones", JSON.stringify(expenseMilestones));
 }
 
 function loadFireInputs() {
   try {
     const data = JSON.parse(localStorage.getItem(FIRE_STORAGE_KEY));
-    if (!data) return;
-    Object.entries(data).forEach(([id, value]) => {
-      const el = document.getElementById(id);
-      if (el) el.value = value;
-    });
+    if (data) {
+      Object.entries(data).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+      });
 
-    // Show FV options if saved as future value
-    if (data["fire-income-type"] === "fv") {
-      document.getElementById("fire-fv-options").classList.remove("hidden");
-      updateIncomePVDisplay();
+      // Show FV options if saved as future value
+      if (data["fire-income-type"] === "fv") {
+        document.getElementById("fire-fv-options").classList.remove("hidden");
+        updateIncomePVDisplay();
+      }
+    }
+
+    const savedMilestones = JSON.parse(localStorage.getItem("fire_calculator_milestones"));
+    if (Array.isArray(savedMilestones)) {
+      careerMilestones = savedMilestones;
+    }
+
+    const savedExpenseMilestones = JSON.parse(localStorage.getItem("fire_calculator_expense_milestones"));
+    if (Array.isArray(savedExpenseMilestones)) {
+      expenseMilestones = savedExpenseMilestones;
     }
   } catch {
     // ignore
   }
+  renderMilestonesUI();
+  renderExpenseMilestonesUI();
 }
 
-// Load saved inputs on page load
-loadFireInputs();
 
 // Save on every input change
 FIRE_FIELDS.forEach((id) => {
@@ -1870,3 +2142,1098 @@ FIRE_FIELDS.forEach((id) => {
     el.addEventListener("input", saveFireInputs);
   }
 });
+
+// ===================================================================
+// RETIREMENT AMORTIZATION SCHEDULE
+// ===================================================================
+
+let currentScheduleData = null;
+let amortViewMode = "nominal"; // "nominal" | "real"
+let amortInterval = "all";     // "all" | "5yr"
+let amortPhaseFilter = "all";  // "all" | "accum" | "retire"
+
+function formatFullUSD(value) {
+  if (!Number.isFinite(value)) return "$0";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function buildAmortizationSchedule(profile, annualExpenses, otherIncome, incomeStartAge, withdrawalRate) {
+  const currentYear = new Date().getFullYear();
+  const yearsToRetire = profile.retireAge - profile.currentAge;
+  const retirementYears = profile.lifeExpectancy - profile.retireAge;
+  const totalYears = yearsToRetire + retirementYears;
+
+  const rows = [];
+  let balance = profile.portfolio;
+  let cumulativeContributed = profile.portfolio;
+  let cumulativeContributedReal = profile.portfolio;
+  let cumulativeGrowth = 0;
+  let cumulativeGrowthReal = 0;
+  let totalWithdrawn = 0;
+  let totalWithdrawnReal = 0;
+  let portfolioDepleted = false;
+  let depletionAge = null;
+  let peakPortfolio = 0;
+
+  // 1. Accumulation Phase (currentAge to retireAge - 1)
+  const contribSchedule = getAnnualContributionSchedule(profile, careerMilestones, yearsToRetire);
+  const expenseSchedule = getAnnualExpenseSchedule(annualExpenses, expenseMilestones, profile.currentAge, profile.lifeExpectancy);
+  const expenseByAge = new Map(expenseSchedule.map((s) => [s.age, s]));
+
+  for (let y = 0; y < yearsToRetire; y++) {
+    const age = profile.currentAge + y;
+    const year = currentYear + y;
+    const beginningBalance = balance;
+    const yearContrib = contribSchedule[y] || {
+      monthlyContribution: profile.monthlyContribution,
+      lumpSum: 0,
+      totalAnnualContribution: profile.monthlyContribution * 12,
+      milestoneBadge: null,
+      hasMilestone: false,
+    };
+    const expItem = expenseByAge.get(age);
+    const expenseMilestoneBadge = (expItem && expItem.hasMilestone) ? expItem.milestoneBadge : null;
+    const annualContrib = yearContrib.totalAnnualContribution;
+    const discountFactor = Math.pow(1 + profile.inflation, y);
+
+    const balanceWithLump = beginningBalance + yearContrib.lumpSum;
+    const endingBalance = futureValue(
+      balanceWithLump,
+      yearContrib.monthlyContribution,
+      profile.annualReturn,
+      1
+    );
+    const growth = endingBalance - beginningBalance - annualContrib;
+
+    cumulativeContributed += annualContrib;
+    cumulativeGrowth += growth;
+
+    cumulativeContributedReal += (annualContrib / discountFactor);
+    cumulativeGrowthReal += (growth / discountFactor);
+
+    balance = endingBalance;
+
+    rows.push({
+      index: y,
+      age,
+      year,
+      phase: "accumulation",
+      isMilestone: y === 0 || yearContrib.hasMilestone || Boolean(expenseMilestoneBadge),
+      milestoneBadge: yearContrib.milestoneBadge,
+      expenseMilestoneBadge,
+      isRetireTransition: false,
+      isDepleted: false,
+      beginningBalance,
+      contribution: annualContrib,
+      growth,
+      withdrawal: 0,
+      otherIncome: 0,
+      endingBalance,
+      cumulativeContributed,
+      cumulativeGrowth,
+      discountFactor,
+    });
+  }
+
+  peakPortfolio = balance;
+  const retireDiscountFactor = Math.pow(1 + profile.inflation, yearsToRetire);
+  const peakPortfolioReal = peakPortfolio / retireDiscountFactor;
+
+  // 2. Retirement Phase (retireAge to lifeExpectancy - 1)
+  const actualStartAge = (incomeStartAge && incomeStartAge > 0) ? incomeStartAge : profile.retireAge;
+
+  for (let y = 0; y < retirementYears; y++) {
+    const totalYearIndex = yearsToRetire + y;
+    const age = profile.retireAge + y;
+    const year = currentYear + totalYearIndex;
+    const beginningBalance = balance;
+    const discountFactor = Math.pow(1 + profile.inflation, totalYearIndex);
+    const isRetireTransition = (y === 0);
+    const expItem = expenseByAge.get(age);
+    const realExpensesAtAge = expItem ? expItem.totalAnnual : annualExpenses;
+    const expenseMilestoneBadge = (expItem && expItem.hasMilestone) ? expItem.milestoneBadge : null;
+
+    if (portfolioDepleted) {
+      const nominalOtherIncome = (age >= actualStartAge) ? (otherIncome * discountFactor) : 0;
+      rows.push({
+        index: totalYearIndex,
+        age,
+        year,
+        phase: "retirement",
+        isMilestone: isRetireTransition || Boolean(expenseMilestoneBadge),
+        expenseMilestoneBadge,
+        isRetireTransition,
+        isDepleted: true,
+        beginningBalance: 0,
+        contribution: 0,
+        growth: 0,
+        withdrawal: 0,
+        otherIncome: nominalOtherIncome,
+        endingBalance: 0,
+        cumulativeContributed,
+        cumulativeGrowth,
+        discountFactor,
+      });
+      continue;
+    }
+
+    const nominalExpenses = realExpensesAtAge * discountFactor;
+    const nominalOtherIncome = (age >= actualStartAge) ? (otherIncome * discountFactor) : 0;
+    const netWithdrawalNeeded = Math.max(0, nominalExpenses - nominalOtherIncome);
+
+    const growth = beginningBalance * profile.annualReturn;
+    const available = beginningBalance + growth;
+
+    let actualWithdrawal = netWithdrawalNeeded;
+    let endingBalance = available - actualWithdrawal;
+    let isDepletedThisYear = false;
+
+    if (endingBalance <= 0) {
+      endingBalance = 0;
+      actualWithdrawal = available;
+      portfolioDepleted = true;
+      depletionAge = age;
+      isDepletedThisYear = true;
+    }
+
+    cumulativeGrowth += growth;
+    cumulativeGrowthReal += (growth / discountFactor);
+    totalWithdrawn += actualWithdrawal;
+    totalWithdrawnReal += (actualWithdrawal / discountFactor);
+
+    balance = endingBalance;
+
+    rows.push({
+      index: totalYearIndex,
+      age,
+      year,
+      phase: "retirement",
+      isMilestone: isRetireTransition || isDepletedThisYear || Boolean(expenseMilestoneBadge),
+      expenseMilestoneBadge,
+      isRetireTransition,
+      isDepleted: isDepletedThisYear,
+      beginningBalance,
+      contribution: 0,
+      growth,
+      withdrawal: actualWithdrawal,
+      otherIncome: nominalOtherIncome,
+      endingBalance,
+      cumulativeContributed,
+      cumulativeGrowth,
+      discountFactor,
+    });
+  }
+
+  const finalDiscountFactor = Math.pow(1 + profile.inflation, totalYears);
+
+  return {
+    rows,
+    totalContributed: cumulativeContributed,
+    totalContributedReal: cumulativeContributedReal,
+    totalGrowth: cumulativeGrowth,
+    totalGrowthReal: cumulativeGrowthReal,
+    peakPortfolio,
+    peakPortfolioReal,
+    totalWithdrawn,
+    totalWithdrawnReal,
+    finalBalance: balance,
+    finalBalanceReal: balance / finalDiscountFactor,
+    depletionAge,
+    lifeExpectancy: profile.lifeExpectancy,
+    retireAge: profile.retireAge,
+  };
+}
+
+function renderAmortizationSchedule() {
+  if (!currentScheduleData) return;
+
+  const isReal = (amortViewMode === "real");
+
+  // 1. Update KPI Summary Cards
+  const elContributed = document.getElementById("amort-total-contributed");
+  const elGrowth = document.getElementById("amort-total-growth");
+  const elPeak = document.getElementById("amort-peak-portfolio");
+  const elWithdrawn = document.getElementById("amort-total-withdrawn");
+  const elFinal = document.getElementById("amort-final-balance");
+  const elFinalLabel = document.getElementById("amort-final-label");
+
+  if (elContributed) {
+    const val = isReal ? currentScheduleData.totalContributedReal : currentScheduleData.totalContributed;
+    elContributed.textContent = formatCurrency(val);
+    elContributed.title = formatFullUSD(val);
+  }
+
+  if (elGrowth) {
+    const val = isReal ? currentScheduleData.totalGrowthReal : currentScheduleData.totalGrowth;
+    elGrowth.textContent = formatCurrency(val);
+    elGrowth.title = formatFullUSD(val);
+  }
+
+  if (elPeak) {
+    const val = isReal ? currentScheduleData.peakPortfolioReal : currentScheduleData.peakPortfolio;
+    elPeak.textContent = formatCurrency(val);
+    elPeak.title = formatFullUSD(val);
+  }
+
+  if (elWithdrawn) {
+    const val = isReal ? currentScheduleData.totalWithdrawnReal : currentScheduleData.totalWithdrawn;
+    elWithdrawn.textContent = formatCurrency(val);
+    elWithdrawn.title = formatFullUSD(val);
+  }
+
+  if (elFinal && elFinalLabel) {
+    if (currentScheduleData.depletionAge !== null) {
+      elFinalLabel.textContent = "Portfolio Depleted";
+      elFinal.textContent = `💀 Age ${currentScheduleData.depletionAge}`;
+      elFinal.className = "amort-card-value negative";
+      elFinal.title = `Portfolio ran out of funds at age ${currentScheduleData.depletionAge}`;
+    } else {
+      elFinalLabel.textContent = `Balance at Age ${currentScheduleData.lifeExpectancy}`;
+      const finalVal = isReal ? currentScheduleData.finalBalanceReal : currentScheduleData.finalBalance;
+      elFinal.textContent = formatCurrency(finalVal);
+      elFinal.className = "amort-card-value positive";
+      elFinal.title = formatFullUSD(finalVal);
+    }
+  }
+
+  // 2. Filter Rows
+  const tbody = document.getElementById("fire-amortization-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const allRows = currentScheduleData.rows;
+  const filteredRows = allRows.filter((row, idx) => {
+    // Phase Filter
+    if (amortPhaseFilter === "accum" && row.phase !== "accumulation") return false;
+    if (amortPhaseFilter === "retire" && row.phase !== "retirement") return false;
+
+    // Interval Filter
+    if (amortInterval === "5yr") {
+      const isFiveYear = (row.age % 5 === 0);
+      const isRetire = row.isRetireTransition;
+      const isDepleted = row.isDepleted;
+      const isFirst = (idx === 0);
+      const isLast = (idx === allRows.length - 1);
+      if (!isFiveYear && !isRetire && !isDepleted && !isFirst && !isLast) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // 3. Render Table Rows
+  const fragment = document.createDocumentFragment();
+
+  filteredRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    if (row.isRetireTransition || row.milestoneBadge || row.expenseMilestoneBadge) tr.className = "milestone-row";
+    if (row.isDepleted) tr.className = "depleted-row";
+
+    const factor = isReal ? row.discountFactor : 1;
+    const beg = row.beginningBalance / factor;
+    const contrib = row.contribution / factor;
+    const growth = row.growth / factor;
+    const draw = row.withdrawal / factor;
+    const inc = row.otherIncome / factor;
+    const end = row.endingBalance / factor;
+    const cumContrib = row.cumulativeContributed / factor;
+    const cumGrowth = row.cumulativeGrowth / factor;
+
+    let badgeHtml = "";
+    if (row.isDepleted) {
+      badgeHtml = `<span class="phase-badge phase-depleted">💀 Depleted</span>`;
+    } else if (row.isRetireTransition) {
+      badgeHtml = `<span class="phase-badge phase-transition">🎯 Retire Age ${row.age}</span>`;
+    } else if (row.phase === "accumulation") {
+      badgeHtml = `<span class="phase-badge phase-accum">Accumulation</span>`;
+    } else {
+      badgeHtml = `<span class="phase-badge phase-retire">Retirement</span>`;
+    }
+
+    if (row.milestoneBadge) {
+      badgeHtml += `<span class="badge-milestone" title="${row.milestoneBadge}">⭐ ${row.milestoneBadge}</span>`;
+    }
+    if (row.expenseMilestoneBadge) {
+      badgeHtml += `<span class="badge-expense-milestone" title="${row.expenseMilestoneBadge}">📉 ${row.expenseMilestoneBadge}</span>`;
+    }
+
+    tr.innerHTML = `
+      <td style="text-align: left; font-weight: 600;">${row.age}</td>
+      <td style="text-align: left; color: var(--text-secondary);">${row.year}</td>
+      <td style="text-align: center;">${badgeHtml}</td>
+      <td title="${formatFullUSD(beg)}">${formatCurrency(beg)}</td>
+      <td title="${formatFullUSD(contrib)}">${contrib > 0 ? formatCurrency(contrib) : "—"}</td>
+      <td title="${formatFullUSD(growth)}" style="color: ${growth >= 0 ? "var(--accent)" : "#f472b6"}">${formatCurrency(growth)}</td>
+      <td title="${formatFullUSD(draw)}">${draw > 0 ? formatCurrency(draw) : "—"}</td>
+      <td title="${formatFullUSD(inc)}">${inc > 0 ? formatCurrency(inc) : "—"}</td>
+      <td title="${formatFullUSD(end)}" style="font-weight: 600; color: ${end > 0 ? "var(--text-primary)" : "#f472b6"}">${formatCurrency(end)}</td>
+      <td title="${formatFullUSD(cumContrib)}">${formatCurrency(cumContrib)}</td>
+      <td title="${formatFullUSD(cumGrowth)}" style="color: var(--accent);">${formatCurrency(cumGrowth)}</td>
+    `;
+    fragment.appendChild(tr);
+  });
+
+  tbody.appendChild(fragment);
+
+  // Apply auto-scroll if rows exceed threshold
+  autoScrollTables(25);
+}
+
+function exportScheduleToCSV(scheduleData, isRealMode) {
+  if (!scheduleData || !scheduleData.rows || scheduleData.rows.length === 0) return;
+
+  const modeLabel = isRealMode ? "Real (Today's $)" : "Nominal ($)";
+  const headers = [
+    "Age",
+    "Calendar Year",
+    "Phase",
+    "Milestone Note",
+    `Beginning Balance (${modeLabel})`,
+    `Annual Contribution (${modeLabel})`,
+    `Investment Growth (${modeLabel})`,
+    `Annual Withdrawal (${modeLabel})`,
+    `Other Income (${modeLabel})`,
+    `Ending Balance (${modeLabel})`,
+    `Cumulative Contributed (${modeLabel})`,
+    `Cumulative Growth (${modeLabel})`,
+  ];
+
+  const csvRows = [headers.join(",")];
+
+  scheduleData.rows.forEach((row) => {
+    const factor = isRealMode ? row.discountFactor : 1;
+    const combinedNotes = [row.milestoneBadge, row.expenseMilestoneBadge].filter(Boolean).join(" | ");
+    const values = [
+      row.age,
+      row.year,
+      `"${row.phase.charAt(0).toUpperCase() + row.phase.slice(1)}"`,
+      `"${combinedNotes ? combinedNotes.replace(/"/g, '""') : ""}"`,
+      (row.beginningBalance / factor).toFixed(2),
+      (row.contribution / factor).toFixed(2),
+      (row.growth / factor).toFixed(2),
+      (row.withdrawal / factor).toFixed(2),
+      (row.otherIncome / factor).toFixed(2),
+      (row.endingBalance / factor).toFixed(2),
+      (row.cumulativeContributed / factor).toFixed(2),
+      (row.cumulativeGrowth / factor).toFixed(2),
+    ];
+    csvRows.push(values.join(","));
+  });
+
+  const blob = new Blob([csvRows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `retirement_amortization_schedule_${isRealMode ? "real" : "nominal"}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function initAmortizationControls() {
+  const btnNominal = document.getElementById("amort-mode-nominal");
+  const btnReal = document.getElementById("amort-mode-real");
+  const btnAll = document.getElementById("amort-interval-all");
+  const btn5yr = document.getElementById("amort-interval-5yr");
+  const filterAll = document.getElementById("amort-filter-all");
+  const filterAccum = document.getElementById("amort-filter-accum");
+  const filterRetire = document.getElementById("amort-filter-retire");
+  const btnExport = document.getElementById("amort-export-csv");
+
+  if (!btnNominal || !btnReal) return;
+
+  btnNominal.addEventListener("click", () => {
+    if (amortViewMode === "nominal") return;
+    amortViewMode = "nominal";
+    btnNominal.classList.add("active");
+    btnReal.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  btnReal.addEventListener("click", () => {
+    if (amortViewMode === "real") return;
+    amortViewMode = "real";
+    btnReal.classList.add("active");
+    btnNominal.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  btnAll.addEventListener("click", () => {
+    if (amortInterval === "all") return;
+    amortInterval = "all";
+    btnAll.classList.add("active");
+    btn5yr.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  btn5yr.addEventListener("click", () => {
+    if (amortInterval === "5yr") return;
+    amortInterval = "5yr";
+    btn5yr.classList.add("active");
+    btnAll.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  filterAll.addEventListener("click", () => {
+    if (amortPhaseFilter === "all") return;
+    amortPhaseFilter = "all";
+    filterAll.classList.add("active");
+    filterAccum.classList.remove("active");
+    filterRetire.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  filterAccum.addEventListener("click", () => {
+    if (amortPhaseFilter === "accum") return;
+    amortPhaseFilter = "accum";
+    filterAccum.classList.add("active");
+    filterAll.classList.remove("active");
+    filterRetire.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  filterRetire.addEventListener("click", () => {
+    if (amortPhaseFilter === "retire") return;
+    amortPhaseFilter = "retire";
+    filterRetire.classList.add("active");
+    filterAll.classList.remove("active");
+    filterAccum.classList.remove("active");
+    renderAmortizationSchedule();
+  });
+
+  btnExport.addEventListener("click", () => {
+    if (!currentScheduleData) return;
+    exportScheduleToCSV(currentScheduleData, amortViewMode === "real");
+  });
+}
+
+// ===================================================================
+// SYNCHRONIZED SLIDERS & REAL-TIME RECALCULATION
+// ===================================================================
+
+const PAIRED_SLIDERS = [
+  { inputId: "fire-current-age", sliderId: "fire-current-age-slider", min: 18, max: 75, step: 1 },
+  { inputId: "fire-retire-age", sliderId: "fire-retire-age-slider", min: 25, max: 85, step: 1 },
+  { inputId: "fire-life-expectancy", sliderId: "fire-life-expectancy-slider", min: 60, max: 105, step: 1 },
+  { inputId: "fire-contrib-growth", sliderId: "fire-contrib-growth-slider", min: 0, max: 10, step: 0.25 },
+  { inputId: "fire-current-portfolio", sliderId: "fire-current-portfolio-slider", min: 0, max: 1000000, step: 5000 },
+  { inputId: "fire-monthly-contribution", sliderId: "fire-monthly-contribution-slider", min: 0, max: 10000, step: 100 },
+  { inputId: "fire-annual-return", sliderId: "fire-annual-return-slider", min: 1, max: 15, step: 0.25 },
+  { inputId: "fire-inflation", sliderId: "fire-inflation-slider", min: 0, max: 10, step: 0.25 },
+  { inputId: "fire-annual-expenses", sliderId: "fire-annual-expenses-slider", min: 10000, max: 200000, step: 1000 },
+  { inputId: "fire-withdrawal-rate", sliderId: "fire-withdrawal-rate-slider", min: 1, max: 8, step: 0.1 },
+  { inputId: "fire-other-income", sliderId: "fire-other-income-slider", min: 0, max: 80000, step: 1000 },
+];
+
+const triggerLiveCalculation = rafThrottle(() => {
+  if (!coastFireTab.classList.contains("hidden")) {
+    handleCoastCalculate({ scroll: false });
+  } else {
+    handleFireCalculate({ scroll: false });
+  }
+});
+
+function syncSliderWithInput(input, slider) {
+  if (!input || !slider) return;
+  const val = parseFloat(input.value);
+  if (Number.isFinite(val)) {
+    if (val > parseFloat(slider.max)) {
+      slider.max = Math.ceil(val * 1.5);
+    }
+    slider.value = val;
+  }
+}
+
+function initPairedSliders() {
+  PAIRED_SLIDERS.forEach(({ inputId, sliderId, min, max, step }) => {
+    const input = document.getElementById(inputId);
+    const slider = document.getElementById(sliderId);
+    if (!input || !slider) return;
+
+    slider.min = min;
+    slider.max = max;
+    slider.step = step;
+
+    syncSliderWithInput(input, slider);
+
+    slider.addEventListener("input", () => {
+      input.value = slider.value;
+
+      // Smart age constraints while sliding
+      if (inputId === "fire-current-age") {
+        const currentAge = parseInt(slider.value, 10);
+        const retireInput = document.getElementById("fire-retire-age");
+        const retireSlider = document.getElementById("fire-retire-age-slider");
+        if (retireInput && parseInt(retireInput.value, 10) <= currentAge) {
+          retireInput.value = currentAge + 1;
+          if (retireSlider) retireSlider.value = currentAge + 1;
+        }
+      } else if (inputId === "fire-retire-age") {
+        const retireAge = parseInt(slider.value, 10);
+        const currentInput = document.getElementById("fire-current-age");
+        const currentSlider = document.getElementById("fire-current-age-slider");
+        if (currentInput && parseInt(currentInput.value, 10) >= retireAge) {
+          currentInput.value = Math.max(18, retireAge - 1);
+          if (currentSlider) currentSlider.value = currentInput.value;
+        }
+        const lifeInput = document.getElementById("fire-life-expectancy");
+        const lifeSlider = document.getElementById("fire-life-expectancy-slider");
+        if (lifeInput && parseInt(lifeInput.value, 10) <= retireAge) {
+          lifeInput.value = retireAge + 5;
+          if (lifeSlider) lifeSlider.value = lifeInput.value;
+        }
+      }
+
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    input.addEventListener("input", () => {
+      syncSliderWithInput(input, slider);
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+  });
+
+  // Also sync sliders when inputs are initially loaded
+  PAIRED_SLIDERS.forEach(({ inputId, sliderId }) => {
+    const input = document.getElementById(inputId);
+    const slider = document.getElementById(sliderId);
+    syncSliderWithInput(input, slider);
+  });
+}
+
+// ===================================================================
+// CAREER MILESTONES & CONTRIBUTION INJECTIONS
+// ===================================================================
+
+let careerMilestones = [];
+
+function generateMilestoneId() {
+  return "m_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+}
+
+function renderMilestonesUI() {
+  const container = document.getElementById("fire-milestones-list");
+  if (!container) return;
+
+  if (careerMilestones.length === 0) {
+    container.innerHTML = `
+      <div class="milestones-empty">
+        No career milestones added yet. Click <strong>+ Add Career Milestone</strong> above to model promotions, salary jumps, or bonuses.
+      </div>
+    `;
+    return;
+  }
+
+  // Sort by age ascending
+  careerMilestones.sort((a, b) => a.age - b.age);
+
+  container.innerHTML = "";
+  careerMilestones.forEach((m) => {
+    const item = document.createElement("div");
+    item.className = "milestone-item";
+    item.dataset.id = m.id;
+
+    item.innerHTML = `
+      <div class="milestone-field">
+        <label class="milestone-field-label">Age</label>
+        <input type="number" class="milestone-age" min="18" max="100" step="1" value="${m.age}" aria-label="Milestone Age" />
+      </div>
+      <div class="milestone-field">
+        <label class="milestone-field-label">Type</label>
+        <select class="milestone-type" aria-label="Milestone Type">
+          <option value="new_monthly" ${m.type === "new_monthly" ? "selected" : ""}>Set Monthly ($/mo)</option>
+          <option value="delta_monthly" ${m.type === "delta_monthly" ? "selected" : ""}>Add Monthly (+$/mo)</option>
+          <option value="lump_sum" ${m.type === "lump_sum" ? "selected" : ""}>One-Time Lump Sum ($)</option>
+        </select>
+      </div>
+      <div class="milestone-field">
+        <label class="milestone-field-label">Amount ($)</label>
+        <input type="number" class="milestone-amount" min="0" step="100" value="${m.amount}" aria-label="Milestone Amount" />
+      </div>
+      <div class="milestone-field flex-grow">
+        <label class="milestone-field-label">Note / Reason</label>
+        <input type="text" class="milestone-note" placeholder="e.g. Promotion, Bonus" value="${m.note || ""}" aria-label="Milestone Note" />
+      </div>
+      <button type="button" class="btn-delete-milestone" title="Delete Milestone" aria-label="Delete Milestone">✕</button>
+    `;
+
+    const ageInput = item.querySelector(".milestone-age");
+    const typeSelect = item.querySelector(".milestone-type");
+    const amountInput = item.querySelector(".milestone-amount");
+    const noteInput = item.querySelector(".milestone-note");
+    const deleteBtn = item.querySelector(".btn-delete-milestone");
+
+    ageInput.addEventListener("input", () => {
+      m.age = parseInt(ageInput.value, 10) || 18;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    typeSelect.addEventListener("change", () => {
+      m.type = typeSelect.value;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    amountInput.addEventListener("input", () => {
+      m.amount = parseFloat(amountInput.value) || 0;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    noteInput.addEventListener("input", () => {
+      m.note = noteInput.value;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      removeMilestone(m.id);
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function addMilestone(defaultData = null) {
+  const currentAge = safeParseInt(document.getElementById("fire-current-age")?.value, 32);
+  const retireAge = safeParseInt(document.getElementById("fire-retire-age")?.value, 55);
+  const defaultAge = Math.min(Math.max(18, retireAge - 1), currentAge + 3);
+
+  const newMilestone = defaultData || {
+    id: generateMilestoneId(),
+    age: Math.max(currentAge + 1, defaultAge),
+    type: "new_monthly",
+    amount: 3500,
+    note: "Promotion",
+  };
+
+  careerMilestones.push(newMilestone);
+  renderMilestonesUI();
+  saveFireInputs();
+  triggerLiveCalculation();
+}
+
+function removeMilestone(id) {
+  careerMilestones = careerMilestones.filter((m) => m.id !== id);
+  renderMilestonesUI();
+  saveFireInputs();
+  triggerLiveCalculation();
+}
+
+function initMilestonesControls() {
+  const addBtn = document.getElementById("fire-add-milestone-btn");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      addMilestone();
+    });
+  }
+}
+
+// ===================================================================
+// RETIREMENT EXPENSE ESTIMATOR MODAL
+// ===================================================================
+
+const EXPENSE_PRESETS = {
+  lean: {
+    "exp-housing-mortgage": 1100,
+    "exp-housing-tax": 250,
+    "exp-housing-utilities": 250,
+    "exp-living-groceries": 450,
+    "exp-living-dining": 150,
+    "exp-health-premium": 400,
+    "exp-health-oop": 100,
+    "exp-transport-car": 150,
+    "exp-transport-maint": 150,
+    "exp-kids-monthly": 0,
+    "exp-kids-college": 0,
+    "exp-fun-travel": 100,
+    "exp-fun-hobbies": 50,
+    "exp-misc-buffer": 50,
+  },
+  moderate: {
+    "exp-housing-mortgage": 1600,
+    "exp-housing-tax": 400,
+    "exp-housing-utilities": 350,
+    "exp-living-groceries": 650,
+    "exp-living-dining": 300,
+    "exp-health-premium": 500,
+    "exp-health-oop": 150,
+    "exp-transport-car": 250,
+    "exp-transport-maint": 200,
+    "exp-kids-monthly": 0,
+    "exp-kids-college": 0,
+    "exp-fun-travel": 350,
+    "exp-fun-hobbies": 150,
+    "exp-misc-buffer": 100,
+  },
+  comfortable: {
+    "exp-housing-mortgage": 2400,
+    "exp-housing-tax": 550,
+    "exp-housing-utilities": 400,
+    "exp-living-groceries": 900,
+    "exp-living-dining": 500,
+    "exp-health-premium": 700,
+    "exp-health-oop": 200,
+    "exp-transport-car": 400,
+    "exp-transport-maint": 250,
+    "exp-kids-monthly": 0,
+    "exp-kids-college": 0,
+    "exp-fun-travel": 650,
+    "exp-fun-hobbies": 250,
+    "exp-misc-buffer": 300,
+  },
+  deluxe: {
+    "exp-housing-mortgage": 3000,
+    "exp-housing-tax": 750,
+    "exp-housing-utilities": 500,
+    "exp-living-groceries": 1100,
+    "exp-living-dining": 750,
+    "exp-health-premium": 900,
+    "exp-health-oop": 350,
+    "exp-transport-car": 550,
+    "exp-transport-maint": 350,
+    "exp-kids-monthly": 0,
+    "exp-kids-college": 0,
+    "exp-fun-travel": 1000,
+    "exp-fun-hobbies": 450,
+    "exp-misc-buffer": 300,
+  },
+};
+
+const EXPENSE_INPUT_IDS = [
+  "exp-housing-mortgage",
+  "exp-housing-tax",
+  "exp-housing-utilities",
+  "exp-living-groceries",
+  "exp-living-dining",
+  "exp-health-premium",
+  "exp-health-oop",
+  "exp-transport-car",
+  "exp-transport-maint",
+  "exp-kids-monthly",
+  "exp-kids-college",
+  "exp-fun-travel",
+  "exp-fun-hobbies",
+  "exp-misc-buffer",
+];
+
+function saveExpenseBreakdown() {
+  const data = {};
+  EXPENSE_INPUT_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) data[id] = el.value;
+  });
+  localStorage.setItem("fire_calculator_expense_breakdown", JSON.stringify(data));
+}
+
+function loadExpenseBreakdown() {
+  try {
+    const data = JSON.parse(localStorage.getItem("fire_calculator_expense_breakdown"));
+    if (data) {
+      Object.entries(data).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function updateExpenseModalSummary() {
+  let monthlyTotal = 0;
+  EXPENSE_INPUT_IDS.forEach((id) => {
+    const val = safeParseFloat(document.getElementById(id)?.value, 0);
+    monthlyTotal += val;
+  });
+
+  const annualTotal = monthlyTotal * 12;
+  const monthlyDisplay = document.getElementById("exp-summary-monthly");
+  const annualDisplay = document.getElementById("exp-summary-annual");
+  const applyBtn = document.getElementById("fire-expense-modal-apply");
+  const kidsTip = document.getElementById("exp-kids-tip");
+
+  if (monthlyDisplay) {
+    monthlyDisplay.textContent = `${formatCurrency(monthlyTotal)}/mo`;
+  }
+  if (annualDisplay) {
+    annualDisplay.textContent = `${formatCurrency(annualTotal)}/yr`;
+  }
+  if (applyBtn) {
+    applyBtn.textContent = `Apply to Calculator (${formatCurrency(annualTotal)}/yr)`;
+  }
+
+  const kidsMonthly =
+    safeParseFloat(document.getElementById("exp-kids-monthly")?.value, 0) +
+    safeParseFloat(document.getElementById("exp-kids-college")?.value, 0);
+
+  if (kidsTip) {
+    if (kidsMonthly > 0) {
+      kidsTip.classList.remove("hidden");
+      kidsTip.innerHTML = `💡 You have <strong>${formatCurrency(kidsMonthly)}/mo</strong> in child/dependent expenses. When applied, we'll auto-configure a milestone to drop these costs when kids turn 18 (age 49)!`;
+    } else {
+      kidsTip.classList.add("hidden");
+    }
+  }
+
+  return { monthlyTotal, annualTotal, kidsMonthly };
+}
+
+function openExpenseModal() {
+  const modal = document.getElementById("fire-expense-modal");
+  if (!modal) return;
+  loadExpenseBreakdown();
+  modal.classList.remove("hidden");
+  updateExpenseModalSummary();
+}
+
+function closeExpenseModal() {
+  const modal = document.getElementById("fire-expense-modal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
+function applyExpenseModal() {
+  const { annualTotal, kidsMonthly } = updateExpenseModalSummary();
+  const expenseInput = document.getElementById("fire-annual-expenses");
+  const expenseSlider = document.getElementById("fire-annual-expenses-slider");
+
+  if (expenseInput) {
+    expenseInput.value = Math.round(annualTotal);
+    if (expenseSlider) {
+      syncSliderWithInput(expenseInput, expenseSlider);
+    }
+  }
+
+  // If child costs were entered, add an expense milestone at age 49 if not already present
+  if (kidsMonthly > 0) {
+    const kidsAnnual = Math.round(kidsMonthly * 12);
+    const hasKidMilestone = expenseMilestones.some((m) => m.age === 49);
+    if (!hasKidMilestone) {
+      addExpenseMilestone({
+        id: generateExpenseMilestoneId(),
+        age: 49,
+        type: "delta_annual",
+        amount: -kidsAnnual,
+        note: "Kids turn 18 & move out",
+      });
+    }
+  }
+
+  saveExpenseBreakdown();
+  closeExpenseModal();
+  saveFireInputs();
+  triggerLiveCalculation();
+}
+
+function initExpenseModal() {
+  const openBtn = document.getElementById("fire-open-expenses-calculator-btn");
+  const closeBtn = document.getElementById("fire-expense-modal-close");
+  const cancelBtn = document.getElementById("fire-expense-modal-cancel");
+  const applyBtn = document.getElementById("fire-expense-modal-apply");
+  const modal = document.getElementById("fire-expense-modal");
+
+  if (openBtn) openBtn.addEventListener("click", openExpenseModal);
+  if (closeBtn) closeBtn.addEventListener("click", closeExpenseModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeExpenseModal);
+  if (applyBtn) applyBtn.addEventListener("click", applyExpenseModal);
+
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeExpenseModal();
+    });
+  }
+
+  // Presets
+  const presetBtns = document.querySelectorAll(".btn-preset");
+  presetBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const presetName = btn.dataset.preset;
+      const presetData = EXPENSE_PRESETS[presetName];
+      if (presetData) {
+        presetBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        Object.entries(presetData).forEach(([id, val]) => {
+          const el = document.getElementById(id);
+          if (el) el.value = val;
+        });
+        saveExpenseBreakdown();
+        updateExpenseModalSummary();
+      }
+    });
+  });
+
+  // Category Inputs
+  EXPENSE_INPUT_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("input", () => {
+        presetBtns.forEach((b) => b.classList.remove("active"));
+        saveExpenseBreakdown();
+        updateExpenseModalSummary();
+      });
+    }
+  });
+
+  // Escape key
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && !modal.classList.contains("hidden")) {
+      closeExpenseModal();
+    }
+  });
+}
+
+// ===================================================================
+// LIFE-STAGE EXPENSE MILESTONES
+// ===================================================================
+
+let expenseMilestones = [];
+
+function generateExpenseMilestoneId() {
+  return "em_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+}
+
+function renderExpenseMilestonesUI() {
+  const container = document.getElementById("fire-expense-milestones-list");
+  if (!container) return;
+
+  if (expenseMilestones.length === 0) {
+    container.innerHTML = `
+      <div class="milestones-empty">
+        No expense milestones added yet. Click <strong>+ Add Expense Milestone</strong> above to model future spending changes (e.g. kids moving out at 49, mortgage paid off, Medicare at 65).
+      </div>
+    `;
+    return;
+  }
+
+  // Sort by age ascending
+  expenseMilestones.sort((a, b) => a.age - b.age);
+
+  container.innerHTML = "";
+  expenseMilestones.forEach((m) => {
+    const item = document.createElement("div");
+    item.className = "milestone-item";
+    item.dataset.id = m.id;
+
+    item.innerHTML = `
+      <div class="milestone-field">
+        <label class="milestone-field-label">Age</label>
+        <input type="number" class="milestone-age" min="18" max="105" step="1" value="${m.age}" aria-label="Expense Milestone Age" />
+      </div>
+      <div class="milestone-field">
+        <label class="milestone-field-label">Type</label>
+        <select class="milestone-type" aria-label="Expense Milestone Type">
+          <option value="delta_annual" ${m.type === "delta_annual" ? "selected" : ""}>Adjust Annual (-/+$)</option>
+          <option value="set_annual" ${m.type === "set_annual" ? "selected" : ""}>Set New Annual ($/yr)</option>
+          <option value="one_time" ${m.type === "one_time" ? "selected" : ""}>One-Time Expense ($)</option>
+        </select>
+      </div>
+      <div class="milestone-field">
+        <label class="milestone-field-label">Amount ($/yr)</label>
+        <input type="number" class="milestone-amount" step="500" value="${m.amount}" aria-label="Expense Milestone Amount" placeholder="e.g. -15000" />
+      </div>
+      <div class="milestone-field flex-grow">
+        <label class="milestone-field-label">Note / Reason</label>
+        <input type="text" class="milestone-note" placeholder="e.g. Kids move out, Mortgage paid off" value="${m.note || ""}" aria-label="Expense Milestone Note" />
+      </div>
+      <button type="button" class="btn-delete-milestone" title="Delete Milestone" aria-label="Delete Expense Milestone">✕</button>
+    `;
+
+    const ageInput = item.querySelector(".milestone-age");
+    const typeSelect = item.querySelector(".milestone-type");
+    const amountInput = item.querySelector(".milestone-amount");
+    const noteInput = item.querySelector(".milestone-note");
+    const deleteBtn = item.querySelector(".btn-delete-milestone");
+
+    ageInput.addEventListener("input", () => {
+      m.age = parseInt(ageInput.value, 10) || 18;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    typeSelect.addEventListener("change", () => {
+      m.type = typeSelect.value;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    amountInput.addEventListener("input", () => {
+      m.amount = parseFloat(amountInput.value) || 0;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    noteInput.addEventListener("input", () => {
+      m.note = noteInput.value;
+      saveFireInputs();
+      triggerLiveCalculation();
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      removeExpenseMilestone(m.id);
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function addExpenseMilestone(defaultData = null) {
+  const currentAge = safeParseInt(document.getElementById("fire-current-age")?.value, 32);
+  const retireAge = safeParseInt(document.getElementById("fire-retire-age")?.value, 55);
+
+  const newMilestone = defaultData || {
+    id: generateExpenseMilestoneId(),
+    age: 49,
+    type: "delta_annual",
+    amount: -15000,
+    note: "Kids move out (age 18)",
+  };
+
+  expenseMilestones.push(newMilestone);
+  renderExpenseMilestonesUI();
+  saveFireInputs();
+  triggerLiveCalculation();
+}
+
+function removeExpenseMilestone(id) {
+  expenseMilestones = expenseMilestones.filter((m) => m.id !== id);
+  renderExpenseMilestonesUI();
+  saveFireInputs();
+  triggerLiveCalculation();
+}
+
+function initExpenseMilestonesControls() {
+  const addBtn = document.getElementById("fire-add-expense-milestone-btn");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      addExpenseMilestone();
+    });
+  }
+}
+
+// ===== INITIALIZATION ON PAGE LOAD =====
+loadFireInputs();
+initAmortizationControls();
+initPairedSliders();
+initMilestonesControls();
+initExpenseMilestonesControls();
+initExpenseModal();
+
+// Auto-calculate on initial load if inputs exist
+if (
+  document.getElementById("fire-current-age")?.value &&
+  document.getElementById("fire-annual-expenses")?.value
+) {
+  handleFireCalculate({ scroll: false });
+}
