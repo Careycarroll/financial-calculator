@@ -263,6 +263,8 @@ export function runDrawdownSimulation() {
   let cumulativeInflation = 1.0;
   let cumulativeSsCola = 1.0;
   let priorYearReturn = 0.07;
+  let gkEssential = baseEssential;
+  let gkDiscretionary = currentDiscretionary;
 
   simulationLedger = [];
   let lifetimeSpending = 0;
@@ -279,8 +281,10 @@ export function runDrawdownSimulation() {
 
     // Step 0: Calculate returns and inflation for this year
     const { equityReturn, inflation } = getScenarioReturnAndInflation(scenario, year - 1, baseExpectedReturn, baseInflation);
-    cumulativeInflation *= (1 + inflation);
-    cumulativeSsCola *= (1 + ssColaRate);
+    if (year > 1) {
+      cumulativeInflation *= (1 + inflation);
+      cumulativeSsCola *= (1 + ssColaRate);
+    }
 
     // Starting balances snapshot for year
     const startPreTax = preTax;
@@ -307,7 +311,7 @@ export function runDrawdownSimulation() {
 
     // Step 2: Target Spending based on Strategy
     let nominalEssential = baseEssential * cumulativeInflation;
-    let nominalDiscretionary = currentDiscretionary * cumulativeInflation;
+    let nominalDiscretionary = initialDiscretionary * cumulativeInflation;
     let strategyNote = "Standard";
 
     if (selectedStrategy === "blanchett-smile") {
@@ -326,25 +330,46 @@ export function runDrawdownSimulation() {
       }
     } else if (selectedStrategy === "guyton-klinger") {
       // Guyton-Klinger dynamic rules
-      const currentRate = startTotalPortfolio > 0 ? (nominalEssential + nominalDiscretionary) / startTotalPortfolio : 1.0;
+      if (year > 1) {
+        // Withdrawal Rule: Skip inflation step-up if prior year return was negative
+        if (priorYearReturn < 0) {
+          strategyNote = "Skipped COLA (Down Market)";
+        } else {
+          gkEssential *= (1 + inflation);
+          gkDiscretionary *= (1 + inflation);
+        }
 
-      // Capital Preservation Rule: if withdrawal rate > 1.2x initial, trim discretionary by 10%
-      if (currentRate > initialWithdrawalRate * 1.20) {
-        currentDiscretionary = Math.max(0, currentDiscretionary * 0.90);
-        nominalDiscretionary = currentDiscretionary * cumulativeInflation;
-        strategyNote = "GK Guardrail: Trim -10%";
-      }
-      // Prosperity Rule: if withdrawal rate < 0.8x initial, raise discretionary by 10%
-      else if (currentRate < initialWithdrawalRate * 0.80) {
-        currentDiscretionary = currentDiscretionary * 1.10;
-        nominalDiscretionary = currentDiscretionary * cumulativeInflation;
-        strategyNote = "GK Guardrail: Raise +10%";
-      }
+        const totalGkSpend = gkEssential + gkDiscretionary;
+        const currentRate = startTotalPortfolio > 0 ? (totalGkSpend / startTotalPortfolio) : 1.0;
 
-      // Down-market rule: skip inflation adjustment if prior year return was negative
-      if (priorYearReturn < 0) {
-        strategyNote += " (Skipped COLA)";
+        // Capital Preservation Rule: if withdrawal rate > 1.2x initial rate, cut spending by 10%
+        if (currentRate > initialWithdrawalRate * 1.20) {
+          if (gkDiscretionary > 0) {
+            gkDiscretionary *= 0.90;
+            strategyNote = strategyNote.includes("Skipped") ? "GK: Trim Disc -10% & Skipped COLA" : "GK Guardrail: Trim Disc -10%";
+          } else {
+            // If discretionary is 0 or exhausted, cut total spending to protect capital
+            gkEssential *= 0.90;
+            strategyNote = strategyNote.includes("Skipped") ? "GK: Trim Spend -10% & Skipped COLA" : "GK Guardrail: Trim Spend -10%";
+          }
+        }
+        // Prosperity Rule: if withdrawal rate < 0.8x initial rate, raise spending by 10%
+        else if (currentRate < initialWithdrawalRate * 0.80) {
+          if (initialDiscretionary > 0) {
+            gkDiscretionary *= 1.10;
+            strategyNote = "GK Guardrail: Raise Disc +10%";
+          } else {
+            gkEssential *= 1.10;
+            strategyNote = "GK Guardrail: Raise Spend +10%";
+          }
+        }
       }
+      nominalEssential = gkEssential;
+      nominalDiscretionary = gkDiscretionary;
+    } else if (selectedStrategy === "constant-dollar") {
+      nominalEssential = baseEssential * cumulativeInflation;
+      nominalDiscretionary = initialDiscretionary * cumulativeInflation;
+      strategyNote = "Constant Purchasing Power";
     } else if (selectedStrategy === "income-first") {
       // Yield only
       const annualYield = (startTaxable + startPreTax + startRoth) * 0.035 + (startCash * cashYield);
