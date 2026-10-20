@@ -508,15 +508,15 @@ function updateKpis(portfolioRuinAge, lifetimeSpending, lifetimeTaxes) {
   const lastRow = simulationLedger[simulationLedger.length - 1];
   const terminalVal = lastRow ? lastRow.totalPortfolio : 0;
   const totalSsInflow = simulationLedger.reduce((sum, r) => sum + r.ssInflow, 0);
-  const totalPortDraw = simulationLedger.reduce((sum, r) => sum + r.portfolioDraw, 0);
+  const portfolioFundedSpending = Math.max(0, lifetimeSpending - totalSsInflow);
   const kpiConsumptionSub = document.getElementById("kpi-consumption-sub");
 
   if (portfolioRuinAge === null) {
     if (kpiLongevity) {
-      kpiLongevity.textContent = `Survived to Age ${lastRow?.age || 90}+`;
+      kpiLongevity.textContent = `Age ${lastRow?.age || 90}+ (Funded)`;
       kpiLongevity.className = "kpi-value green";
     }
-    if (kpiLongevitySub) kpiLongevitySub.textContent = `Full ${simulationLedger.length}-yr horizon funded (0% ruin)`;
+    if (kpiLongevitySub) kpiLongevitySub.textContent = `Full ${simulationLedger.length}-yr horizon solvent (0% ruin)`;
   } else {
     if (kpiLongevity) {
       kpiLongevity.textContent = `Depleted Age ${portfolioRuinAge}`;
@@ -531,7 +531,7 @@ function updateKpis(portfolioRuinAge, lifetimeSpending, lifetimeTaxes) {
   }
   if (kpiConsumption) kpiConsumption.textContent = formatCurrency(lifetimeSpending);
   if (kpiConsumptionSub) {
-    kpiConsumptionSub.textContent = `Soc Sec: ${formatCurrency(totalSsInflow)} | Portfolio: ${formatCurrency(totalPortDraw)}`;
+    kpiConsumptionSub.textContent = `Portfolio: ${formatCurrency(portfolioFundedSpending)} | Soc Sec: ${formatCurrency(totalSsInflow)}`;
   }
   if (kpiTaxes) kpiTaxes.textContent = formatCurrency(lifetimeTaxes);
 
