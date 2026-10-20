@@ -2,7 +2,7 @@ import {
   CONFIG, safeParseFloat, safeParseInt, formatCurrency,
   createChartContext, showChartLoading, hideChartLoading,
   rafThrottle, validateInputs, showFieldError, bindFormEnter, drawLabelWithBackground,
-  autoScrollTables
+  autoScrollTables, drawTooltip
 } from "./chart-utils.js";
 
 // ===== DOM ELEMENTS =====
@@ -1155,6 +1155,22 @@ function displayLifecycleChart(profile, retirementPortfolio, annualExpenses, oth
   }, { signal });
 }
 
+// ===================================================================
+// ASSET LOCATION SPLIT STATE
+// ===================================================================
+export let isAssetSplitActive = false;
+export let assetSplit = {
+  pretax: 25000,
+  contribPretax: 1000,
+  roth: 12500,
+  contribRoth: 500,
+  taxable: 10000,
+  taxableBasis: 8000,
+  contribTaxable: 400,
+  cash: 2500,
+  contribCash: 100,
+};
+
 // ===== FIRE PROJECTION CHART (Canvas) =====
 function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
   const canvas = document.getElementById("fire-chart-canvas");
@@ -1174,60 +1190,208 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
   const chartWidth = chart.width - padding.left - padding.right;
   const chartHeight = chart.height - padding.top - padding.bottom;
 
-  const totalYears = Math.max(yearsToRetire + 10, 40);
-  const dataPoints = [];
+  const chartModeBadge = document.getElementById("fire-chart-mode-badge");
+  const legendPrincipal = document.getElementById("legend-item-principal");
+  const legendCash = document.getElementById("legend-item-cash");
+  const legendTaxable = document.getElementById("legend-item-taxable");
+  const legendPretax = document.getElementById("legend-item-pretax");
+  const legendRoth = document.getElementById("legend-item-roth");
 
-  // Accumulation phase — dynamic contributions and career milestones
-  const contribSchedule = getAnnualContributionSchedule(profile, careerMilestones, yearsToRetire);
-  let accumBalance = profile.portfolio;
-
-  dataPoints.push({
-    year: 0,
-    age: profile.currentAge,
-    value: accumBalance,
-    retired: false,
-    milestone: null,
-  });
-
-  for (let year = 1; year <= yearsToRetire; year++) {
-    const yearContrib = contribSchedule[year - 1] || {
-      monthlyContribution: profile.monthlyContribution,
-      lumpSum: 0,
-      milestoneBadge: null,
-    };
-    const balanceWithLump = accumBalance + yearContrib.lumpSum;
-    accumBalance = futureValue(
-      balanceWithLump,
-      yearContrib.monthlyContribution,
-      profile.annualReturn,
-      1
-    );
-
-    dataPoints.push({
-      year,
-      age: profile.currentAge + year,
-      value: accumBalance,
-      retired: false,
-      milestone: yearContrib.milestoneBadge,
-    });
+  if (isAssetSplitActive) {
+    if (chartModeBadge) chartModeBadge.classList.remove("hidden");
+    if (legendPrincipal) legendPrincipal.classList.add("hidden");
+    if (legendCash) legendCash.classList.remove("hidden");
+    if (legendTaxable) legendTaxable.classList.remove("hidden");
+    if (legendPretax) legendPretax.classList.remove("hidden");
+    if (legendRoth) legendRoth.classList.remove("hidden");
+  } else {
+    if (chartModeBadge) chartModeBadge.classList.add("hidden");
+    if (legendPrincipal) legendPrincipal.classList.remove("hidden");
+    if (legendCash) legendCash.classList.add("hidden");
+    if (legendTaxable) legendTaxable.classList.add("hidden");
+    if (legendPretax) legendPretax.classList.add("hidden");
+    if (legendRoth) legendRoth.classList.add("hidden");
   }
 
-  // Post-retirement phase — no contributions, portfolio grows then draws down
-  const retirementPortfolioValue = dataPoints[yearsToRetire].value;
-  const annualWithdrawal = retirementPortfolioValue * (
-    safeParseFloat(document.getElementById("fire-withdrawal-rate").value, 4) / 100
-  );
-  let postRetirementValue = retirementPortfolioValue;
+  const totalYears = Math.max(yearsToRetire + 10, 40);
+  const dataPoints = [];
+  const contribSchedule = getAnnualContributionSchedule(profile, careerMilestones, yearsToRetire);
 
-  for (let year = 1; year <= totalYears - yearsToRetire; year++) {
-    postRetirementValue = postRetirementValue * (1 + profile.annualReturn) - annualWithdrawal;
-    if (postRetirementValue < 0) postRetirementValue = 0;
+  if (isAssetSplitActive) {
+    let bCash = assetSplit.cash;
+    let bTaxable = assetSplit.taxable;
+    let bPretax = assetSplit.pretax;
+    let bRoth = assetSplit.roth;
+
+    const baseContribTotal = assetSplit.contribPretax + assetSplit.contribRoth + assetSplit.contribTaxable + assetSplit.contribCash;
+    const cRatio = (baseContribTotal > 0 && profile.monthlyContribution > 0) ? (profile.monthlyContribution / baseContribTotal) : 1;
+
+    let cCash = assetSplit.contribCash * cRatio;
+    let cTaxable = assetSplit.contribTaxable * cRatio;
+    let cPretax = assetSplit.contribPretax * cRatio;
+    let cRoth = assetSplit.contribRoth * cRatio;
+
     dataPoints.push({
-      year: yearsToRetire + year,
-      age: profile.currentAge + yearsToRetire + year,
-      value: postRetirementValue,
-      retired: true,
+      year: 0,
+      age: profile.currentAge,
+      value: bCash + bTaxable + bPretax + bRoth,
+      balCash: bCash,
+      balTaxable: bTaxable,
+      balPretax: bPretax,
+      balRoth: bRoth,
+      stackCash: bCash,
+      stackTaxable: bCash + bTaxable,
+      stackPretax: bCash + bTaxable + bPretax,
+      stackRoth: bCash + bTaxable + bPretax + bRoth,
+      retired: false,
+      milestone: null,
     });
+
+    for (let year = 1; year <= yearsToRetire; year++) {
+      const yearContrib = contribSchedule[year - 1] || {
+        monthlyContribution: profile.monthlyContribution,
+        lumpSum: 0,
+        milestoneBadge: null,
+      };
+
+      const yearFactor = (profile.monthlyContribution > 0)
+        ? (yearContrib.monthlyContribution / profile.monthlyContribution)
+        : 1;
+
+      const lump = yearContrib.lumpSum || 0;
+      const lumpTaxable = lump * 0.5;
+      const lumpPretax = lump * 0.5;
+
+      bCash = futureValue(bCash, cCash * yearFactor, Math.min(profile.annualReturn, profile.inflation || 0.03), 1);
+      bTaxable = futureValue(bTaxable + lumpTaxable, cTaxable * yearFactor, profile.annualReturn, 1);
+      bPretax = futureValue(bPretax + lumpPretax, cPretax * yearFactor, profile.annualReturn, 1);
+      bRoth = futureValue(bRoth, cRoth * yearFactor, profile.annualReturn, 1);
+
+      const totalVal = bCash + bTaxable + bPretax + bRoth;
+
+      dataPoints.push({
+        year,
+        age: profile.currentAge + year,
+        value: totalVal,
+        balCash: bCash,
+        balTaxable: bTaxable,
+        balPretax: bPretax,
+        balRoth: bRoth,
+        stackCash: bCash,
+        stackTaxable: bCash + bTaxable,
+        stackPretax: bCash + bTaxable + bPretax,
+        stackRoth: totalVal,
+        retired: false,
+        milestone: yearContrib.milestoneBadge,
+      });
+    }
+
+    // Post-retirement phase
+    const retirementPortfolioValue = dataPoints[yearsToRetire].value;
+    const annualWithdrawal = retirementPortfolioValue * (
+      safeParseFloat(document.getElementById("fire-withdrawal-rate").value, 4) / 100
+    );
+
+    for (let year = 1; year <= totalYears - yearsToRetire; year++) {
+      let needed = annualWithdrawal;
+
+      bCash = bCash * (1 + (profile.inflation || 0.03));
+      bTaxable = bTaxable * (1 + profile.annualReturn);
+      bPretax = bPretax * (1 + profile.annualReturn);
+      bRoth = bRoth * (1 + profile.annualReturn);
+
+      // Hierarchy: Taxable -> Pre-tax -> Roth -> Cash
+      if (needed > 0 && bTaxable > 0) {
+        const draw = Math.min(bTaxable, needed);
+        bTaxable -= draw;
+        needed -= draw;
+      }
+      if (needed > 0 && bPretax > 0) {
+        const draw = Math.min(bPretax, needed);
+        bPretax -= draw;
+        needed -= draw;
+      }
+      if (needed > 0 && bRoth > 0) {
+        const draw = Math.min(bRoth, needed);
+        bRoth -= draw;
+        needed -= draw;
+      }
+      if (needed > 0 && bCash > 0) {
+        const draw = Math.min(bCash, needed);
+        bCash -= draw;
+        needed -= draw;
+      }
+
+      const totalVal = bCash + bTaxable + bPretax + bRoth;
+
+      dataPoints.push({
+        year: yearsToRetire + year,
+        age: profile.currentAge + yearsToRetire + year,
+        value: totalVal,
+        balCash: bCash,
+        balTaxable: bTaxable,
+        balPretax: bPretax,
+        balRoth: bRoth,
+        stackCash: bCash,
+        stackTaxable: bCash + bTaxable,
+        stackPretax: bCash + bTaxable + bPretax,
+        stackRoth: totalVal,
+        retired: true,
+        milestone: null,
+      });
+    }
+  } else {
+    // Single Portfolio Mode (classic)
+    let accumBalance = profile.portfolio;
+
+    dataPoints.push({
+      year: 0,
+      age: profile.currentAge,
+      value: accumBalance,
+      retired: false,
+      milestone: null,
+    });
+
+    for (let year = 1; year <= yearsToRetire; year++) {
+      const yearContrib = contribSchedule[year - 1] || {
+        monthlyContribution: profile.monthlyContribution,
+        lumpSum: 0,
+        milestoneBadge: null,
+      };
+      const balanceWithLump = accumBalance + yearContrib.lumpSum;
+      accumBalance = futureValue(
+        balanceWithLump,
+        yearContrib.monthlyContribution,
+        profile.annualReturn,
+        1
+      );
+
+      dataPoints.push({
+        year,
+        age: profile.currentAge + year,
+        value: accumBalance,
+        retired: false,
+        milestone: yearContrib.milestoneBadge,
+      });
+    }
+
+    // Post-retirement phase
+    const retirementPortfolioValue = dataPoints[yearsToRetire].value;
+    const annualWithdrawal = retirementPortfolioValue * (
+      safeParseFloat(document.getElementById("fire-withdrawal-rate").value, 4) / 100
+    );
+    let postRetirementValue = retirementPortfolioValue;
+
+    for (let year = 1; year <= totalYears - yearsToRetire; year++) {
+      postRetirementValue = postRetirementValue * (1 + profile.annualReturn) - annualWithdrawal;
+      if (postRetirementValue < 0) postRetirementValue = 0;
+      dataPoints.push({
+        year: yearsToRetire + year,
+        age: profile.currentAge + yearsToRetire + year,
+        value: postRetirementValue,
+        retired: true,
+      });
+    }
   }
 
   const maxValue = Math.max(
@@ -1329,33 +1493,6 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
 
       drawLabelWithBackground(offCtx, `Coast: ${formatCurrency(coastFireNumber)}`, padding.left + 5, toY(coastFireNumber) - 8,
         { color: "#f59e0b", font: window.CHART_FONTS.sm, align: "left" });
-
-      const coastCrossing = dataPoints.find((d) => {
-        const remainingYears = profile.retireAge - d.age;
-        if (remainingYears <= 0) return false;
-        const threshold =
-          fireTarget / Math.pow(1 + profile.annualReturn, remainingYears);
-        return d.value >= threshold;
-      });
-
-      if (coastCrossing) {
-        const remainingYears = profile.retireAge - coastCrossing.age;
-        const threshold =
-          fireTarget / Math.pow(1 + profile.annualReturn, remainingYears);
-        const cx = toX(coastCrossing.year);
-        const cy = toY(threshold);
-
-        offCtx.beginPath();
-        offCtx.arc(cx, cy, 6, 0, Math.PI * 2);
-        offCtx.fillStyle = "#f59e0b";
-        offCtx.fill();
-        offCtx.strokeStyle = "#0f172a";
-        offCtx.lineWidth = 2;
-        offCtx.stroke();
-
-        drawLabelWithBackground(offCtx, `Coast Age ${coastCrossing.age}`, cx, cy - 12,
-          { color: "#f59e0b", font: window.CHART_FONTS.boldSm, align: "center" });
-      }
     }
 
     // Retirement age line
@@ -1372,58 +1509,137 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
     drawLabelWithBackground(offCtx, `Retire: ${profile.retireAge}`, retireX, padding.top - 10,
       { color: "#94a3b8", font: window.CHART_FONTS.sm, align: "center" });
 
-    // Accumulation line
-    const accumPoints = dataPoints.filter((d) => !d.retired);
-    const retirePoints = dataPoints.filter((d) => d.retired);
-
-    offCtx.strokeStyle = "#2dd4bf";
-    offCtx.lineWidth = 3;
-    offCtx.beginPath();
-    accumPoints.forEach((point, i) => {
-      const x = toX(point.year);
-      const y = toY(point.value);
-      if (i === 0) offCtx.moveTo(x, y);
-      else offCtx.lineTo(x, y);
-    });
-    offCtx.stroke();
-
-    // Fill under accumulation
-    offCtx.lineTo(toX(yearsToRetire), toY(0));
-    offCtx.lineTo(toX(0), toY(0));
-    offCtx.closePath();
-    offCtx.fillStyle = "rgba(45, 212, 191, 0.1)";
-    offCtx.fill();
-
-    // Milestone marker pins on accumulation curve
-    accumPoints.filter((p) => p.milestone).forEach((p) => {
-      const mx = toX(p.year);
-      const my = toY(p.value);
+    if (isAssetSplitActive) {
+      // ===== STACKED AREA CHART (CASH + TAXABLE + PRE-TAX + ROTH) =====
+      
+      // 1. Cash Layer (Bottom) - Cyan
+      offCtx.fillStyle = "rgba(56, 189, 248, 0.35)";
       offCtx.beginPath();
-      offCtx.arc(mx, my, 5, 0, Math.PI * 2);
-      offCtx.fillStyle = "#f59e0b";
+      offCtx.moveTo(toX(0), toY(0));
+      dataPoints.forEach((p) => offCtx.lineTo(toX(p.year), toY(p.stackCash)));
+      offCtx.lineTo(toX(dataPoints[dataPoints.length - 1].year), toY(0));
+      offCtx.closePath();
       offCtx.fill();
-      offCtx.strokeStyle = "#0f172a";
-      offCtx.lineWidth = 2;
+      offCtx.strokeStyle = "#38bdf8";
+      offCtx.lineWidth = 1.5;
+      offCtx.beginPath();
+      dataPoints.forEach((p, idx) => idx === 0 ? offCtx.moveTo(toX(p.year), toY(p.stackCash)) : offCtx.lineTo(toX(p.year), toY(p.stackCash)));
       offCtx.stroke();
-    });
 
-    // Post-retirement drawdown line
-    if (retirePoints.length > 0) {
+      // 2. Taxable Layer - Emerald
+      offCtx.fillStyle = "rgba(16, 185, 129, 0.4)";
+      offCtx.beginPath();
+      offCtx.moveTo(toX(0), toY(dataPoints[0].stackCash));
+      dataPoints.forEach((p) => offCtx.lineTo(toX(p.year), toY(p.stackTaxable)));
+      for (let i = dataPoints.length - 1; i >= 0; i--) {
+        offCtx.lineTo(toX(dataPoints[i].year), toY(dataPoints[i].stackCash));
+      }
+      offCtx.closePath();
+      offCtx.fill();
+      offCtx.strokeStyle = "#10b981";
+      offCtx.lineWidth = 1.5;
+      offCtx.beginPath();
+      dataPoints.forEach((p, idx) => idx === 0 ? offCtx.moveTo(toX(p.year), toY(p.stackTaxable)) : offCtx.lineTo(toX(p.year), toY(p.stackTaxable)));
+      offCtx.stroke();
+
+      // 3. Pre-Tax Layer - Amber
+      offCtx.fillStyle = "rgba(245, 158, 11, 0.4)";
+      offCtx.beginPath();
+      offCtx.moveTo(toX(0), toY(dataPoints[0].stackTaxable));
+      dataPoints.forEach((p) => offCtx.lineTo(toX(p.year), toY(p.stackPretax)));
+      for (let i = dataPoints.length - 1; i >= 0; i--) {
+        offCtx.lineTo(toX(dataPoints[i].year), toY(dataPoints[i].stackTaxable));
+      }
+      offCtx.closePath();
+      offCtx.fill();
       offCtx.strokeStyle = "#f59e0b";
+      offCtx.lineWidth = 1.5;
+      offCtx.beginPath();
+      dataPoints.forEach((p, idx) => idx === 0 ? offCtx.moveTo(toX(p.year), toY(p.stackPretax)) : offCtx.lineTo(toX(p.year), toY(p.stackPretax)));
+      offCtx.stroke();
+
+      // 4. Roth Layer (Top) - Purple
+      offCtx.fillStyle = "rgba(168, 85, 247, 0.45)";
+      offCtx.beginPath();
+      offCtx.moveTo(toX(0), toY(dataPoints[0].stackPretax));
+      dataPoints.forEach((p) => offCtx.lineTo(toX(p.year), toY(p.stackRoth)));
+      for (let i = dataPoints.length - 1; i >= 0; i--) {
+        offCtx.lineTo(toX(dataPoints[i].year), toY(dataPoints[i].stackPretax));
+      }
+      offCtx.closePath();
+      offCtx.fill();
+      offCtx.strokeStyle = "#c084fc";
+      offCtx.lineWidth = 2.5;
+      offCtx.beginPath();
+      dataPoints.forEach((p, idx) => idx === 0 ? offCtx.moveTo(toX(p.year), toY(p.stackRoth)) : offCtx.lineTo(toX(p.year), toY(p.stackRoth)));
+      offCtx.stroke();
+
+      // Marker pins for milestones
+      dataPoints.filter((p) => p.milestone && !p.retired).forEach((p) => {
+        const mx = toX(p.year);
+        const my = toY(p.value);
+        offCtx.beginPath();
+        offCtx.arc(mx, my, 5, 0, Math.PI * 2);
+        offCtx.fillStyle = "#f59e0b";
+        offCtx.fill();
+        offCtx.strokeStyle = "#0f172a";
+        offCtx.lineWidth = 2;
+        offCtx.stroke();
+      });
+    } else {
+      // Single Line Portfolio Projection
+      const accumPoints = dataPoints.filter((d) => !d.retired);
+      const retirePoints = dataPoints.filter((d) => d.retired);
+
+      offCtx.strokeStyle = "#2dd4bf";
       offCtx.lineWidth = 3;
       offCtx.beginPath();
-      offCtx.moveTo(toX(yearsToRetire), toY(retirementPortfolioValue));
-      retirePoints.forEach((point) => {
-        offCtx.lineTo(toX(point.year), toY(point.value));
+      accumPoints.forEach((point, i) => {
+        const x = toX(point.year);
+        const y = toY(point.value);
+        if (i === 0) offCtx.moveTo(x, y);
+        else offCtx.lineTo(x, y);
       });
       offCtx.stroke();
 
-      const lastRetire = retirePoints[retirePoints.length - 1];
-      offCtx.lineTo(toX(lastRetire.year), toY(0));
+      // Fill under accumulation
       offCtx.lineTo(toX(yearsToRetire), toY(0));
+      offCtx.lineTo(toX(0), toY(0));
       offCtx.closePath();
-      offCtx.fillStyle = "rgba(245, 158, 11, 0.1)";
+      offCtx.fillStyle = "rgba(45, 212, 191, 0.1)";
       offCtx.fill();
+
+      // Milestone marker pins on accumulation curve
+      accumPoints.filter((p) => p.milestone).forEach((p) => {
+        const mx = toX(p.year);
+        const my = toY(p.value);
+        offCtx.beginPath();
+        offCtx.arc(mx, my, 5, 0, Math.PI * 2);
+        offCtx.fillStyle = "#f59e0b";
+        offCtx.fill();
+        offCtx.strokeStyle = "#0f172a";
+        offCtx.lineWidth = 2;
+        offCtx.stroke();
+      });
+
+      // Post-retirement drawdown line
+      if (retirePoints.length > 0) {
+        offCtx.strokeStyle = "#f59e0b";
+        offCtx.lineWidth = 3;
+        offCtx.beginPath();
+        offCtx.moveTo(toX(yearsToRetire), toY(dataPoints[yearsToRetire].value));
+        retirePoints.forEach((point) => {
+          offCtx.lineTo(toX(point.year), toY(point.value));
+        });
+        offCtx.stroke();
+
+        const lastRetire = retirePoints[retirePoints.length - 1];
+        offCtx.lineTo(toX(lastRetire.year), toY(0));
+        offCtx.lineTo(toX(yearsToRetire), toY(0));
+        offCtx.closePath();
+        offCtx.fillStyle = "rgba(245, 158, 11, 0.1)";
+        offCtx.fill();
+      }
     }
 
     // FIRE crossing point
@@ -1482,94 +1698,41 @@ function displayFireChart(profile, fireTarget, yearsToRetire, coastFireNumber) {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Tooltip background
+        // Tooltip text
         const gap = point.value - fireTarget;
         const gapText =
           gap >= 0
             ? `✅ ${formatCurrency(gap)} above FIRE`
             : `❌ ${formatCurrency(Math.abs(gap))} below FIRE`;
 
-        const tooltipLines = [
-          `Age ${point.age}`,
-          `Portfolio: ${formatCurrency(point.value)}`,
-          gapText,
-        ];
+        let tooltipLines = [];
+        if (isAssetSplitActive) {
+          tooltipLines = [
+            `Age ${point.age} (Year ${point.year})`,
+            `Total: ${formatCurrency(point.value)}`,
+            `🟣 Roth: ${formatCurrency(point.balRoth)}`,
+            `🟡 Pre-Tax: ${formatCurrency(point.balPretax)}`,
+            `🟢 Taxable: ${formatCurrency(point.balTaxable)}`,
+            `🔵 Cash: ${formatCurrency(point.balCash)}`,
+            gapText,
+          ];
+        } else {
+          tooltipLines = [
+            `Age ${point.age}`,
+            `Portfolio: ${formatCurrency(point.value)}`,
+            gapText,
+          ];
+        }
+
         if (point.milestone) {
           tooltipLines.push(`🎯 ${point.milestone}`);
         }
 
-        ctx.font = window.CHART_FONTS.md;
-        const tooltipWidth =
-          Math.max(...tooltipLines.map((l) => ctx.measureText(l).width)) + 20;
-        const tooltipHeight = tooltipLines.length * 20 + 12;
-
-        let tx = hx + 15;
-        let ty = hy - tooltipHeight / 2;
-
-        // Keep tooltip on screen
-        if (tx + tooltipWidth > chart.width - padding.right) {
-          tx = hx - tooltipWidth - 15;
-        }
-        if (ty < padding.top) ty = padding.top;
-        if (ty + tooltipHeight > padding.top + chartHeight) {
-          ty = padding.top + chartHeight - tooltipHeight;
-        }
-
-        ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.3)";
-        ctx.lineWidth = 1;
-
-        // Rounded rect
-        const radius = 6;
-        ctx.beginPath();
-        ctx.moveTo(tx + radius, ty);
-        ctx.lineTo(tx + tooltipWidth - radius, ty);
-        ctx.arcTo(
-          tx + tooltipWidth,
-          ty,
-          tx + tooltipWidth,
-          ty + radius,
-          radius,
-        );
-        ctx.lineTo(tx + tooltipWidth, ty + tooltipHeight - radius);
-        ctx.arcTo(
-          tx + tooltipWidth,
-          ty + tooltipHeight,
-          tx + tooltipWidth - radius,
-          ty + tooltipHeight,
-          radius,
-        );
-        ctx.lineTo(tx + radius, ty + tooltipHeight);
-        ctx.arcTo(
-          tx,
-          ty + tooltipHeight,
-          tx,
-          ty + tooltipHeight - radius,
-          radius,
-        );
-        ctx.lineTo(tx, ty + radius);
-        ctx.arcTo(tx, ty, tx + radius, ty, radius);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Tooltip text
-        tooltipLines.forEach((line, idx) => {
-          if (idx === 0) {
-            ctx.fillStyle = "#e2e8f0";
-            ctx.font = window.CHART_FONTS.boldMd;
-          } else if (idx === 1) {
-            ctx.fillStyle = "#e2e8f0";
-            ctx.font = window.CHART_FONTS.md;
-          } else if (idx === 2) {
-            ctx.fillStyle = gap >= 0 ? "#2dd4bf" : "#f472b6";
-            ctx.font = window.CHART_FONTS.md;
-          } else {
-            ctx.fillStyle = "#f59e0b";
-            ctx.font = window.CHART_FONTS.boldSm;
-          }
-          ctx.textAlign = "left";
-          ctx.fillText(line, tx + 10, ty + 18 + (idx * 20));
+        drawTooltip(ctx, tooltipLines, hx, hy, {
+          top: padding.top,
+          right: chart.width - padding.right,
+          height: chartHeight,
+          width: chartWidth,
         });
       }
     }
@@ -2691,12 +2854,25 @@ function initPairedSliders() {
         }
       }
 
+      if (inputId === "fire-current-portfolio") {
+        syncAssetSplitFromMainPortfolio(safeParseFloat(slider.value, 0));
+      } else if (inputId === "fire-monthly-contribution") {
+        syncAssetSplitFromMainContribution(safeParseFloat(slider.value, 0));
+      }
+
       saveFireInputs();
       triggerLiveCalculation();
     });
 
     input.addEventListener("input", () => {
       syncSliderWithInput(input, slider);
+
+      if (inputId === "fire-current-portfolio") {
+        syncAssetSplitFromMainPortfolio(safeParseFloat(input.value, 0));
+      } else if (inputId === "fire-monthly-contribution") {
+        syncAssetSplitFromMainContribution(safeParseFloat(input.value, 0));
+      }
+
       saveFireInputs();
       triggerLiveCalculation();
     });
@@ -2950,16 +3126,49 @@ function loadExpenseBreakdown() {
   }
 }
 
+const ESSENTIAL_EXPENSE_IDS = [
+  "exp-housing-mortgage",
+  "exp-housing-tax",
+  "exp-housing-utilities",
+  "exp-living-groceries",
+  "exp-health-premium",
+  "exp-health-oop",
+  "exp-transport-car",
+  "exp-transport-maint",
+];
+
+const DISCRETIONARY_EXPENSE_IDS = [
+  "exp-living-dining",
+  "exp-kids-monthly",
+  "exp-kids-college",
+  "exp-fun-travel",
+  "exp-fun-hobbies",
+  "exp-misc-buffer",
+];
+
 function updateExpenseModalSummary() {
-  let monthlyTotal = 0;
-  EXPENSE_INPUT_IDS.forEach((id) => {
-    const val = safeParseFloat(document.getElementById(id)?.value, 0);
-    monthlyTotal += val;
+  let essentialMonthly = 0;
+  ESSENTIAL_EXPENSE_IDS.forEach((id) => {
+    essentialMonthly += safeParseFloat(document.getElementById(id)?.value, 0);
   });
 
+  let discretionaryMonthly = 0;
+  DISCRETIONARY_EXPENSE_IDS.forEach((id) => {
+    discretionaryMonthly += safeParseFloat(document.getElementById(id)?.value, 0);
+  });
+
+  const monthlyTotal = essentialMonthly + discretionaryMonthly;
   const annualTotal = monthlyTotal * 12;
+  const essentialAnnual = essentialMonthly * 12;
+  const discretionaryAnnual = discretionaryMonthly * 12;
+
+  const essentialPct = annualTotal > 0 ? Math.round((essentialAnnual / annualTotal) * 100) : 0;
+  const discretionaryPct = annualTotal > 0 ? Math.max(0, 100 - essentialPct) : 0;
+
   const monthlyDisplay = document.getElementById("exp-summary-monthly");
   const annualDisplay = document.getElementById("exp-summary-annual");
+  const essentialDisplay = document.getElementById("exp-summary-essential");
+  const discretionaryDisplay = document.getElementById("exp-summary-discretionary");
   const applyBtn = document.getElementById("fire-expense-modal-apply");
   const kidsTip = document.getElementById("exp-kids-tip");
 
@@ -2969,8 +3178,28 @@ function updateExpenseModalSummary() {
   if (annualDisplay) {
     annualDisplay.textContent = `${formatCurrency(annualTotal)}/yr`;
   }
+  if (essentialDisplay) {
+    essentialDisplay.textContent = `${formatCurrency(essentialAnnual)}/yr (${essentialPct}%)`;
+  }
+  if (discretionaryDisplay) {
+    discretionaryDisplay.textContent = `${formatCurrency(discretionaryAnnual)}/yr (${discretionaryPct}%)`;
+  }
   if (applyBtn) {
     applyBtn.textContent = `Apply to Calculator (${formatCurrency(annualTotal)}/yr)`;
+  }
+
+  // Persist structured expense classification for Drawdown Engine bridge
+  try {
+    localStorage.setItem("fire_expense_classification", JSON.stringify({
+      essentialAnnual,
+      discretionaryAnnual,
+      essentialMonthly,
+      discretionaryMonthly,
+      essentialPct,
+      discretionaryPct
+    }));
+  } catch {
+    // ignore
   }
 
   const kidsMonthly =
@@ -2986,7 +3215,7 @@ function updateExpenseModalSummary() {
     }
   }
 
-  return { monthlyTotal, annualTotal, kidsMonthly };
+  return { monthlyTotal, annualTotal, kidsMonthly, essentialAnnual, discretionaryAnnual };
 }
 
 function openExpenseModal() {
@@ -3222,6 +3451,264 @@ function initExpenseMilestonesControls() {
   }
 }
 
+// ===================================================================
+// ASSET LOCATION SPLIT CONTROLS & TWO-WAY SYNC
+// ===================================================================
+
+function saveAssetSplit() {
+  try {
+    localStorage.setItem("fire_is_asset_split_active", JSON.stringify(isAssetSplitActive));
+    localStorage.setItem("fire_asset_split", JSON.stringify(assetSplit));
+  } catch {
+    // ignore
+  }
+}
+
+function loadAssetSplit() {
+  try {
+    const savedActive = localStorage.getItem("fire_is_asset_split_active");
+    if (savedActive !== null) {
+      isAssetSplitActive = JSON.parse(savedActive);
+    }
+    const savedSplit = localStorage.getItem("fire_asset_split");
+    if (savedSplit) {
+      assetSplit = { ...assetSplit, ...JSON.parse(savedSplit) };
+    }
+  } catch {
+    // ignore
+  }
+  updateAssetSplitInputsFromState();
+  updateAssetAllocationUI();
+  updateAssetSplitDrawerUI();
+}
+
+function updateAssetSplitInputsFromState() {
+  const pretaxInput = document.getElementById("fire-asset-pretax");
+  const contribPretaxInput = document.getElementById("fire-contrib-pretax");
+  const rothInput = document.getElementById("fire-asset-roth");
+  const contribRothInput = document.getElementById("fire-contrib-roth");
+  const taxableInput = document.getElementById("fire-asset-taxable");
+  const taxableBasisInput = document.getElementById("fire-asset-taxable-basis");
+  const contribTaxableInput = document.getElementById("fire-contrib-taxable");
+  const cashInput = document.getElementById("fire-asset-cash");
+  const contribCashInput = document.getElementById("fire-contrib-cash");
+
+  if (pretaxInput) pretaxInput.value = Math.round(assetSplit.pretax);
+  if (contribPretaxInput) contribPretaxInput.value = Math.round(assetSplit.contribPretax);
+  if (rothInput) rothInput.value = Math.round(assetSplit.roth);
+  if (contribRothInput) contribRothInput.value = Math.round(assetSplit.contribRoth);
+  if (taxableInput) taxableInput.value = Math.round(assetSplit.taxable);
+  if (taxableBasisInput) taxableBasisInput.value = Math.round(assetSplit.taxableBasis);
+  if (contribTaxableInput) contribTaxableInput.value = Math.round(assetSplit.contribTaxable);
+  if (cashInput) cashInput.value = Math.round(assetSplit.cash);
+  if (contribCashInput) contribCashInput.value = Math.round(assetSplit.contribCash);
+}
+
+function updateAssetAllocationUI() {
+  const totalBal = assetSplit.pretax + assetSplit.roth + assetSplit.taxable + assetSplit.cash;
+  const pPretax = totalBal > 0 ? Math.round((assetSplit.pretax / totalBal) * 100) : 0;
+  const pRoth = totalBal > 0 ? Math.round((assetSplit.roth / totalBal) * 100) : 0;
+  const pTaxable = totalBal > 0 ? Math.round((assetSplit.taxable / totalBal) * 100) : 0;
+  const pCash = totalBal > 0 ? Math.max(0, 100 - pPretax - pRoth - pTaxable) : 0;
+
+  const pctPretaxEl = document.getElementById("asset-pct-pretax");
+  const pctRothEl = document.getElementById("asset-pct-roth");
+  const pctTaxableEl = document.getElementById("asset-pct-taxable");
+  const pctCashEl = document.getElementById("asset-pct-cash");
+
+  if (pctPretaxEl) pctPretaxEl.textContent = `${pPretax}%`;
+  if (pctRothEl) pctRothEl.textContent = `${pRoth}%`;
+  if (pctTaxableEl) pctTaxableEl.textContent = `${pTaxable}%`;
+  if (pctCashEl) pctCashEl.textContent = `${pCash}%`;
+
+  const barPretax = document.getElementById("alloc-bar-pretax");
+  const barRoth = document.getElementById("alloc-bar-roth");
+  const barTaxable = document.getElementById("alloc-bar-taxable");
+  const barCash = document.getElementById("alloc-bar-cash");
+
+  if (barPretax) {
+    barPretax.style.width = `${pPretax}%`;
+    barPretax.textContent = pPretax >= 10 ? `${pPretax}% Pre-Tax` : (pPretax > 0 ? `${pPretax}%` : "");
+  }
+  if (barRoth) {
+    barRoth.style.width = `${pRoth}%`;
+    barRoth.textContent = pRoth >= 10 ? `${pRoth}% Roth` : (pRoth > 0 ? `${pRoth}%` : "");
+  }
+  if (barTaxable) {
+    barTaxable.style.width = `${pTaxable}%`;
+    barTaxable.textContent = pTaxable >= 10 ? `${pTaxable}% Taxable` : (pTaxable > 0 ? `${pTaxable}%` : "");
+  }
+  if (barCash) {
+    barCash.style.width = `${pCash}%`;
+    barCash.textContent = pCash >= 10 ? `${pCash}% Cash` : (pCash > 0 ? `${pCash}%` : "");
+  }
+}
+
+function updateAssetSplitDrawerUI() {
+  const drawer = document.getElementById("fire-asset-split-drawer");
+  const badge = document.getElementById("asset-split-status-badge");
+  const chevron = document.getElementById("asset-split-chevron");
+  const toggleBtn = document.getElementById("fire-toggle-asset-split-btn");
+
+  if (isAssetSplitActive) {
+    if (drawer) drawer.classList.remove("hidden");
+    if (badge) {
+      badge.textContent = "Split Active (Stacked Chart)";
+      badge.classList.add("active");
+    }
+    if (chevron) chevron.textContent = "▲";
+    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "true");
+  } else {
+    if (drawer) drawer.classList.add("hidden");
+    if (badge) {
+      badge.textContent = "Single Total";
+      badge.classList.remove("active");
+    }
+    if (chevron) chevron.textContent = "▼";
+    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+  }
+}
+
+function handleAssetAccountChange() {
+  assetSplit.pretax = Math.max(0, safeParseFloat(document.getElementById("fire-asset-pretax")?.value, 0));
+  assetSplit.contribPretax = Math.max(0, safeParseFloat(document.getElementById("fire-contrib-pretax")?.value, 0));
+
+  assetSplit.roth = Math.max(0, safeParseFloat(document.getElementById("fire-asset-roth")?.value, 0));
+  assetSplit.contribRoth = Math.max(0, safeParseFloat(document.getElementById("fire-contrib-roth")?.value, 0));
+
+  assetSplit.taxable = Math.max(0, safeParseFloat(document.getElementById("fire-asset-taxable")?.value, 0));
+  assetSplit.taxableBasis = Math.max(0, safeParseFloat(document.getElementById("fire-asset-taxable-basis")?.value, 0));
+  assetSplit.contribTaxable = Math.max(0, safeParseFloat(document.getElementById("fire-contrib-taxable")?.value, 0));
+
+  assetSplit.cash = Math.max(0, safeParseFloat(document.getElementById("fire-asset-cash")?.value, 0));
+  assetSplit.contribCash = Math.max(0, safeParseFloat(document.getElementById("fire-contrib-cash")?.value, 0));
+
+  const totalPortfolio = assetSplit.pretax + assetSplit.roth + assetSplit.taxable + assetSplit.cash;
+  const totalContrib = assetSplit.contribPretax + assetSplit.contribRoth + assetSplit.contribTaxable + assetSplit.contribCash;
+
+  const portInput = document.getElementById("fire-current-portfolio");
+  const portSlider = document.getElementById("fire-current-portfolio-slider");
+  if (portInput) {
+    portInput.value = Math.round(totalPortfolio);
+    if (portSlider) syncSliderWithInput(portInput, portSlider);
+  }
+
+  const contribInput = document.getElementById("fire-monthly-contribution");
+  const contribSlider = document.getElementById("fire-monthly-contribution-slider");
+  if (contribInput) {
+    contribInput.value = Math.round(totalContrib);
+    if (contribSlider) syncSliderWithInput(contribInput, contribSlider);
+  }
+
+  updateAssetAllocationUI();
+  saveAssetSplit();
+  saveFireInputs();
+  triggerLiveCalculation();
+}
+
+function syncAssetSplitFromMainPortfolio(newTotal) {
+  if (!isAssetSplitActive) return;
+  const oldTotal = assetSplit.pretax + assetSplit.roth + assetSplit.taxable + assetSplit.cash;
+  if (oldTotal > 0 && newTotal > 0) {
+    const ratio = newTotal / oldTotal;
+    assetSplit.pretax *= ratio;
+    assetSplit.roth *= ratio;
+    assetSplit.taxable *= ratio;
+    assetSplit.taxableBasis *= ratio;
+    assetSplit.cash *= ratio;
+  } else {
+    // 50/25/20/5 default split
+    assetSplit.pretax = newTotal * 0.50;
+    assetSplit.roth = newTotal * 0.25;
+    assetSplit.taxable = newTotal * 0.20;
+    assetSplit.taxableBasis = assetSplit.taxable * 0.80;
+    assetSplit.cash = newTotal * 0.05;
+  }
+  updateAssetSplitInputsFromState();
+  updateAssetAllocationUI();
+  saveAssetSplit();
+}
+
+function syncAssetSplitFromMainContribution(newContrib) {
+  if (!isAssetSplitActive) return;
+  const oldTotal = assetSplit.contribPretax + assetSplit.contribRoth + assetSplit.contribTaxable + assetSplit.contribCash;
+  if (oldTotal > 0 && newContrib > 0) {
+    const ratio = newContrib / oldTotal;
+    assetSplit.contribPretax *= ratio;
+    assetSplit.contribRoth *= ratio;
+    assetSplit.contribTaxable *= ratio;
+    assetSplit.contribCash *= ratio;
+  } else {
+    assetSplit.contribPretax = newContrib * 0.50;
+    assetSplit.contribRoth = newContrib * 0.25;
+    assetSplit.contribTaxable = newContrib * 0.20;
+    assetSplit.contribCash = newContrib * 0.05;
+  }
+  updateAssetSplitInputsFromState();
+  saveAssetSplit();
+}
+
+function resetAssetSplitToDefault() {
+  const currentPort = safeParseFloat(document.getElementById("fire-current-portfolio")?.value, 50000);
+  const currentContrib = safeParseFloat(document.getElementById("fire-monthly-contribution")?.value, 2000);
+
+  assetSplit.pretax = Math.round(currentPort * 0.50);
+  assetSplit.roth = Math.round(currentPort * 0.25);
+  assetSplit.taxable = Math.round(currentPort * 0.20);
+  assetSplit.taxableBasis = Math.round(assetSplit.taxable * 0.80);
+  assetSplit.cash = Math.round(currentPort * 0.05);
+
+  assetSplit.contribPretax = Math.round(currentContrib * 0.50);
+  assetSplit.contribRoth = Math.round(currentContrib * 0.25);
+  assetSplit.contribTaxable = Math.round(currentContrib * 0.20);
+  assetSplit.contribCash = Math.round(currentContrib * 0.05);
+
+  updateAssetSplitInputsFromState();
+  updateAssetAllocationUI();
+  saveAssetSplit();
+  triggerLiveCalculation();
+}
+
+function initAssetSplitControls() {
+  const toggleBtn = document.getElementById("fire-toggle-asset-split-btn");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      isAssetSplitActive = !isAssetSplitActive;
+      updateAssetSplitDrawerUI();
+      saveAssetSplit();
+      triggerLiveCalculation();
+    });
+  }
+
+  const resetBtn = document.getElementById("fire-reset-asset-split-btn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      resetAssetSplitToDefault();
+    });
+  }
+
+  const splitInputIds = [
+    "fire-asset-pretax",
+    "fire-contrib-pretax",
+    "fire-asset-roth",
+    "fire-contrib-roth",
+    "fire-asset-taxable",
+    "fire-asset-taxable-basis",
+    "fire-contrib-taxable",
+    "fire-asset-cash",
+    "fire-contrib-cash",
+  ];
+
+  splitInputIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("input", handleAssetAccountChange);
+    }
+  });
+
+  loadAssetSplit();
+}
+
 // ===== INITIALIZATION ON PAGE LOAD =====
 loadFireInputs();
 initAmortizationControls();
@@ -3229,6 +3716,7 @@ initPairedSliders();
 initMilestonesControls();
 initExpenseMilestonesControls();
 initExpenseModal();
+initAssetSplitControls();
 
 // Auto-calculate on initial load if inputs exist
 if (

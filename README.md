@@ -10,7 +10,8 @@ A collection of interactive financial calculators built with vanilla JavaScript 
 
 | Tool                           | Description                                                                                                                   |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 🔥 FIRE Dashboard              | FIRE number, Coast FIRE, retirement lifecycle projection                                                                      |
+| 🔥 FIRE Dashboard              | FIRE number, Coast FIRE, retirement lifecycle projection, asset location breakdown, life milestones                          |
+| 🛡️ Drawdown Engine             | Multi-account withdrawal sequencing (Pre-Tax/Roth/Taxable/Cash), Guyton-Klinger guardrails, Blanchett smile, SECURE 2.0 RMDs |
 | 📈 Portfolio Projections       | Multi-scenario growth with inflation adjustment                                                                               |
 | 🏦 Loan Calculator             | Amortization, payoff schedule, interest breakdown                                                                             |
 | 🏦 Advanced Loan               | Extra payments, recurring ranges, one-time payments                                                                           |
@@ -58,6 +59,7 @@ SEC EDGAR requires HTTP/2 and a valid `User-Agent` header on all requests. Brows
     ├── index.html              # Calculator index / landing page
     ├── pages/                  # One HTML file per tool
     │   ├── fire.html
+    │   ├── drawdown-engine.html
     │   ├── projections.html
     │   ├── loan.html
     │   ├── loan-advanced.html
@@ -76,6 +78,7 @@ SEC EDGAR requires HTTP/2 and a valid `User-Agent` header on all requests. Brows
     │   ├── formatting.js            # Shared formatting functions (ES module)
     │   ├── financial-terms.js       # Financial term definitions for tooltips
     │   ├── fire.js
+    │   ├── drawdown-engine.js       # Retirement drawdown engine: tax stacking, RMD sweeps, dynamic rules
     │   ├── projections.js
     │   ├── loan.js
     │   ├── loan-advanced.js

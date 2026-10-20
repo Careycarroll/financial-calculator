@@ -3,6 +3,76 @@
    Page: pages/fire.html
    =================================================================== */
 
+/* ===== FIRE HEADER WITH DRAWDOWN LINK ===== */
+.fire-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.fire-header-text {
+  flex: 1;
+  min-width: 280px;
+}
+
+.btn-fire-header-drawdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(14, 165, 233, 0.2));
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  color: #2dd4bf;
+  padding: 0.65rem 1.15rem;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+
+.btn-fire-header-drawdown:hover {
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.25), rgba(14, 165, 233, 0.3));
+  border-color: #2dd4bf;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(45, 212, 191, 0.2);
+}
+
+.btn-fire-header-drawdown .btn-arrow {
+  transition: transform 0.2s;
+}
+
+.btn-fire-header-drawdown:hover .btn-arrow {
+  transform: translateX(3px);
+}
+
+.btn-asset-split-drawdown-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  color: #2dd4bf;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-asset-split-drawdown-link:hover {
+  background: rgba(45, 212, 191, 0.25);
+  border-color: #2dd4bf;
+  color: #fff;
+}
+
 /* ===== FIRE TABS ===== */
 .fire-tabs {
   display: flex;
@@ -747,6 +817,391 @@
   border: 1px solid rgba(56, 189, 248, 0.35);
   margin-left: 0.35rem;
   white-space: nowrap;
+}
+
+/* ===================================================================
+   ASSET LOCATION SPLIT (PRE-TAX / ROTH / TAXABLE / CASH)
+   =================================================================== */
+
+.asset-split-toggle-container {
+  margin: -0.5rem 0 1.25rem 0;
+}
+
+.btn-asset-split-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.btn-asset-split-toggle:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--accent);
+}
+
+.btn-asset-split-toggle.active {
+  border-color: var(--accent);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.btn-asset-split-toggle .toggle-icon {
+  font-size: 1.1rem;
+}
+
+.btn-asset-split-toggle .toggle-label {
+  flex: 1;
+}
+
+.btn-asset-split-toggle .toggle-badge {
+  font-size: 0.725rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+}
+
+.btn-asset-split-toggle.active .toggle-badge {
+  background: rgba(45, 212, 191, 0.2);
+  color: var(--accent);
+}
+
+.btn-asset-split-toggle .toggle-chevron {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.btn-asset-split-toggle.active .toggle-chevron {
+  transform: rotate(180deg);
+}
+
+.asset-split-drawer {
+  margin-top: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.asset-split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.asset-split-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 250px;
+}
+
+/* Horizontal Stacked Percentage Bar */
+.asset-allocation-bar {
+  display: flex;
+  width: 100%;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.alloc-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  transition: width 0.3s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.alloc-segment.alloc-pretax { background: #f59e0b; }
+.alloc-segment.alloc-roth { background: #a855f7; }
+.alloc-segment.alloc-taxable { background: #10b981; }
+.alloc-segment.alloc-cash { background: #38bdf8; }
+
+.asset-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .asset-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 550px) {
+  .asset-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.asset-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  border-top: 3px solid transparent;
+}
+
+.asset-card.card-pretax { border-top-color: #f59e0b; }
+.asset-card.card-roth { border-top-color: #a855f7; }
+.asset-card.card-taxable { border-top-color: #10b981; }
+.asset-card.card-cash { border-top-color: #38bdf8; }
+
+.asset-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.asset-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-pretax { color: #f59e0b; }
+.badge-roth { color: #c084fc; }
+.badge-taxable { color: #34d399; }
+.badge-cash { color: #38bdf8; }
+
+.asset-pct {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.asset-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.asset-field label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.asset-field input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.825rem;
+}
+
+.asset-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.asset-note {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  margin-top: auto;
+  opacity: 0.8;
+}
+
+/* ===================================================================
+   BRIDGE BANNER TO DRAWDOWN ENGINE
+   =================================================================== */
+
+.drawdown-bridge-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.bridge-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 280px;
+}
+
+.bridge-icon {
+  font-size: 2rem;
+  background: rgba(45, 212, 191, 0.12);
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
+.bridge-text h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.3rem 0;
+}
+
+.bridge-text p {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.btn-bridge-launch {
+  white-space: nowrap;
+  padding: 0.75rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+}
+
+/* ===================================================================
+   EXPENSE CLASSIFICATION BADGES & SUMMARY
+   =================================================================== */
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.badge-expense-classification {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-expense-classification.essential {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-expense-classification.discretionary {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.badge-expense-classification.mixed {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.tag-field-essential {
+  font-size: 0.65rem;
+  color: #34d399;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.tag-field-discretionary {
+  font-size: 0.65rem;
+  color: #c084fc;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.summary-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  margin-top: 0.35rem;
+}
+
+.breakdown-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.stat-mini-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.stat-mini-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.breakdown-stat.essential .stat-mini-value { color: #34d399; }
+.breakdown-stat.discretionary .stat-mini-value { color: #c084fc; }
+
+/* Chart multi-asset legend indicators */
+.legend-cash { background-color: #38bdf8; }
+.legend-taxable { background-color: #10b981; }
+.legend-pretax { background-color: #f59e0b; }
+.legend-roth { background-color: #a855f7; }
+
+.badge-chart-mode {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(45, 212, 191, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+}
+
+.chart-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
 

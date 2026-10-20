@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retirement Drawdown Engine | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/drawdown-engine.css" />
+  </head>
+  <body>
+    <!-- Top Nav -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link">Calculators</a>
+          <a href="fire.html" class="top-nav-link">FIRE Dashboard</a>
+          <a href="drawdown-engine.html" class="top-nav-link active">Drawdown Engine</a>
+          <a href="news.html" class="top-nav-link">News Feed</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container drawdown-page-container">
+      <header class="engine-header">
+        <h1>🛡️ Retirement Drawdown Engine</h1>
+        <p class="engine-tagline">
+          Deterministic, tax-aware multi-account withdrawal engine with dynamic Guyton-Klinger guardrails,
+          David Blanchett spending smile, SECURE 2.0 RMD optimization, and 1966 stagflation stress testing.
+        </p>
+      </header>
+
+      <!-- Quick Sync from FIRE Calculator -->
+      <section class="bridge-sync-bar" id="drawdown-bridge-sync-bar">
+        <div class="bridge-sync-info">
+          <span class="bridge-sync-icon">🔄</span>
+          <div class="bridge-sync-text">
+            <span class="bridge-sync-title">Connected to FIRE &amp; Expense Data</span>
+            <span class="bridge-sync-desc" id="bridge-sync-status-text">Synchronize your multi-account allocation, expense classifications, and timeline with 1 click.</span>
+          </div>
+        </div>
+        <button type="button" id="btn-sync-fire" class="btn-bridge-sync">Sync from FIRE Calculator</button>
+      </section>
+
+      <main class="engine-layout">
+        <!-- LEFT: Control Panels -->
+        <aside class="control-panel">
+          <!-- 1. Horizon & Tax Profile -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">⏱️ Horizon &amp; Tax Profile</h2>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label for="drawdown-start-age">Retire Age</label>
+                <input type="number" id="drawdown-start-age" min="40" max="85" step="1" value="60" />
+              </div>
+              <div class="form-field">
+                <label for="drawdown-end-age">Planning To Age</label>
+                <input type="number" id="drawdown-end-age" min="70" max="110" step="1" value="95" />
+              </div>
+            </div>
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
+              <div class="form-field">
+                <label for="drawdown-filing-status">Tax Filing Status</label>
+                <select id="drawdown-filing-status">
+                  <option value="single">Single</option>
+                  <option value="mfj" selected>Married Filing Jointly</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="drawdown-state-tax">State Tax Rate (%)</label>
+                <input type="number" id="drawdown-state-tax" min="0" max="15" step="0.1" value="4.5" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Multi-Account Wrappers -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">💼 Portfolio by Account Wrapper</h2>
+            
+            <!-- Pre-Tax Traditional -->
+            <div class="engine-account-card pretax">
+              <div class="account-card-header">
+                <span class="account-badge pretax">🟡 Pre-Tax 401(k) / IRA</span>
+              </div>
+              <div class="form-field">
+                <label for="drawdown-asset-pretax">Balance ($)</label>
+                <input type="number" id="drawdown-asset-pretax" min="0" step="5000" value="500000" />
+              </div>
+              <span class="field-subtext">Ordinary income upon distribution. SECURE 2.0 RMDs at 73/75.</span>
+            </div>
+
+            <!-- Roth IRA / 401(k) -->
+            <div class="engine-account-card roth">
+              <div class="account-card-header">
+                <span class="account-badge roth">🟣 Roth IRA / 401(k)</span>
+              </div>
+              <div class="form-field">
+                <label for="drawdown-asset-roth">Balance ($)</label>
+                <input type="number" id="drawdown-asset-roth" min="0" step="5000" value="250000" />
+              </div>
+              <span class="field-subtext">Tax-free growth &amp; distributions. No lifetime RMDs.</span>
+            </div>
+
+            <!-- Taxable Brokerage -->
+            <div class="engine-account-card taxable">
+              <div class="account-card-header">
+                <span class="account-badge taxable">🟢 Taxable Brokerage</span>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-field">
+                  <label for="drawdown-asset-taxable">Market Value ($)</label>
+                  <input type="number" id="drawdown-asset-taxable" min="0" step="5000" value="200000" />
+                </div>
+                <div class="form-field">
+                  <label for="drawdown-asset-taxable-basis">Cost Basis ($)</label>
+                  <input type="number" id="drawdown-asset-taxable-basis" min="0" step="5000" value="160000" />
+                </div>
+              </div>
+              <span class="field-subtext">Subject to preferential LTCG. Stepped-up basis on transfer.</span>
+            </div>
+
+            <!-- Cash Buffer -->
+            <div class="engine-account-card cash">
+              <div class="account-card-header">
+                <span class="account-badge cash">🔵 Cash Buffer / Reserve</span>
+              </div>
+              <div class="form-field">
+                <label for="drawdown-asset-cash">Liquid Cash ($)</label>
+                <input type="number" id="drawdown-asset-cash" min="0" step="1000" value="50000" />
+              </div>
+              <span class="field-subtext">Safe liquidity buffer protecting equities against early sequence risk.</span>
+            </div>
+
+            <!-- Total Strip -->
+            <div class="portfolio-total-strip">
+              <span>Total Starting Portfolio:</span>
+              <span class="portfolio-total-val" id="drawdown-total-portfolio">$1,000,000</span>
+            </div>
+          </div>
+
+          <!-- 3. Spending & Strategies -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">🎯 Spending &amp; Dynamic Strategy</h2>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label for="drawdown-spend-essential">Essential Overhead ($/yr)</label>
+                <input type="number" id="drawdown-spend-essential" min="0" step="1000" value="45000" />
+                <span class="field-subtext">Housing, food, utilities, health</span>
+              </div>
+              <div class="form-field">
+                <label for="drawdown-spend-discretionary">Discretionary Spend ($/yr)</label>
+                <input type="number" id="drawdown-spend-discretionary" min="0" step="1000" value="15000" />
+                <span class="field-subtext">Travel, dining, hobbies (flexible)</span>
+              </div>
+            </div>
+
+            <label style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; display: block; margin-top: 0.75rem; margin-bottom: 0.4rem;">
+              Dynamic Spending Guardrail Model
+            </label>
+            <div class="strategy-card-select">
+              <label class="strategy-radio-label">
+                <input type="radio" name="drawdown-strategy" value="guyton-klinger" checked />
+                <div class="strategy-content">
+                  <span class="strategy-name">Guyton-Klinger Guardrails (Recommended)</span>
+                  <span class="strategy-desc">Trim/raise discretionary spend by 10% when withdrawal rate breaches ±20% boundaries. Prevents portfolio ruin during market shocks.</span>
+                </div>
+              </label>
+
+              <label class="strategy-radio-label">
+                <input type="radio" name="drawdown-strategy" value="blanchett-smile" />
+                <div class="strategy-content">
+                  <span class="strategy-name">David Blanchett Spending Smile</span>
+                  <span class="strategy-desc">Spending dips ~1.5%/yr in real terms during active slow-go years (60–75) before rising late in life for healthcare overhead.</span>
+                </div>
+              </label>
+
+              <label class="strategy-radio-label">
+                <input type="radio" name="drawdown-strategy" value="constant-dollar" />
+                <div class="strategy-content">
+                  <span class="strategy-name">Constant Real Dollar (Traditional 4% Rule)</span>
+                  <span class="strategy-desc">Initial spending inflated strictly by inflation each year. Vulnerable to severe sequence-of-returns drawdowns.</span>
+                </div>
+              </label>
+
+              <label class="strategy-radio-label">
+                <input type="radio" name="drawdown-strategy" value="income-first" />
+                <div class="strategy-content">
+                  <span class="strategy-name">Income First (Yield Only)</span>
+                  <span class="strategy-desc">Spends only cash/bond yields and dividends. Forces lifestyle cuts during fluctuating dividend cycles.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. Social Security Dual-Earner -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">🏛️ Social Security Inflows</h2>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label for="drawdown-ss1-pia">Earner 1 (FRA $/mo)</label>
+                <input type="number" id="drawdown-ss1-pia" min="0" step="100" value="0" />
+              </div>
+              <div class="form-field">
+                <label for="drawdown-ss1-age">Claiming Age</label>
+                <input type="number" id="drawdown-ss1-age" min="62" max="70" step="1" value="67" />
+              </div>
+            </div>
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
+              <div class="form-field">
+                <label for="drawdown-ss2-pia">Earner 2 (FRA $/mo)</label>
+                <input type="number" id="drawdown-ss2-pia" min="0" step="100" value="0" />
+              </div>
+              <div class="form-field">
+                <label for="drawdown-ss2-age">Claiming Age</label>
+                <input type="number" id="drawdown-ss2-age" min="62" max="70" step="1" value="67" />
+              </div>
+            </div>
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
+              <div class="form-field">
+                <label for="drawdown-ss-cola">Annual COLA (%)</label>
+                <input type="number" id="drawdown-ss-cola" min="0" max="8" step="0.1" value="2.5" />
+              </div>
+              <div class="form-field">
+                <label for="drawdown-inflation">General Inflation (%)</label>
+                <input type="number" id="drawdown-inflation" min="0" max="10" step="0.1" value="2.5" />
+              </div>
+            </div>
+            <span class="field-subtext" style="margin-top: 0.4rem; display: block;">
+              Benefits adjust actuarially (-30% at 62, +24% at 70) and undergo IRS provisional income taxation.
+            </span>
+          </div>
+
+          <!-- 5. Market Returns & Stress Test -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">📉 Market Returns &amp; Stress Test</h2>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label for="drawdown-expected-return">Nominal Return (%)</label>
+                <input type="number" id="drawdown-expected-return" min="0" max="15" step="0.1" value="7.0" />
+              </div>
+              <div class="form-field">
+                <label for="drawdown-cash-yield">Cash Yield (%)</label>
+                <input type="number" id="drawdown-cash-yield" min="0" max="10" step="0.1" value="3.5" />
+              </div>
+            </div>
+            <div class="form-field" style="margin-top: 0.65rem;">
+              <label for="drawdown-scenario">Sequence-of-Returns Scenario</label>
+              <select id="drawdown-scenario">
+                <option value="normal" selected>Standard Baseline (Constant Real Return)</option>
+                <option value="stagflation-1966">1966 Stagflation Shock (Equities -10%, -15%, +5%, -8%, 6% Inflation)</option>
+                <option value="bear-early">Early Bear Market Crash (-20% Year 1, -15% Year 2)</option>
+              </select>
+            </div>
+          </div>
+        </aside>
+
+        <!-- RIGHT: Visualizations & Ledger -->
+        <section class="engine-main">
+          <!-- KPI Summary Cards -->
+          <div class="kpi-row">
+            <div class="kpi-card highlight">
+              <span class="kpi-title">Portfolio Longevity</span>
+              <span class="kpi-value green" id="kpi-longevity">Age 95+ (100%)</span>
+              <span class="kpi-sub" id="kpi-longevity-sub">Full horizon funded</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-title" id="kpi-terminal-title">Terminal Estate (Age 95)</span>
+              <span class="kpi-value purple" id="kpi-terminal-estate">$1,450,000</span>
+              <span class="kpi-sub" id="kpi-terminal-sub">Stepped-up basis for heirs</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-title">Lifetime Spending</span>
+              <span class="kpi-value blue" id="kpi-total-consumption">$2,850,000</span>
+              <span class="kpi-sub" id="kpi-consumption-sub">Essential + Discretionary</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-title">Lifetime Taxes Paid</span>
+              <span class="kpi-value amber" id="kpi-total-taxes">$340,000</span>
+              <span class="kpi-sub" id="kpi-taxes-sub">Effective Rate: 10.6%</span>
+            </div>
+          </div>
+
+          <!-- Chart 1: Multi-Account Portfolio Horizon (Stacking Area Chart) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3 class="chart-title">Portfolio Drawdown Horizon</h3>
+                <span class="chart-badge">Stacked Multi-Account Canvas</span>
+              </div>
+              <div class="chart-legend">
+                <div class="legend-tag"><span class="legend-color-dot dot-cash"></span> Cash Buffer</div>
+                <div class="legend-tag"><span class="legend-color-dot dot-taxable"></span> Taxable Brokerage</div>
+                <div class="legend-tag"><span class="legend-color-dot dot-pretax"></span> Pre-Tax Traditional</div>
+                <div class="legend-tag"><span class="legend-color-dot dot-roth"></span> Roth IRA/401(k)</div>
+              </div>
+            </div>
+            <div class="canvas-container">
+              <canvas id="drawdown-horizon-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 2: Annual Outflows & Cash Flow (Stacking Bar Chart) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3 class="chart-title">Annual Inflows, Outflows &amp; Tax Drag</h3>
+                <span class="chart-badge">Stacked Outflows Canvas</span>
+              </div>
+              <div class="chart-legend">
+                <div class="legend-tag"><span class="legend-color-dot dot-spend"></span> Lifestyle Spending</div>
+                <div class="legend-tag"><span class="legend-color-dot dot-tax"></span> Taxes Paid (Fed + State)</div>
+                <div class="legend-tag"><span class="legend-color-dot dot-ss"></span> Social Security Inflow</div>
+              </div>
+            </div>
+            <div class="canvas-container" style="height: 320px;">
+              <canvas id="drawdown-cashflow-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Amortization Ledger Table -->
+          <div class="ledger-card">
+            <div class="ledger-header">
+              <div class="chart-title-area">
+                <h3 class="chart-title">Year-by-Year Retirement Ledger</h3>
+                <span class="chart-badge" id="ledger-rows-badge">36 Years</span>
+              </div>
+              <div class="ledger-actions">
+                <button type="button" class="btn-filter-toggle active" id="btn-interval-all">All Years</button>
+                <button type="button" class="btn-filter-toggle" id="btn-interval-5yr">5-Yr Intervals</button>
+                <button type="button" class="btn-export-csv" id="btn-export-ledger-csv">📥 Export CSV</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="ledger-table" id="drawdown-ledger-table">
+                <thead>
+                  <tr>
+                    <th>Age</th>
+                    <th>Year</th>
+                    <th>Cash Bal</th>
+                    <th>Taxable Bal</th>
+                    <th>Pre-Tax Bal</th>
+                    <th>Roth Bal</th>
+                    <th>Total Portfolio</th>
+                    <th>Living Spend</th>
+                    <th>Soc Security</th>
+                    <th>Portfolio Draw</th>
+                    <th>Mandated RMD</th>
+                    <th>Total Tax</th>
+                    <th>Strategy Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="drawdown-ledger-body">
+                  <!-- Generated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2026 Financial Calculator &bull; Retirement Drawdown Engine</p>
+      </footer>
+    </div>
+
+    <script src="../js/font-scale.js"></script>
+    <script type="module" src="../js/drawdown-engine.js"></script>
+  </body>
+</html>
+

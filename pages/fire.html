@@ -14,19 +14,27 @@
       <div class="top-nav-inner">
         <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
         <div class="top-nav-links">
-          <a href="../index.html" class="top-nav-link active">Calculators</a>
+          <a href="../index.html" class="top-nav-link">Calculators</a>
+          <a href="fire.html" class="top-nav-link active">FIRE Dashboard</a>
+          <a href="drawdown-engine.html" class="top-nav-link">Drawdown Engine</a>
           <a href="news.html" class="top-nav-link">News Feed</a>
         </div>
       </div>
     </nav>
 
     <div class="page-container">
-      <header>
-        <h1>🔥 FIRE Dashboard</h1>
-        <p class="tagline">
-          Calculate your path to Financial Independence and find your Coast FIRE
-          number.
-        </p>
+      <header class="fire-page-header">
+        <div class="fire-header-text">
+          <h1>🔥 FIRE Dashboard</h1>
+          <p class="tagline">
+            Calculate your path to Financial Independence and find your Coast FIRE number.
+          </p>
+        </div>
+        <a href="drawdown-engine.html" class="btn-fire-header-drawdown" title="Open Retirement Drawdown Engine">
+          <span class="btn-icon">🛡️</span>
+          <span>Retirement Drawdown Engine</span>
+          <span class="btn-arrow">➔</span>
+        </a>
       </header>
 
       <main>
@@ -173,6 +181,108 @@
                 step="100"
                 aria-label="Adjust monthly contribution by $100"
               />
+            </div>
+          </div>
+
+          <!-- Asset Location Split Toggle -->
+          <div class="asset-split-toggle-container">
+            <button type="button" id="fire-toggle-asset-split-btn" class="btn-asset-split-toggle" aria-expanded="false">
+              <span class="toggle-icon">💼</span>
+              <span class="toggle-label">Split by Account Type (Pre-Tax / Roth / Taxable / Cash)</span>
+              <span class="toggle-badge" id="asset-split-status-badge">Single Total</span>
+              <span class="toggle-chevron" id="asset-split-chevron">▼</span>
+            </button>
+            
+            <div id="fire-asset-split-drawer" class="asset-split-drawer hidden">
+              <div class="asset-split-header">
+                <span class="asset-split-hint">Categorize your assets across tax wrappers to model tax drag, RMDs, and optimal withdrawal sequencing. Multi-asset charts will render as stacking charts.</span>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <a href="drawdown-engine.html" class="btn-asset-split-drawdown-link" title="Model this asset split in the Drawdown Engine">🛡️ Test in Drawdown Lab ➔</a>
+                  <button type="button" id="fire-reset-asset-split-btn" class="btn-text-action" title="Reset to standard 50/25/20/5 split">Reset 50/25/20/5</button>
+                </div>
+              </div>
+
+              <!-- Allocation Stack Bar -->
+              <div class="asset-allocation-bar" id="fire-allocation-bar">
+                <div class="alloc-segment alloc-pretax" id="alloc-bar-pretax" style="width: 50%" title="Pre-Tax Traditional: 50%">50% Pre-Tax</div>
+                <div class="alloc-segment alloc-roth" id="alloc-bar-roth" style="width: 25%" title="Roth: 25%">25% Roth</div>
+                <div class="alloc-segment alloc-taxable" id="alloc-bar-taxable" style="width: 20%" title="Taxable: 20%">20% Taxable</div>
+                <div class="alloc-segment alloc-cash" id="alloc-bar-cash" style="width: 5%" title="Cash Buffer: 5%">5% Cash</div>
+              </div>
+
+              <div class="asset-cards-grid">
+                <!-- Pre-Tax Traditional 401(k) / IRA -->
+                <div class="asset-card card-pretax">
+                  <div class="asset-card-header">
+                    <span class="asset-badge badge-pretax">🟡 Pre-Tax Traditional</span>
+                    <span class="asset-pct" id="asset-pct-pretax">50%</span>
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-asset-pretax">Starting Balance ($)</label>
+                    <input type="number" id="fire-asset-pretax" min="0" step="1000" value="25000" />
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-contrib-pretax">Monthly Contrib ($/mo)</label>
+                    <input type="number" id="fire-contrib-pretax" min="0" step="50" value="1000" />
+                  </div>
+                  <span class="asset-note">Tax-deferred. Subject to ordinary income tax &amp; RMDs at 73/75.</span>
+                </div>
+
+                <!-- Roth IRA / 401(k) -->
+                <div class="asset-card card-roth">
+                  <div class="asset-card-header">
+                    <span class="asset-badge badge-roth">🟣 Roth IRA / 401(k)</span>
+                    <span class="asset-pct" id="asset-pct-roth">25%</span>
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-asset-roth">Starting Balance ($)</label>
+                    <input type="number" id="fire-asset-roth" min="0" step="1000" value="12500" />
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-contrib-roth">Monthly Contrib ($/mo)</label>
+                    <input type="number" id="fire-contrib-roth" min="0" step="50" value="500" />
+                  </div>
+                  <span class="asset-note">Tax-free growth &amp; qualified withdrawals. No RMDs during lifetime.</span>
+                </div>
+
+                <!-- Taxable Brokerage -->
+                <div class="asset-card card-taxable">
+                  <div class="asset-card-header">
+                    <span class="asset-badge badge-taxable">🟢 Taxable Brokerage</span>
+                    <span class="asset-pct" id="asset-pct-taxable">20%</span>
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-asset-taxable">Starting Balance ($)</label>
+                    <input type="number" id="fire-asset-taxable" min="0" step="1000" value="10000" />
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-asset-taxable-basis">Cost Basis ($)</label>
+                    <input type="number" id="fire-asset-taxable-basis" min="0" step="1000" value="8000" />
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-contrib-taxable">Monthly Contrib ($/mo)</label>
+                    <input type="number" id="fire-contrib-taxable" min="0" step="50" value="400" />
+                  </div>
+                  <span class="asset-note">Taxed at preferential LTCG rates. Step-up in basis on inheritance.</span>
+                </div>
+
+                <!-- Cash Reserve Buffer -->
+                <div class="asset-card card-cash">
+                  <div class="asset-card-header">
+                    <span class="asset-badge badge-cash">🔵 Cash Reserve Buffer</span>
+                    <span class="asset-pct" id="asset-pct-cash">5%</span>
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-asset-cash">Starting Balance ($)</label>
+                    <input type="number" id="fire-asset-cash" min="0" step="500" value="2500" />
+                  </div>
+                  <div class="asset-field">
+                    <label for="fire-contrib-cash">Monthly Contrib ($/mo)</label>
+                    <input type="number" id="fire-contrib-cash" min="0" step="50" value="100" />
+                  </div>
+                  <span class="asset-note">Liquidity buffer (HYSA/Money Market) to prevent forced equity sales in crashes.</span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="form-row">
@@ -467,6 +577,20 @@
                 <span id="fire-monthly-gap" class="result-value">—</span>
               </div>
             </div>
+
+            <!-- Bridge to Retirement Drawdown Engine -->
+            <div id="fire-drawdown-engine-bridge" class="drawdown-bridge-banner">
+              <div class="bridge-content">
+                <div class="bridge-icon">🛡️</div>
+                <div class="bridge-text">
+                  <h3>Stress-Test Your Drawdown in the Tax-Aware Engine</h3>
+                  <p>Model multi-account sequencing (Taxable, Pre-Tax, Roth, Cash), SECURE 2.0 RMDs, Guyton-Klinger dynamic guardrails, and 1966 stagflation risk.</p>
+                </div>
+              </div>
+              <a href="drawdown-engine.html" class="btn-primary btn-bridge-launch" id="fire-launch-drawdown-btn">
+                Launch Drawdown Lab ➔
+              </a>
+            </div>
           </div>
 
           <!-- Withdrawal Rate Sensitivity -->
@@ -494,14 +618,29 @@
 
           <!-- FIRE Projection Chart -->
           <div id="fire-chart-section" class="chart-panel hidden">
-            <h2>Portfolio Projection</h2>
+            <div class="chart-panel-header">
+              <h2>Portfolio Projection</h2>
+              <span id="fire-chart-mode-badge" class="badge-chart-mode hidden">Stacked Multi-Asset View</span>
+            </div>
             <div class="canvas-chart">
               <canvas id="fire-chart-canvas" role="img" aria-label="FIRE portfolio projection chart showing accumulation and drawdown phases"></canvas>
             </div>
             <div class="chart-legend" id="fire-chart-legend">
-              <span class="legend-item"
+              <span class="legend-item" id="legend-item-principal"
                 ><span class="legend-color legend-principal"></span> Projected
                 Portfolio</span
+              >
+              <span class="legend-item hidden" id="legend-item-cash"
+                ><span class="legend-color legend-cash"></span> Cash Buffer</span
+              >
+              <span class="legend-item hidden" id="legend-item-taxable"
+                ><span class="legend-color legend-taxable"></span> Taxable Brokerage</span
+              >
+              <span class="legend-item hidden" id="legend-item-pretax"
+                ><span class="legend-color legend-pretax"></span> Pre-Tax Traditional</span
+              >
+              <span class="legend-item hidden" id="legend-item-roth"
+                ><span class="legend-color legend-roth"></span> Roth IRA</span
               >
               <span class="legend-item"
                 ><span class="legend-color legend-coast-threshold"></span> Coast
@@ -764,66 +903,81 @@
             <div class="expense-grid">
               <!-- Housing -->
               <div class="expense-category">
-                <h4 class="category-title">🏠 Housing & Utilities</h4>
+                <div class="category-header">
+                  <h4 class="category-title">🏠 Housing &amp; Utilities</h4>
+                  <span class="badge-expense-classification essential">Essential</span>
+                </div>
                 <div class="expense-field">
                   <label for="exp-housing-mortgage">Mortgage / Rent ($/mo)</label>
                   <input type="number" id="exp-housing-mortgage" min="0" step="50" value="1600" />
                 </div>
                 <div class="expense-field">
-                  <label for="exp-housing-tax">Property Tax & Insurance ($/mo)</label>
+                  <label for="exp-housing-tax">Property Tax &amp; Insurance ($/mo)</label>
                   <input type="number" id="exp-housing-tax" min="0" step="25" value="400" />
                 </div>
                 <div class="expense-field">
-                  <label for="exp-housing-utilities">Utilities & Internet ($/mo)</label>
+                  <label for="exp-housing-utilities">Utilities &amp; Internet ($/mo)</label>
                   <input type="number" id="exp-housing-utilities" min="0" step="25" value="350" />
                 </div>
               </div>
 
               <!-- Living & Food -->
               <div class="expense-category">
-                <h4 class="category-title">🛒 Food & Daily Living</h4>
+                <div class="category-header">
+                  <h4 class="category-title">🛒 Food &amp; Daily Living</h4>
+                  <span class="badge-expense-classification mixed">Essential + Discretionary</span>
+                </div>
                 <div class="expense-field">
-                  <label for="exp-living-groceries">Groceries & Household ($/mo)</label>
+                  <label for="exp-living-groceries">Groceries &amp; Household ($/mo) <span class="tag-field-essential">Essential</span></label>
                   <input type="number" id="exp-living-groceries" min="0" step="25" value="650" />
                 </div>
                 <div class="expense-field">
-                  <label for="exp-living-dining">Dining Out & Coffee ($/mo)</label>
+                  <label for="exp-living-dining">Dining Out &amp; Coffee ($/mo) <span class="tag-field-discretionary">Discretionary</span></label>
                   <input type="number" id="exp-living-dining" min="0" step="25" value="300" />
                 </div>
               </div>
 
               <!-- Healthcare -->
               <div class="expense-category">
-                <h4 class="category-title">🩺 Healthcare</h4>
+                <div class="category-header">
+                  <h4 class="category-title">🩺 Healthcare</h4>
+                  <span class="badge-expense-classification essential">Essential</span>
+                </div>
                 <div class="expense-field">
                   <label for="exp-health-premium">Health Insurance Premium ($/mo)</label>
                   <input type="number" id="exp-health-premium" min="0" step="25" value="500" />
                   <span class="field-hint">Private/ACA before 65; Medicare after 65</span>
                 </div>
                 <div class="expense-field">
-                  <label for="exp-health-oop">Out-of-Pocket, Dental & Rx ($/mo)</label>
+                  <label for="exp-health-oop">Out-of-Pocket, Dental &amp; Rx ($/mo)</label>
                   <input type="number" id="exp-health-oop" min="0" step="25" value="150" />
                 </div>
               </div>
 
               <!-- Transportation -->
               <div class="expense-category">
-                <h4 class="category-title">🚗 Transportation</h4>
+                <div class="category-header">
+                  <h4 class="category-title">🚗 Transportation</h4>
+                  <span class="badge-expense-classification essential">Essential</span>
+                </div>
                 <div class="expense-field">
                   <label for="exp-transport-car">Vehicle Payment / Sinking Fund ($/mo)</label>
                   <input type="number" id="exp-transport-car" min="0" step="25" value="250" />
                 </div>
                 <div class="expense-field">
-                  <label for="exp-transport-maint">Auto Insurance & Gas ($/mo)</label>
+                  <label for="exp-transport-maint">Auto Insurance &amp; Gas ($/mo)</label>
                   <input type="number" id="exp-transport-maint" min="0" step="25" value="200" />
                 </div>
               </div>
 
               <!-- Children / Dependents -->
               <div class="expense-category">
-                <h4 class="category-title">🧸 Children / Dependents (Current)</h4>
+                <div class="category-header">
+                  <h4 class="category-title">🧸 Children / Dependents (Current)</h4>
+                  <span class="badge-expense-classification discretionary">Discretionary / Phase</span>
+                </div>
                 <div class="expense-field">
-                  <label for="exp-kids-monthly">Children Food, Activities & Care ($/mo)</label>
+                  <label for="exp-kids-monthly">Children Food, Activities &amp; Care ($/mo)</label>
                   <input type="number" id="exp-kids-monthly" min="0" step="50" value="0" />
                   <span class="field-hint">Can drop off when kids turn 18 and leave home!</span>
                 </div>
@@ -835,22 +989,28 @@
 
               <!-- Lifestyle & Fun -->
               <div class="expense-category">
-                <h4 class="category-title">✈️ Travel & Entertainment</h4>
+                <div class="category-header">
+                  <h4 class="category-title">✈️ Travel &amp; Entertainment</h4>
+                  <span class="badge-expense-classification discretionary">Discretionary</span>
+                </div>
                 <div class="expense-field">
-                  <label for="exp-fun-travel">Travel & Vacations ($/mo)</label>
+                  <label for="exp-fun-travel">Travel &amp; Vacations ($/mo)</label>
                   <input type="number" id="exp-fun-travel" min="0" step="50" value="350" />
                 </div>
                 <div class="expense-field">
-                  <label for="exp-fun-hobbies">Hobbies & Subscriptions ($/mo)</label>
+                  <label for="exp-fun-hobbies">Hobbies &amp; Subscriptions ($/mo)</label>
                   <input type="number" id="exp-fun-hobbies" min="0" step="25" value="150" />
                 </div>
               </div>
 
               <!-- Misc & Buffer -->
               <div class="expense-category">
-                <h4 class="category-title">🛡️ Buffer & Miscellaneous</h4>
+                <div class="category-header">
+                  <h4 class="category-title">🛡️ Buffer &amp; Miscellaneous</h4>
+                  <span class="badge-expense-classification discretionary">Discretionary</span>
+                </div>
                 <div class="expense-field">
-                  <label for="exp-misc-buffer">Unexpected & Personal ($/mo)</label>
+                  <label for="exp-misc-buffer">Unexpected &amp; Personal ($/mo)</label>
                   <input type="number" id="exp-misc-buffer" min="0" step="25" value="100" />
                 </div>
               </div>
@@ -865,6 +1025,16 @@
               <div class="summary-stat highlight">
                 <span class="stat-label">Total Annual Retirement Expenses:</span>
                 <span id="exp-summary-annual" class="stat-value">$60,000/yr</span>
+              </div>
+              <div class="summary-breakdown-row">
+                <div class="breakdown-stat essential">
+                  <span class="stat-mini-label">🏠 Essential Overhead:</span>
+                  <span id="exp-summary-essential" class="stat-mini-value">$46,800/yr (78%)</span>
+                </div>
+                <div class="breakdown-stat discretionary">
+                  <span class="stat-mini-label">✈️ Discretionary Spend:</span>
+                  <span id="exp-summary-discretionary" class="stat-mini-value">$13,200/yr (22%)</span>
+                </div>
               </div>
               <div id="exp-kids-tip" class="kids-dropoff-tip hidden">
                 💡 You have dependent expenses included. After applying, you can add an Expense Milestone to drop this expense at age 49!
