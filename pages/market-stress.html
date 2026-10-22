@@ -88,21 +88,77 @@
           <div class="panel-section">
             <h2 class="panel-section-title">📉 Market Regime &amp; Scenario</h2>
 
-            <!-- Bear vs Bull Toggle -->
+            <!-- Bear vs Bull vs Stagflation Toggle -->
             <div class="regime-toggle-group">
               <button type="button" class="btn-regime-toggle active" id="btn-regime-bear" data-regime="bear">
-                🔻 Bear &amp; Crashes
+                🔻 Bear Crashes
               </button>
               <button type="button" class="btn-regime-toggle" id="btn-regime-bull" data-regime="bull">
-                🚀 Bull Expansions
+                🚀 Bull Runs
+              </button>
+              <button type="button" class="btn-regime-toggle" id="btn-regime-stagflation" data-regime="stagflation">
+                ⏳ Stagflation &amp; Decades
               </button>
             </div>
 
             <div class="form-field" style="margin-top: 0.75rem;">
-              <label for="stress-scenario-select">Historical / Forward Shock</label>
+              <label for="stress-scenario-select">Historical / Forward Scenario</label>
               <select id="stress-scenario-select">
                 <!-- Populated dynamically via JS -->
               </select>
+            </div>
+
+            <!-- Custom Time Period / Duration Slider -->
+            <div class="form-field" style="margin-top: 0.85rem;" id="group-horizon-control">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                <label for="slider-horizon-months" style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500;">
+                  ⏱️ Custom Time Period (Horizon)
+                </label>
+                <span class="alloc-pct-val" id="val-horizon-display" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);">
+                  24 Mos (2.0 Yrs)
+                </span>
+              </div>
+              <input type="range" id="slider-horizon-months" min="12" max="180" step="6" value="24" class="alloc-range-slider" />
+              <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748b; margin-top: 0.2rem;">
+                <span>1 Yr</span>
+                <span>3 Yrs</span>
+                <span>5 Yrs</span>
+                <span>10 Yrs</span>
+                <span>15 Yrs</span>
+              </div>
+              <span class="field-subtext">Adjust the slider to test any custom multi-year timeframe from 1 to 15 years.</span>
+            </div>
+
+            <!-- Custom Builder Panel (Visible when Custom Scenario is selected) -->
+            <div id="custom-builder-drawer" style="display: none; margin-top: 0.85rem; padding: 0.85rem; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px;">
+              <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.55rem;">
+                🛠️ Custom Macro Assumptions (% Annual Return)
+              </div>
+              <div class="form-grid-2">
+                <div class="form-field">
+                  <label for="custom-sp-return">S&amp;P 500 (%/yr)</label>
+                  <input type="number" id="custom-sp-return" step="0.5" value="4.0" />
+                </div>
+                <div class="form-field">
+                  <label for="custom-rsp-return">Equal-Weight RSP (%/yr)</label>
+                  <input type="number" id="custom-rsp-return" step="0.5" value="10.0" />
+                </div>
+              </div>
+              <div class="form-grid-2" style="margin-top: 0.45rem;">
+                <div class="form-field">
+                  <label for="custom-bond-return">10-Yr Treasury (%/yr)</label>
+                  <input type="number" id="custom-bond-return" step="0.5" value="2.5" />
+                </div>
+                <div class="form-field">
+                  <label for="custom-cash-yield">Cash / T-Bills (%/yr)</label>
+                  <input type="number" id="custom-cash-yield" step="0.5" value="8.0" />
+                </div>
+              </div>
+              <div class="form-field" style="margin-top: 0.45rem;">
+                <label for="custom-inflation-rate">Annual Inflation Rate (%/yr)</label>
+                <input type="number" id="custom-inflation-rate" step="0.5" value="7.5" />
+                <span class="field-subtext">Calculates real purchasing power preservation.</span>
+              </div>
             </div>
 
             <div class="scenario-details-card" id="scenario-details-card">
