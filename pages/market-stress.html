@@ -88,16 +88,19 @@
           <div class="panel-section">
             <h2 class="panel-section-title">📉 Market Regime &amp; Scenario</h2>
 
-            <!-- Bear vs Bull vs Stagflation Toggle -->
+            <!-- Regime Toggle (Historical vs Stagflation vs Bear vs Bull) -->
             <div class="regime-toggle-group">
-              <button type="button" class="btn-regime-toggle active" id="btn-regime-bear" data-regime="bear">
+              <button type="button" class="btn-regime-toggle active" id="btn-regime-historical" data-regime="historical">
+                📜 Empirical (1928–2026)
+              </button>
+              <button type="button" class="btn-regime-toggle" id="btn-regime-stagflation" data-regime="stagflation">
+                ⏳ Stagflation Eras
+              </button>
+              <button type="button" class="btn-regime-toggle" id="btn-regime-bear" data-regime="bear">
                 🔻 Bear Crashes
               </button>
               <button type="button" class="btn-regime-toggle" id="btn-regime-bull" data-regime="bull">
                 🚀 Bull Runs
-              </button>
-              <button type="button" class="btn-regime-toggle" id="btn-regime-stagflation" data-regime="stagflation">
-                ⏳ Stagflation &amp; Decades
               </button>
             </div>
 
@@ -106,6 +109,53 @@
               <select id="stress-scenario-select">
                 <!-- Populated dynamically via JS -->
               </select>
+            </div>
+
+            <!-- Historical Empirical Date Range Drawer -->
+            <div id="historical-range-drawer" class="historical-drawer">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.78rem; font-weight: 700; color: #38bdf8;">📅 Custom Empirical Date Range</span>
+                <span class="alloc-pct-val" id="hist-duration-badge" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3); font-size: 0.72rem;">
+                  120 Mos (10.0 Yrs)
+                </span>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-field">
+                  <label for="hist-start-month" style="font-size: 0.72rem;">Start (Month / Year)</label>
+                  <div class="date-input-combo">
+                    <select id="hist-start-month" aria-label="Start Month"></select>
+                    <select id="hist-start-year" aria-label="Start Year"></select>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label for="hist-end-month" style="font-size: 0.72rem;">End (Month / Year)</label>
+                  <div class="date-input-combo">
+                    <select id="hist-end-month" aria-label="End Month"></select>
+                    <select id="hist-end-year" aria-label="End Year"></select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick empirical stats for selected range -->
+              <div class="hist-macro-strip" id="hist-macro-strip">
+                <div class="hist-macro-item">
+                  <span class="hist-macro-label">S&amp;P 500</span>
+                  <span class="hist-macro-val" id="hist-stat-sp">--</span>
+                </div>
+                <div class="hist-macro-item">
+                  <span class="hist-macro-label">CPI Inflation</span>
+                  <span class="hist-macro-val red" id="hist-stat-cpi">--</span>
+                </div>
+                <div class="hist-macro-item">
+                  <span class="hist-macro-label">10-Yr Bond</span>
+                  <span class="hist-macro-val" id="hist-stat-bond">--</span>
+                </div>
+                <div class="hist-macro-item">
+                  <span class="hist-macro-label">Cash / T-Bills</span>
+                  <span class="hist-macro-val green" id="hist-stat-cash">--</span>
+                </div>
+              </div>
             </div>
 
             <!-- Custom Time Period / Duration Slider -->

@@ -1,7 +1,8 @@
 /**
  * Market Stress & Portfolio Timing Simulator
  * Analyzes mega-cap concentration risk, Treasury flight-to-safety,
- * and tests whether an active defensive shift beats staying the course (60/40 + Continuous DCA).
+ * empirical market history (1928-present), and tests whether an active
+ * defensive shift beats staying the course (60/40 + Continuous DCA).
  */
 
 import {
@@ -9,12 +10,172 @@ import {
   createChartContext, rafThrottle, drawTooltip
 } from "./chart-utils.js";
 
+import {
+  HISTORICAL_PRESETS,
+  HISTORICAL_MARKET_DATA
+} from "./market-history-data.js";
+
 // ===================================================================
 // HISTORICAL & FORWARD SCENARIO DATA
 // ===================================================================
 
 const SCENARIOS = [
-  // --- BEAR REGIMES & CRASHES ---
+  // --- 1. EMPIRICAL HISTORICAL ERAS (1928–PRESENT) ---
+  {
+    id: "hist-stagflation-1966",
+    name: "1966–1982: 16-Yr Secular Stagflation (The Bengen Crisis)",
+    regime: "historical",
+    start: "1966-01",
+    end: "1982-08",
+    descTitle: "16-Year Equity Churn + 207% Cumulative Inflation",
+    descText: "The empirical crisis that created the 4% Rule. The S&P 500 generated zero real capital appreciation for 16 years while inflation tripled consumer prices. Cash T-Bills (+7.0%/yr) and dividend-paying value (+6.6%/yr) outperformed long bonds (+3.7%/yr).",
+    spShockTotal: "-63.4% (Real)",
+    bondRallyTotal: "-40.1% (Real)",
+  },
+  {
+    id: "hist-oil-shock-1973",
+    name: "1973–1982: 10-Yr Oil Shock & Volcker Rate Peak",
+    regime: "historical",
+    start: "1973-01",
+    end: "1982-12",
+    descTitle: "Dual Oil Embargoes + Fed Funds Peak at 20%",
+    descText: "Empirical record: 1973-74 Nifty-Fifty crash (-48%), mid-70s rebound, 1979 second oil shock (14.8% inflation), and Volcker's 20% interest rate hikes. S&P 500 CAGR was +6.1% nominal (-22% real); T-Bills compounded at +8.5% nominal.",
+    spShockTotal: "-22.1% (Real)",
+    bondRallyTotal: "-24.5% (Real)",
+  },
+  {
+    id: "hist-lost-decade-2000",
+    name: "2000–2012: 12-Yr Tech Bust & GFC 'Lost Decade'",
+    regime: "historical",
+    start: "2000-01",
+    end: "2012-12",
+    descTitle: "Two -50% Mega-Crashes in 10 Years",
+    descText: "The empirical S&P 500 compounded at only +1.7%/yr over 12 full years. Equal-weight RSP (+4.7%/yr) and 10-Yr Treasuries (+6.7%/yr) massively outperformed cap-weighted tech.",
+    spShockTotal: "+24.4% (1.7%/yr)",
+    bondRallyTotal: "+132.3% (6.7%/yr)",
+  },
+  {
+    id: "hist-great-depression-1929",
+    name: "1929–1939: The Great Crash & 1930s Depression",
+    regime: "historical",
+    start: "1929-09",
+    end: "1939-12",
+    descTitle: "The -80%+ Stock Collapse & Bank Runs",
+    descText: "The largest market crash in American history. Equities lost over 80% to the 1932 trough. Continuous DCA buying at 80% discounts allowed portfolios to break even years before nominal prices recovered.",
+    spShockTotal: "-80.7% (Trough)",
+    bondRallyTotal: "+42.5%",
+  },
+  {
+    id: "hist-gfc-2007",
+    name: "2007–2010: Lehman Collapse & Global Financial Crisis",
+    regime: "historical",
+    start: "2007-10",
+    end: "2010-12",
+    descTitle: "Subprime Contagion & Flight to Safety",
+    descText: "S&P 500 crashed -50%+ to March 2009. 10-Year Treasuries surged +17.2% in 2008 as the global financial system froze. Rapid recovery followed zero-interest-rate policy.",
+    spShockTotal: "-50.9% (Trough)",
+    bondRallyTotal: "+21.4%",
+  },
+  {
+    id: "hist-rate-shock-2022",
+    name: "2022–2024: Modern Rate Shock & AI Super-Rally",
+    regime: "historical",
+    start: "2022-01",
+    end: "2024-12",
+    descTitle: "Simultaneous 60/40 Stock/Bond Crash → AI Boom",
+    descText: "In 2022, S&P fell -18% and Treasuries crashed -17% in the worst 60/40 year since 1931. In 2023–2024, mega-cap tech surged +50%+, widening the gap over equal-weight value.",
+    spShockTotal: "+29.7% (Full Era)",
+    bondRallyTotal: "-11.1%",
+  },
+  {
+    id: "hist-epic-bull-1982",
+    name: "1982–2000: The 18-Yr Secular Mega-Bull",
+    regime: "historical",
+    start: "1982-08",
+    end: "2000-03",
+    descTitle: "The Greatest Golden Era in Modern History",
+    descText: "Interest rates fell from 15% to 6% as inflation collapsed. S&P 500 delivered an astounding +18.5% annualized CAGR, proving the unmatched compounding power of staying the course.",
+    spShockTotal: "+1,420%",
+    bondRallyTotal: "+340%",
+  },
+  {
+    id: "hist-full-century-1928",
+    name: "1928–2026: Full 98-Year Modern Financial History",
+    regime: "historical",
+    start: "1928-01",
+    end: "2026-08",
+    descTitle: "1,184 Continuous Months of Market History",
+    descText: "Spans the Great Depression, WWII, 1970s stagflation, 1980s-90s mega-bull, 2000 dot-com bust, 2008 GFC, and the 2020s AI revolution.",
+    spShockTotal: "+10.2%/yr",
+    bondRallyTotal: "+4.9%/yr",
+  },
+  {
+    id: "hist-custom-range",
+    name: "📅 Custom Date Range (Pick Start & End Below)",
+    regime: "historical",
+    start: "1973-01",
+    end: "1982-12",
+    descTitle: "User-Defined Historical Empirical Window",
+    descText: "Choose any start and end month/year between 1928 and 2026 to evaluate real empirical returns, drawdowns, and DCA compounding.",
+    spShockTotal: "Custom",
+    bondRallyTotal: "Custom",
+  },
+
+  // --- 2. STAGFLATION & SECULAR "LOST DECADES" ---
+  {
+    id: "secular-1966-1982",
+    name: "1966–1982: 16-Year Secular Stagflation (The Bengen Crisis) (192 Mo)",
+    regime: "stagflation",
+    start: "1966-01",
+    end: "1982-08",
+    durationMonths: 192,
+    troughMonth: 106,
+    descTitle: "Worst Retirement Crisis in US History (CPI +207%)",
+    descText: "The benchmark era that broke static withdrawal rules. The S&P was ~100 in 1966 and ~100 in 1982. Capital appreciation was 0.0% while cumulative inflation erased 65% of dollar purchasing power. Floating T-Bills (+7.0%/yr) and dividend-paying value protected capital.",
+    spShockTotal: "-63.4% (Real)",
+    bondRallyTotal: "-40.1% (Real)",
+  },
+  {
+    id: "stagflation-1973-decade",
+    name: "1973–1982: 10-Year Great Stagflation & Volcker Era (120 Mo)",
+    regime: "stagflation",
+    start: "1973-01",
+    end: "1982-12",
+    durationMonths: 120,
+    troughMonth: 24,
+    descTitle: "Double-Digit Inflation (14.8%) + Dual Oil Shocks",
+    descText: "The S&P 500 had two separate 40%+ crashes and returned only +6.1%/yr nominal (-22% real). Bond yields spiked to 15%, hurting long Treasuries (+5.7%/yr). Rolling T-Bills (+8.5%/yr) and Equal-Weight Value (+8.5%/yr) were the premier hedges.",
+    spShockTotal: "-22.1% (Real)",
+    bondRallyTotal: "-24.5% (Real)",
+  },
+  {
+    id: "lost-decade-2000-2012",
+    name: "2000–2012: 12-Year Post-Bubble 'Lost Decade' (144 Mo)",
+    regime: "stagflation",
+    start: "2000-01",
+    end: "2012-12",
+    durationMonths: 144,
+    troughMonth: 111,
+    descTitle: "Two Mega-Crashes (Dot-Com + GFC) in 10 Years",
+    descText: "Cap-weighted S&P 500 compounded at just +1.7%/yr over 12 full years. Equal-weight value (RSP) outperformed (+4.7%/yr). Intermediate Treasuries rallied (+6.7%/yr) as the Fed slashed rates from 6.5% to zero.",
+    spShockTotal: "+24.4%",
+    bondRallyTotal: "+132.3%",
+  },
+  {
+    id: "custom-macro",
+    name: "🛠️ Custom Macro Scenario Builder",
+    regime: "stagflation",
+    durationMonths: 60,
+    troughMonth: 1,
+    descTitle: "User-Defined Custom Macro Assumptions",
+    descText: "Specify your own annual returns for S&P 500, Equal-Weight RSP, 10-Yr Treasuries, Cash Yield, and Inflation, and test any custom time horizon from 1 to 15 years.",
+    spShockTotal: "Custom",
+    bondRallyTotal: "Custom",
+    generator: (months) => generateCustomMacroSeries(months),
+    monthlyReturns: [],
+  },
+
+  // --- 3. BEAR REGIMES & CRASHES ---
   {
     id: "breadth-unwind",
     name: "2024–2026 Forward: Mega-Cap Tech Unwind",
@@ -26,7 +187,6 @@ const SCENARIOS = [
     spShockTotal: "-22.5%",
     bondRallyTotal: "+9.5%",
     monthlyReturns: [
-      // Month 1 - 14: Unwind to Trough
       { m: 1, phase: "Valuation Shock", sp: -0.045, rsp: -0.012, bond: 0.015, cash: 0.0037 },
       { m: 2, phase: "Tech Earnings Miss", sp: -0.052, rsp: -0.018, bond: 0.018, cash: 0.0037 },
       { m: 3, phase: "Rotation to Value", sp: -0.038, rsp: 0.005, bond: 0.012, cash: 0.0037 },
@@ -41,7 +201,6 @@ const SCENARIOS = [
       { m: 12, phase: "Yield Inversion Eases", sp: -0.010, rsp: 0.003, bond: 0.005, cash: 0.0035 },
       { m: 13, phase: "Final Margin Selling", sp: -0.022, rsp: -0.010, bond: 0.004, cash: 0.0035 },
       { m: 14, phase: "Market Trough (Bottom)", sp: -0.015, rsp: -0.005, bond: 0.003, cash: 0.0035, isTrough: true },
-      // Month 15 - 24: Rebound & Expansion
       { m: 15, phase: "Explosive Rebound", sp: 0.058, rsp: 0.042, bond: -0.005, cash: 0.0032 },
       { m: 16, phase: "Broad Market Breadth", sp: 0.042, rsp: 0.048, bond: -0.003, cash: 0.0032 },
       { m: 17, phase: "Earnings Recovery", sp: 0.035, rsp: 0.030, bond: 0.002, cash: 0.0032 },
@@ -115,7 +274,7 @@ const SCENARIOS = [
     monthlyReturns: generateRegimeSeries(-0.339, -0.350, 0.112, 0.015, 14, 2),
   },
 
-  // --- BULL REGIMES & EXPANSIONS ---
+  // --- 4. BULL REGIMES & EXPANSIONS ---
   {
     id: "ai-boom-2023",
     name: "2023–2024: AI & Mega-Cap Tech Super-Rally",
@@ -152,339 +311,92 @@ const SCENARIOS = [
     bondRallyTotal: "+22.0%",
     monthlyReturns: generateBullSeries(0.850, 0.650, 0.220, 0.052, 36),
   },
-
-  // --- STAGFLATION & SECULAR "LOST DECADES" ---
-  {
-    id: "stagflation-1973-decade",
-    name: "1973–1982: 10-Year Great Stagflation & Volcker Era (120 Mo)",
-    regime: "stagflation",
-    durationMonths: 120,
-    troughMonth: 24,
-    descTitle: "Double-Digit Inflation (14.8%) + Dual Oil Shocks",
-    descText: "The S&P 500 had two separate 40%+ crashes and returned only +4.8%/yr nominal (-35% real). Bond yields spiked to 15%, destroying intermediate Treasuries (+3.2%/yr). Rolling T-Bills (+8.8%/yr) and Equal-Weight Value (+11.2%/yr) were the premier hedges.",
-    spShockTotal: "-35.2% (Real)",
-    bondRallyTotal: "-42.0% (Real)",
-    generator: (months) => generate1973DecadeSeries(months),
-    monthlyReturns: [],
-  },
-  {
-    id: "secular-1966-1982",
-    name: "1966–1982: 16-Year Secular Stagflation (The Bengen Crisis) (192 Mo)",
-    regime: "stagflation",
-    durationMonths: 192,
-    troughMonth: 106,
-    descTitle: "Worst Retirement Crisis in US History (CPI +232%)",
-    descText: "The benchmark era that broke static withdrawal rules. The S&P was ~100 in 1966 and ~100 in 1982. Capital appreciation was 0.0% while cumulative inflation erased 65% of dollar purchasing power. Floating T-Bills (+7.2%/yr) and dividend-paying value (+8.9%/yr) protected capital.",
-    spShockTotal: "-64.5% (Real)",
-    bondRallyTotal: "-38.0% (Real)",
-    generator: (months) => generate1966SecularSeries(months),
-    monthlyReturns: [],
-  },
-  {
-    id: "lost-decade-2000-2012",
-    name: "2000–2012: 12-Year Post-Bubble 'Lost Decade' (144 Mo)",
-    regime: "stagflation",
-    durationMonths: 144,
-    troughMonth: 111,
-    descTitle: "Two Mega-Crashes (Dot-Com + GFC) in 10 Years",
-    descText: "Cap-weighted S&P 500 compounded at just +0.4%/yr over 12 full years. Equal-weight value (RSP) outperformed by +70% (+5.8%/yr). Intermediate Treasuries rallied (+6.8%/yr) as the Fed slashed rates from 6.5% to zero.",
-    spShockTotal: "+5.1%",
-    bondRallyTotal: "+72.0%",
-    generator: (months) => generateLostDecade2000Series(months),
-    monthlyReturns: [],
-  },
-  {
-    id: "custom-macro",
-    name: "🛠️ Custom Macro Scenario Builder",
-    regime: "stagflation",
-    durationMonths: 60,
-    troughMonth: 1,
-    descTitle: "User-Defined Custom Macro Assumptions",
-    descText: "Specify your own annual returns for S&P 500, Equal-Weight RSP, 10-Yr Treasuries, Cash Yield, and Inflation, and test any custom time horizon from 1 to 15 years.",
-    spShockTotal: "Custom",
-    bondRallyTotal: "Custom",
-    generator: (months) => generateCustomMacroSeries(months),
-    monthlyReturns: [],
-  },
 ];
 
-// Helper: 1973–1982 Historical 10-Year Stagflation Era
-function generate1973DecadeSeries(totalMonths) {
-  const series = [];
-  const scale = totalMonths / 120;
-
-  for (let m = 1; m <= totalMonths; m++) {
-    const unscaledM = m / scale;
-    let sp, rsp, bond, cash, phase;
-    const wobble = 0.012 * Math.sin(m * 1.7) + 0.008 * Math.cos(m * 2.9);
-
-    if (unscaledM <= 22) {
-      phase = "1973–74 Oil Embargo & Nifty Fifty Crash";
-      sp = -0.024 + wobble;
-      rsp = -0.013 + wobble * 0.7;
-      bond = -0.003 + wobble * 0.3;
-      cash = 0.0062; // 7.4% annual
-    } else if (unscaledM <= 48) {
-      phase = "Mid-70s Explosive Value Rebound";
-      sp = 0.020 + wobble;
-      rsp = 0.025 + wobble * 0.8;
-      bond = 0.005 + wobble * 0.3;
-      cash = 0.0048; // 5.8% annual
-    } else if (unscaledM <= 72) {
-      phase = "Sticky Inflation Plateau (9% CPI)";
-      sp = -0.001 + wobble;
-      rsp = 0.008 + wobble;
-      bond = 0.0015;
-      cash = 0.0065; // 7.8% annual
-    } else if (unscaledM <= 96) {
-      phase = "Second Oil Shock & Energy Boom (14.8% CPI)";
-      sp = 0.015 + wobble;
-      rsp = 0.023 + wobble;
-      bond = -0.004 + wobble;
-      cash = 0.0098; // 11.8% annual
-    } else if (unscaledM <= 114) {
-      phase = "Volcker 20% Rate Crunch Recession";
-      sp = -0.011 + wobble;
-      rsp = -0.003 + wobble;
-      bond = -0.007 + wobble;
-      cash = 0.0128; // 15.4% annual floating yield
-    } else {
-      phase = "Volcker Pivot & Secular Bull Dawn";
-      sp = 0.035 + wobble;
-      rsp = 0.028 + wobble;
-      bond = 0.018 + wobble;
-      cash = 0.0075;
-    }
-    series.push({ m, phase, sp, rsp, bond, cash, isTrough: Math.round(22 * scale) === m });
-  }
-  return series;
-}
-
-// Helper: 1966–1982 Historical 16-Year Secular Stagflation
-function generate1966SecularSeries(totalMonths) {
-  const series = [];
-  const scale = totalMonths / 192;
-
-  for (let m = 1; m <= totalMonths; m++) {
-    const unscaledM = m / scale;
-    let sp, rsp, bond, cash, phase;
-    const wobble = 0.012 * Math.sin(m * 1.5) + 0.007 * Math.cos(m * 3.1);
-
-    if (unscaledM <= 48) {
-      phase = "Late 60s Churn & 1969 Credit Crunch";
-      sp = -0.004 + wobble;
-      rsp = 0.005 + wobble * 0.8;
-      bond = 0.002;
-      cash = 0.0045;
-    } else if (unscaledM <= 84) {
-      phase = "Nifty Fifty Glamour Stock Peak";
-      sp = 0.014 + wobble;
-      rsp = 0.010 + wobble;
-      bond = 0.004;
-      cash = 0.0042;
-    } else if (unscaledM <= 106) {
-      phase = "1973–74 Oil Shock & Valuation Collapse";
-      sp = -0.025 + wobble;
-      rsp = -0.014 + wobble * 0.7;
-      bond = -0.003;
-      cash = 0.0065;
-    } else if (unscaledM <= 156) {
-      phase = "Mid-70s Expansion & Value Outperformance";
-      sp = 0.010 + wobble;
-      rsp = 0.018 + wobble * 0.8;
-      bond = 0.003;
-      cash = 0.0055;
-    } else if (unscaledM <= 180) {
-      phase = "Second Oil Shock (14.8% Inflation Peak)";
-      sp = 0.015 + wobble;
-      rsp = 0.022 + wobble;
-      bond = -0.005;
-      cash = 0.0095;
-    } else {
-      phase = "Volcker Tightening & 1982 Secular Low";
-      sp = -0.008 + wobble;
-      rsp = 0.002 + wobble;
-      bond = -0.006;
-      cash = 0.0125;
-    }
-    series.push({ m, phase, sp, rsp, bond, cash, isTrough: Math.round(106 * scale) === m });
-  }
-  return series;
-}
-
-// Helper: 2000–2012 Historical 12-Year 'Lost Decade' (Double M-Bust)
-function generateLostDecade2000Series(totalMonths) {
-  const series = [];
-  const scale = totalMonths / 144;
-
-  for (let m = 1; m <= totalMonths; m++) {
-    const unscaledM = m / scale;
-    let sp, rsp, bond, cash, phase;
-    const wobble = 0.012 * Math.sin(m * 1.8) + 0.007 * Math.cos(m * 2.7);
-
-    if (unscaledM <= 34) {
-      phase = "Dot-Com Bust (Tech -80% vs Value +10%)";
-      sp = -0.018 + wobble;
-      rsp = 0.003 + wobble * 0.7;
-      bond = 0.007 + wobble * 0.4;
-      cash = 0.0035;
-    } else if (unscaledM <= 94) {
-      phase = "Housing & Global Credit Expansion";
-      sp = 0.012 + wobble;
-      rsp = 0.015 + wobble * 0.8;
-      bond = 0.0035;
-      cash = 0.0028;
-    } else if (unscaledM <= 111) {
-      phase = "Great Financial Crisis (Credit Collapse)";
-      sp = -0.038 + wobble;
-      rsp = -0.035 + wobble;
-      bond = 0.011 + wobble * 0.3;
-      cash = 0.0020;
-    } else {
-      phase = "Zero-Rate Quantitative Easing Recovery";
-      sp = 0.022 + wobble;
-      rsp = 0.024 + wobble;
-      bond = 0.005;
-      cash = 0.0005;
-    }
-    series.push({ m, phase, sp, rsp, bond, cash, isTrough: Math.round(111 * scale) === m });
-  }
-  return series;
-}
-
-// Helper: Custom Macro Builder with 4-5 Year Business Cycles (Not a raw sine wave)
+// Helper: Custom Macro Builder Generator
 function generateCustomMacroSeries(totalMonths) {
-  const spAnn = (safeParseFloat(document.getElementById("custom-sp-return")?.value, 4.0)) / 100;
-  const rspAnn = (safeParseFloat(document.getElementById("custom-rsp-return")?.value, 10.0)) / 100;
-  const bondAnn = (safeParseFloat(document.getElementById("custom-bond-return")?.value, 2.5)) / 100;
-  const cashAnn = (safeParseFloat(document.getElementById("custom-cash-yield")?.value, 8.0)) / 100;
+  const spAnnual = safeParseFloat(document.getElementById("custom-sp-return")?.value, 4.0) / 100;
+  const rspAnnual = safeParseFloat(document.getElementById("custom-rsp-return")?.value, 10.0) / 100;
+  const bondAnnual = safeParseFloat(document.getElementById("custom-bond-return")?.value, 2.5) / 100;
+  const cashAnnual = safeParseFloat(document.getElementById("custom-cash-yield")?.value, 8.0) / 100;
+  const infAnnual = safeParseFloat(document.getElementById("custom-inflation-rate")?.value, 7.5) / 100;
+
+  const spMonthly = Math.pow(1 + spAnnual, 1 / 12) - 1;
+  const rspMonthly = Math.pow(1 + rspAnnual, 1 / 12) - 1;
+  const bondMonthly = Math.pow(1 + bondAnnual, 1 / 12) - 1;
+  const cashMonthly = Math.pow(1 + cashAnnual, 1 / 12) - 1;
+  const infMonthly = Math.pow(1 + infAnnual, 1 / 12) - 1;
 
   const series = [];
-  const monthlyCash = cashAnn / 12;
-  const spBase = Math.pow(1 + spAnn, 1 / 12) - 1;
-  const rspBase = Math.pow(1 + rspAnn, 1 / 12) - 1;
-  const bondBase = Math.pow(1 + bondAnn, 1 / 12) - 1;
-
   for (let m = 1; m <= totalMonths; m++) {
-    // 48-month organic business cycle with irregular market noise
-    const businessCycle = Math.sin((m / 48) * 2 * Math.PI);
-    const noise = 0.010 * Math.sin(m * 1.6) + 0.006 * Math.cos(m * 2.7);
-
-    const sp = spBase + (businessCycle * 0.008) + noise;
-    const rsp = rspBase + (businessCycle * 0.005) + noise * 0.8;
-    const bond = bondBase - (businessCycle * 0.004) + noise * 0.3;
-    const cash = monthlyCash * (1 + businessCycle * 0.15);
-
-    let phase = businessCycle > 0.4 ? "Cyclical Expansion" : (businessCycle < -0.4 ? "Cyclical Contraction" : "Mid-Cycle Plateau");
-
-    series.push({ m, phase, sp, rsp, bond, cash, isTrough: false });
-  }
-  return series;
-}
-
-// Helper to generate monthly return profiles matching historical peaks and troughs
-function generateRegimeSeries(spCrash, rspCrash, bondRally, cashYieldAnnual, totalMonths, troughMonth) {
-  const series = [];
-  const monthlyCash = cashYieldAnnual / 12;
-
-  // Down phase: waterfall acceleration towards capitulation trough
-  const downPower = 1.35;
-  let downWeights = [];
-  let sumDown = 0;
-  for (let m = 1; m <= troughMonth; m++) {
-    const w = Math.pow(m, downPower);
-    downWeights.push(w);
-    sumDown += w;
-  }
-
-  const spDownLog = Math.log(1 + spCrash);
-  const rspDownLog = Math.log(1 + rspCrash);
-  const bondDownLog = Math.log(1 + bondRally);
-
-  // Recovery phase: front-loaded explosive rebound tapering into steady trend
-  const recMonths = totalMonths - troughMonth;
-  const upPower = 1.45;
-  let upWeights = [];
-  let sumUp = 0;
-  for (let m = 1; m <= recMonths; m++) {
-    const w = Math.pow(recMonths - m + 1, upPower);
-    upWeights.push(w);
-    sumUp += w;
-  }
-
-  // Rebound target: recover back towards peak and post-crisis expansion
-  const recSpTarget = Math.abs(spCrash) * (recMonths >= troughMonth ? 1.25 : 1.10);
-  const recRspTarget = Math.abs(rspCrash) * (recMonths >= troughMonth ? 1.20 : 1.05);
-  const spUpLog = Math.log(1 + recSpTarget);
-  const rspUpLog = Math.log(1 + recRspTarget);
-
-  for (let m = 1; m <= totalMonths; m++) {
-    const isDownPhase = m <= troughMonth;
-    let phase = isDownPhase ? "Downturn Cascade" : "Recovery Surge";
-    if (m === troughMonth) phase = "Market Trough (Capitulation)";
-
-    let sp, rsp, bond;
-    const wobble = 0.12 * Math.sin(m * 1.4);
-
-    if (isDownPhase) {
-      const w = downWeights[m - 1] / sumDown;
-      sp = (Math.exp(w * spDownLog) - 1) * (1 + wobble);
-      rsp = (Math.exp(w * rspDownLog) - 1) * (1 + wobble * 0.8);
-      bond = (Math.exp(w * bondDownLog) - 1) * (1 - wobble * 0.3);
-    } else {
-      const recIdx = m - troughMonth - 1;
-      const w = upWeights[recIdx] / sumUp;
-      sp = (Math.exp(w * spUpLog) - 1) * (1 + wobble);
-      rsp = (Math.exp(w * rspUpLog) - 1) * (1 + wobble * 0.8);
-      bond = 0.0035 * (1 - wobble * 0.2); // steady coupon yield
-    }
-
+    const cycle = Math.sin((m / 24) * Math.PI) * 0.015;
     series.push({
       m,
-      phase,
-      sp,
-      rsp,
-      bond,
-      cash: monthlyCash,
-      isTrough: m === troughMonth,
+      phase: `Mo ${m}: Custom Cycle (CPI ${(infMonthly * 100).toFixed(1)}%)`,
+      sp: spMonthly + cycle,
+      rsp: rspMonthly + cycle * 0.7,
+      bond: bondMonthly - cycle * 0.3,
+      cash: cashMonthly,
+      cpi: infMonthly,
+      isTrough: m === Math.floor(totalMonths / 2),
     });
   }
   return series;
 }
 
-function generateBullSeries(spTotal, rspTotal, bondTotal, cashYieldAnnual, totalMonths) {
+// Helper: Synthetic Bear Series Generator
+function generateRegimeSeries(targetSp, targetRsp, targetBond, cashYield, totalMonths, troughMonth) {
   const series = [];
-  const monthlyCash = cashYieldAnnual / 12;
+  const downMonths = Math.max(1, troughMonth);
+  const upMonths = Math.max(1, totalMonths - troughMonth);
 
-  // Parabolic compounding momentum: accelerating weights
-  const power = 1.55;
-  let weights = [];
-  let sumW = 0;
-  for (let m = 1; m <= totalMonths; m++) {
-    const w = Math.pow(m, power);
-    weights.push(w);
-    sumW += w;
-  }
+  const spDownPerMonth = Math.pow(1 + targetSp, 1 / downMonths) - 1;
+  const rspDownPerMonth = Math.pow(1 + targetRsp, 1 / downMonths) - 1;
+  const bondDownPerMonth = Math.pow(1 + targetBond, 1 / downMonths) - 1;
 
-  const spLog = Math.log(1 + spTotal);
-  const rspLog = Math.log(1 + rspTotal);
-  const bondLog = Math.log(1 + bondTotal);
+  const reboundMult = 1.25;
+  const spUpPerMonth = upMonths > 0 ? (Math.abs(targetSp) * reboundMult) / upMonths : 0.01;
+  const rspUpPerMonth = upMonths > 0 ? (Math.abs(targetRsp) * reboundMult) / upMonths : 0.01;
+  const bondUpPerMonth = 0.002;
+  const cashPerMonth = cashYield / 12;
 
   for (let m = 1; m <= totalMonths; m++) {
-    const w = weights[m - 1] / sumW;
-    const wobble = 0.15 * Math.sin(m * 1.1);
-
-    const sp = (Math.exp(w * spLog) - 1) * (1 + wobble);
-    const rsp = (Math.exp(w * rspLog) - 1) * (1 + wobble * 0.7);
-    const bond = (Math.exp(w * bondLog) - 1) * (1 - wobble * 0.2);
+    const isDown = m <= troughMonth;
+    const isTrough = m === troughMonth;
+    const noise = (Math.sin(m * 1.5) * 0.005);
 
     series.push({
       m,
-      phase: m <= totalMonths / 3 ? "Early Accumulation" : (m <= (2 * totalMonths) / 3 ? "Expansion Surge" : "Parabolic Melt-Up"),
-      sp,
-      rsp,
-      bond,
-      cash: monthlyCash,
+      phase: isTrough ? "Crash Trough (Bottom)" : (isDown ? "Contraction Wave" : "Recovery Wave"),
+      sp: (isDown ? spDownPerMonth : spUpPerMonth) + noise,
+      rsp: (isDown ? rspDownPerMonth : rspUpPerMonth) + noise * 0.8,
+      bond: (isDown ? bondDownPerMonth : bondUpPerMonth) - noise * 0.2,
+      cash: cashPerMonth,
+      cpi: 0.0025,
+      isTrough,
+    });
+  }
+  return series;
+}
+
+// Helper: Synthetic Bull Series Generator
+function generateBullSeries(targetSp, targetRsp, targetBond, cashYield, totalMonths) {
+  const series = [];
+  const spPerMonth = Math.pow(1 + targetSp, 1 / totalMonths) - 1;
+  const rspPerMonth = Math.pow(1 + targetRsp, 1 / totalMonths) - 1;
+  const bondPerMonth = Math.pow(1 + targetBond, 1 / totalMonths) - 1;
+  const cashPerMonth = cashYield / 12;
+
+  for (let m = 1; m <= totalMonths; m++) {
+    const wave = Math.sin(m * 0.8) * 0.008;
+    series.push({
+      m,
+      phase: "Bull Expansion",
+      sp: spPerMonth + wave,
+      rsp: rspPerMonth + wave * 0.7,
+      bond: bondPerMonth - wave * 0.3,
+      cash: cashPerMonth,
+      cpi: 0.002,
       isTrough: false,
     });
   }
@@ -492,11 +404,12 @@ function generateBullSeries(spTotal, rspTotal, bondTotal, cashYieldAnnual, total
 }
 
 // ===================================================================
-// STATE
+// STATE MANAGEMENT & DOM REFERENCES
 // ===================================================================
 
-let currentRegime = "bear"; // "bear" | "bull"
-let activeScenario = SCENARIOS[0];
+let currentRegime = "historical";
+let activeScenario = SCENARIOS[0]; // hist-stagflation-1966
+
 let simulationResults = {
   baselineTrajectory: [],
   defensiveTrajectory: [],
@@ -505,20 +418,38 @@ let simulationResults = {
   monthlyTableRows: [],
 };
 
-// DOM Elements
+// DOM Elements: Inputs
 const inputStartPortfolio = document.getElementById("stress-start-portfolio");
 const inputMonthlyDca = document.getElementById("stress-monthly-dca");
 const inputEmployerMatch = document.getElementById("stress-employer-match");
 const selectDcaBehavior = document.getElementById("stress-dca-behavior");
 
+// DOM Elements: Regimes & Scenarios
+const btnRegimeHistorical = document.getElementById("btn-regime-historical");
+const btnRegimeStagflation = document.getElementById("btn-regime-stagflation");
 const btnRegimeBear = document.getElementById("btn-regime-bear");
 const btnRegimeBull = document.getElementById("btn-regime-bull");
-const btnRegimeStagflation = document.getElementById("btn-regime-stagflation");
 const selectScenario = document.getElementById("stress-scenario-select");
+
+// Historical Range Drawer Elements
+const historicalRangeDrawer = document.getElementById("historical-range-drawer");
+const histStartMonth = document.getElementById("hist-start-month");
+const histStartYear = document.getElementById("hist-start-year");
+const histEndMonth = document.getElementById("hist-end-month");
+const histEndYear = document.getElementById("hist-end-year");
+const histDurationBadge = document.getElementById("hist-duration-badge");
+const histStatSp = document.getElementById("hist-stat-sp");
+const histStatCpi = document.getElementById("hist-stat-cpi");
+const histStatBond = document.getElementById("hist-stat-bond");
+const histStatCash = document.getElementById("hist-stat-cash");
+
+// Custom Horizon & Custom Macro Drawer
+const groupHorizonControl = document.getElementById("group-horizon-control");
 const sliderHorizon = document.getElementById("slider-horizon-months");
 const valHorizonDisplay = document.getElementById("val-horizon-display");
 const customBuilderDrawer = document.getElementById("custom-builder-drawer");
 
+// Sliders: Asset Allocation
 const sliderSp500 = document.getElementById("slider-alloc-sp500");
 const sliderRsp = document.getElementById("slider-alloc-rsp");
 const sliderTreasury = document.getElementById("slider-alloc-treasury");
@@ -532,6 +463,101 @@ const allocSumText = document.getElementById("alloc-sum-text");
 const allocSumPill = document.getElementById("alloc-sum-pill");
 
 const selectReentryTiming = document.getElementById("stress-reentry-timing");
+
+// ===================================================================
+// HISTORICAL DATA UTILITIES
+// ===================================================================
+
+function populateDateDropdowns() {
+  const months = [
+    { v: "01", label: "01 - Jan" },
+    { v: "02", label: "02 - Feb" },
+    { v: "03", label: "03 - Mar" },
+    { v: "04", label: "04 - Apr" },
+    { v: "05", label: "05 - May" },
+    { v: "06", label: "06 - Jun" },
+    { v: "07", label: "07 - Jul" },
+    { v: "08", label: "08 - Aug" },
+    { v: "09", label: "09 - Sep" },
+    { v: "10", label: "10 - Oct" },
+    { v: "11", label: "11 - Nov" },
+    { v: "12", label: "12 - Dec" },
+  ];
+
+  const years = [];
+  for (let y = 1928; y <= 2026; y++) years.push(y);
+
+  if (histStartMonth) {
+    histStartMonth.innerHTML = months.map((m) => `<option value="${m.v}">${m.label}</option>`).join("");
+    histStartMonth.value = "01";
+  }
+  if (histStartYear) {
+    histStartYear.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
+    histStartYear.value = "1966";
+  }
+  if (histEndMonth) {
+    histEndMonth.innerHTML = months.map((m) => `<option value="${m.v}">${m.label}</option>`).join("");
+    histEndMonth.value = "08";
+  }
+  if (histEndYear) {
+    histEndYear.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
+    histEndYear.value = "1982";
+  }
+}
+
+function getHistoricalSlice(startDt, endDt) {
+  let startIndex = HISTORICAL_MARKET_DATA.findIndex((r) => r.d >= startDt);
+  if (startIndex === -1) startIndex = 0;
+
+  let endIndex = -1;
+  for (let i = HISTORICAL_MARKET_DATA.length - 1; i >= 0; i--) {
+    if (HISTORICAL_MARKET_DATA[i].d <= endDt) {
+      endIndex = i;
+      break;
+    }
+  }
+  if (endIndex < startIndex) endIndex = startIndex;
+  return HISTORICAL_MARKET_DATA.slice(startIndex, endIndex + 1);
+}
+
+function updateHistoricalMacroStats(slice) {
+  const n = slice.length;
+  const yrs = Math.max(0.0833, n / 12);
+
+  if (histDurationBadge) {
+    histDurationBadge.textContent = `${n} Mos (${yrs.toFixed(1)} Yrs)`;
+  }
+  if (n === 0) return;
+
+  let spCum = 1, rspCum = 1, bondCum = 1, cashCum = 1, cpiCum = 1;
+  for (const r of slice) {
+    spCum *= (1 + r.sp);
+    rspCum *= (1 + r.rsp);
+    bondCum *= (1 + r.bond);
+    cashCum *= (1 + r.cash);
+    cpiCum *= (1 + r.cpi);
+  }
+
+  const spCagr = (Math.pow(Math.max(0.001, spCum), 1 / yrs) - 1) * 100;
+  const cpiCagr = (Math.pow(Math.max(0.001, cpiCum), 1 / yrs) - 1) * 100;
+  const bondCagr = (Math.pow(Math.max(0.001, bondCum), 1 / yrs) - 1) * 100;
+  const cashCagr = (Math.pow(Math.max(0.001, cashCum), 1 / yrs) - 1) * 100;
+
+  if (histStatSp) {
+    histStatSp.textContent = `${spCagr >= 0 ? "+" : ""}${spCagr.toFixed(1)}%/yr`;
+    histStatSp.className = `hist-macro-val ${spCagr >= 0 ? "green" : "red"}`;
+  }
+  if (histStatCpi) {
+    histStatCpi.textContent = `+${cpiCagr.toFixed(1)}%/yr`;
+  }
+  if (histStatBond) {
+    histStatBond.textContent = `${bondCagr >= 0 ? "+" : ""}${bondCagr.toFixed(1)}%/yr`;
+    histStatBond.className = `hist-macro-val ${bondCagr >= 0 ? "green" : "red"}`;
+  }
+  if (histStatCash) {
+    histStatCash.textContent = `+${cashCagr.toFixed(1)}%/yr`;
+  }
+}
 
 // ===================================================================
 // SIMULATION ENGINE
@@ -558,15 +584,65 @@ export function runStressSimulation() {
 
   const reentryMode = selectReentryTiming?.value || "late-6mo";
   const scenario = activeScenario;
-  const customHorizon = sliderHorizon ? parseInt(sliderHorizon.value, 10) : scenario.durationMonths;
+  const isHistorical = scenario.regime === "historical" || !!scenario.start;
 
   let monthlySeries = [];
-  if (scenario.id === "custom-macro") {
+  let troughMonth = 1;
+
+  if (isHistorical) {
+    let startDt = `${histStartYear?.value || "1966"}-${histStartMonth?.value || "01"}`;
+    let endDt = `${histEndYear?.value || "1982"}-${histEndMonth?.value || "08"}`;
+
+    if (startDt > endDt) {
+      endDt = startDt;
+      if (histEndYear) histEndYear.value = histStartYear.value;
+      if (histEndMonth) histEndMonth.value = histStartMonth.value;
+    }
+
+    const slice = getHistoricalSlice(startDt, endDt);
+    updateHistoricalMacroStats(slice);
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    let lowestSpCum = 1.0;
+    let cumSp = 1.0;
+
+    monthlySeries = slice.map((r, idx) => {
+      cumSp *= (1 + r.sp);
+      if (cumSp < lowestSpCum) {
+        lowestSpCum = cumSp;
+        troughMonth = idx + 1;
+      }
+      const [yr, mo] = r.d.split("-");
+      const monStr = monthNames[parseInt(mo, 10) - 1] || mo;
+      const phaseStr = `${monStr} ${yr} (CPI ${r.cpi >= 0 ? "+" : ""}${(r.cpi * 100).toFixed(1)}%)`;
+
+      return {
+        m: idx + 1,
+        d: r.d,
+        phase: phaseStr,
+        sp: r.sp,
+        rsp: r.rsp,
+        bond: r.bond,
+        cash: r.cash,
+        cpi: r.cpi,
+        isTrough: false,
+      };
+    });
+
+    if (monthlySeries[troughMonth - 1]) {
+      monthlySeries[troughMonth - 1].isTrough = true;
+    }
+  } else if (scenario.id === "custom-macro") {
+    const customHorizon = sliderHorizon ? parseInt(sliderHorizon.value, 10) : 60;
     monthlySeries = generateCustomMacroSeries(customHorizon);
+    troughMonth = scenario.troughMonth || 1;
   } else if (scenario.generator) {
+    const customHorizon = sliderHorizon ? parseInt(sliderHorizon.value, 10) : scenario.durationMonths;
     monthlySeries = scenario.generator(customHorizon);
+    troughMonth = scenario.troughMonth || 1;
   } else {
-    // Sliced or extended series based on customHorizon
+    const customHorizon = sliderHorizon ? parseInt(sliderHorizon.value, 10) : scenario.durationMonths;
     const baseSeries = scenario.monthlyReturns || [];
     if (customHorizon <= baseSeries.length) {
       monthlySeries = baseSeries.slice(0, customHorizon);
@@ -579,19 +655,18 @@ export function runStressSimulation() {
       }
       monthlySeries = extended;
     }
+    troughMonth = scenario.troughMonth || 1;
   }
 
-  const troughMonth = scenario.troughMonth;
-
-  // Calculate Re-entry Month
+  // Calculate Re-entry Timing Month
   let rotationMonth = Infinity;
-  if (scenario.regime === "bull" || scenario.regime === "stagflation") {
-    // In bull market and multi-year secular regimes, stay in custom allocation
+  if (scenario.regime === "bull" || scenario.regime === "stagflation" || scenario.regime === "historical") {
+    // In multi-year secular regimes, preserve the custom allocation throughout
     rotationMonth = Infinity;
   } else {
     if (reentryMode === "perfect") rotationMonth = troughMonth;
-    else if (reentryMode === "late-6mo") rotationMonth = Math.min(customHorizon, troughMonth + 6);
-    else if (reentryMode === "late-12mo") rotationMonth = Math.min(customHorizon, troughMonth + 12);
+    else if (reentryMode === "late-6mo") rotationMonth = Math.min(monthlySeries.length, troughMonth + 6);
+    else if (reentryMode === "late-12mo") rotationMonth = Math.min(monthlySeries.length, troughMonth + 12);
     else if (reentryMode === "never") rotationMonth = Infinity;
   }
 
@@ -609,24 +684,26 @@ export function runStressSimulation() {
   let recoveredMonthBaseline = null;
   let recoveredMonthDefensive = null;
 
-  const baselineTrajectory = [{ m: 0, val: startPortfolio, dd: 0 }];
-  const defensiveTrajectory = [{ m: 0, val: startPortfolio, dd: 0 }];
+  let cpiCumulative = 1.0;
+
+  const baselineTrajectory = [{ m: 0, d: monthlySeries[0]?.d || "Start", val: startPortfolio, dd: 0, cpiCum: 1.0 }];
+  const defensiveTrajectory = [{ m: 0, d: monthlySeries[0]?.d || "Start", val: startPortfolio, dd: 0, cpiCum: 1.0 }];
   const monthlyTableRows = [];
 
   for (let idx = 0; idx < monthlySeries.length; idx++) {
     const row = monthlySeries[idx];
     const m = row.m;
+    const cpiMonth = row.cpi || 0.002;
+    cpiCumulative *= (1 + cpiMonth);
 
-    // Benchmark: 100% S&P 500
+    // Pure 100% S&P 500 comparison
     balPureSp = (balPureSp * (1 + row.sp)) + totalMonthlyDca;
 
-    // 1. Baseline Strategy: Static 60/40 (60% S&P 500, 40% Treasuries)
+    // 1. Baseline Strategy: Static 60/40 (60% S&P 500, 40% 10-Yr Treasuries)
     const returnBaseline = (0.60 * row.sp) + (0.40 * row.bond);
     balBaseline = (balBaseline * (1 + returnBaseline)) + totalMonthlyDca;
 
-    if (balBaseline > peakBaseline) {
-      peakBaseline = balBaseline;
-    }
+    if (balBaseline > peakBaseline) peakBaseline = balBaseline;
     const currentDdBase = (balBaseline - peakBaseline) / peakBaseline;
     if (currentDdBase < maxDdBaseline) maxDdBaseline = currentDdBase;
     if (balBaseline < troughValBaseline) troughValBaseline = balBaseline;
@@ -640,24 +717,18 @@ export function runStressSimulation() {
     let returnDefensive = 0;
 
     if (isRotatedBack) {
-      // Rotated back to standard 60/40
       returnDefensive = (0.60 * row.sp) + (0.40 * row.bond);
     } else {
-      // Active Custom Defensive Mix
       returnDefensive = (wSp * row.sp) + (wRsp * row.rsp) + (wTreasury * row.bond) + (wCash * row.cash);
     }
 
-    // Contribution Behavior
     let defContribution = totalMonthlyDca;
     if (dcaBehavior === "pause-cash" && m < rotationMonth) {
-      // Panic paused to cash: earns cash yield rather than buying dip
       defContribution = totalMonthlyDca * (1 + row.cash);
     }
     balDefensive = (balDefensive * (1 + returnDefensive)) + defContribution;
 
-    if (balDefensive > peakDefensive) {
-      peakDefensive = balDefensive;
-    }
+    if (balDefensive > peakDefensive) peakDefensive = balDefensive;
     const currentDdDef = (balDefensive - peakDefensive) / peakDefensive;
     if (currentDdDef < maxDdDefensive) maxDdDefensive = currentDdDef;
     if (balDefensive < troughValDefensive) troughValDefensive = balDefensive;
@@ -666,16 +737,18 @@ export function runStressSimulation() {
       recoveredMonthDefensive = m;
     }
 
-    baselineTrajectory.push({ m, val: balBaseline, dd: currentDdBase });
-    defensiveTrajectory.push({ m, val: balDefensive, dd: currentDdDef });
+    baselineTrajectory.push({ m, d: row.d || `Mo ${m}`, val: balBaseline, dd: currentDdBase, cpiCum: cpiCumulative });
+    defensiveTrajectory.push({ m, d: row.d || `Mo ${m}`, val: balDefensive, dd: currentDdDef, cpiCum: cpiCumulative });
 
     monthlyTableRows.push({
       m,
+      d: row.d,
       phase: row.phase,
       spPct: row.sp * 100,
       rspPct: row.rsp * 100,
       bondPct: row.bond * 100,
       cashPct: row.cash * 100,
+      cpiPct: (row.cpi || 0) * 100,
       baseVal: balBaseline,
       baseReturn: returnBaseline * 100,
       defVal: balDefensive,
@@ -687,20 +760,24 @@ export function runStressSimulation() {
   simulationResults = {
     baselineTrajectory,
     defensiveTrajectory,
+    cpiCumulative,
     statsBaseline: {
       maxDrawdown: maxDdBaseline,
       troughValue: troughValBaseline,
-      recoveryMonths: recoveredMonthBaseline || `${monthlySeries.length}+ Mos`,
+      recoveryMonths: recoveredMonthBaseline ? `${recoveredMonthBaseline} Mos` : `${monthlySeries.length}+ Mos`,
       terminalValue: balBaseline,
+      terminalRealValue: balBaseline / cpiCumulative,
     },
     statsDefensive: {
       maxDrawdown: maxDdDefensive,
       troughValue: troughValDefensive,
-      recoveryMonths: recoveredMonthDefensive || `${monthlySeries.length}+ Mos`,
+      recoveryMonths: recoveredMonthDefensive ? `${recoveredMonthDefensive} Mos` : `${monthlySeries.length}+ Mos`,
       terminalValue: balDefensive,
+      terminalRealValue: balDefensive / cpiCumulative,
     },
     statsPureSp: {
       terminalValue: balPureSp,
+      terminalRealValue: balPureSp / cpiCumulative,
     },
     monthlyTableRows,
     troughMonth,
@@ -717,135 +794,88 @@ export function runStressSimulation() {
 // ===================================================================
 
 function updateKpiCards() {
-  const { statsBaseline, statsDefensive } = simulationResults;
+  const { statsBaseline, statsDefensive, cpiCumulative } = simulationResults;
 
-  // Max Drawdown
-  const elDdBase = document.getElementById("kpi-dd-baseline");
-  const elDdDef = document.getElementById("kpi-dd-defensive");
-  const elDdSub = document.getElementById("kpi-dd-sub");
-  if (elDdBase) elDdBase.textContent = `${(statsBaseline.maxDrawdown * 100).toFixed(1)}%`;
-  if (elDdDef) elDdDef.textContent = `${(statsDefensive.maxDrawdown * 100).toFixed(1)}%`;
-  if (elDdSub) {
-    const cushion = (statsBaseline.maxDrawdown - statsDefensive.maxDrawdown) * 100;
-    elDdSub.textContent = cushion > 0
-      ? `Defensive mix cushioned drop by +${cushion.toFixed(1)}%`
-      : `Stay the course had ${Math.abs(cushion).toFixed(1)}% less drawdown`;
-  }
+  // 1. Max Drawdown
+  const kpiDdBaseline = document.getElementById("kpi-dd-baseline");
+  const kpiDdDefensive = document.getElementById("kpi-dd-defensive");
+  const kpiDdSub = document.getElementById("kpi-dd-sub");
 
-  // Trough Lowest Point
-  const elTroughBase = document.getElementById("kpi-trough-baseline");
-  const elTroughDef = document.getElementById("kpi-trough-defensive");
-  const elTroughSub = document.getElementById("kpi-trough-sub");
-  if (elTroughBase) elTroughBase.textContent = formatCurrency(statsBaseline.troughValue);
-  if (elTroughDef) elTroughDef.textContent = formatCurrency(statsDefensive.troughValue);
-  if (elTroughSub) {
-    const diff = statsDefensive.troughValue - statsBaseline.troughValue;
-    if (Math.abs(diff) < 1) {
-      elTroughSub.textContent = "Both strategies maintained identical trough floor";
+  if (kpiDdBaseline) kpiDdBaseline.textContent = `${(statsBaseline.maxDrawdown * 100).toFixed(1)}%`;
+  if (kpiDdDefensive) kpiDdDefensive.textContent = `${(statsDefensive.maxDrawdown * 100).toFixed(1)}%`;
+  if (kpiDdSub) {
+    const diff = (statsBaseline.maxDrawdown - statsDefensive.maxDrawdown) * 100;
+    if (diff > 0.1) {
+      kpiDdSub.textContent = `Defensive hedge cushioned drawdown by +${diff.toFixed(1)}%`;
+    } else if (diff < -0.1) {
+      kpiDdSub.textContent = `Static 60/40 held lower drawdown by +${Math.abs(diff).toFixed(1)}%`;
     } else {
-      elTroughSub.textContent = diff > 0
-        ? `Preserved +${formatCurrency(diff)} more equity at bottom`
-        : `Stay the course had +${formatCurrency(Math.abs(diff))} higher trough`;
+      kpiDdSub.textContent = "Drawdown identical between portfolios";
     }
   }
 
-  // Recovery Time
-  const elRecBase = document.getElementById("kpi-recovery-baseline");
-  const elRecDef = document.getElementById("kpi-recovery-defensive");
-  const elRecSub = document.getElementById("kpi-recovery-sub");
-  if (elRecBase) elRecBase.textContent = typeof statsBaseline.recoveryMonths === "number" ? `${statsBaseline.recoveryMonths} Mos` : statsBaseline.recoveryMonths;
-  if (elRecDef) elRecDef.textContent = typeof statsDefensive.recoveryMonths === "number" ? `${statsDefensive.recoveryMonths} Mos` : statsDefensive.recoveryMonths;
-  if (elRecSub) {
-    if (typeof statsBaseline.recoveryMonths === "number" && typeof statsDefensive.recoveryMonths === "number") {
-      const diff = statsDefensive.recoveryMonths - statsBaseline.recoveryMonths;
-      elRecSub.textContent = diff <= 0
-        ? `Defensive recovered ${Math.abs(diff)} mos faster`
-        : `DCA at bottom accelerated 60/40 recovery by ${diff} mos`;
+  // 2. Trough Portfolio Value
+  const kpiTroughBaseline = document.getElementById("kpi-trough-baseline");
+  const kpiTroughDefensive = document.getElementById("kpi-trough-defensive");
+  const kpiTroughSub = document.getElementById("kpi-trough-sub");
+
+  if (kpiTroughBaseline) kpiTroughBaseline.textContent = formatCurrency(statsBaseline.troughValue);
+  if (kpiTroughDefensive) kpiTroughDefensive.textContent = formatCurrency(statsDefensive.troughValue);
+  if (kpiTroughSub) {
+    const diffVal = statsDefensive.troughValue - statsBaseline.troughValue;
+    if (diffVal > 0) {
+      kpiTroughSub.textContent = `Hedge preserved +${formatCurrency(diffVal)} more bottom equity`;
     } else {
-      elRecSub.textContent = "Recovery beyond scenario horizon";
+      kpiTroughSub.textContent = `60/40 held +${formatCurrency(Math.abs(diffVal))} more at trough`;
     }
   }
 
-  // Terminal Wealth
-  const elTermBase = document.getElementById("kpi-terminal-baseline");
-  const elTermDef = document.getElementById("kpi-terminal-defensive");
-  const elTermSub = document.getElementById("kpi-terminal-sub");
-  if (elTermBase) elTermBase.textContent = formatCurrency(statsBaseline.terminalValue);
-  if (elTermDef) elTermDef.textContent = formatCurrency(statsDefensive.terminalValue);
-  if (elTermSub) {
-    const netAdvantage = statsBaseline.terminalValue - statsDefensive.terminalValue;
-    if (activeScenario.regime === "bull") {
-      const pureDiff = simulationResults.statsPureSp.terminalValue - statsDefensive.terminalValue;
-      elTermSub.textContent = `60/40 beat custom by +${formatCurrency(netAdvantage)} (100% S&P: +${formatCurrency(pureDiff)})`;
-    } else if (activeScenario.regime === "stagflation") {
-      elTermSub.textContent = netAdvantage <= 0
-        ? `Defensive mix beat 60/40 by +${formatCurrency(Math.abs(netAdvantage))}`
-        : `60/40 produced +${formatCurrency(netAdvantage)} higher nominal wealth`;
+  // 3. Recovery Time
+  const kpiRecoveryBaseline = document.getElementById("kpi-recovery-baseline");
+  const kpiRecoveryDefensive = document.getElementById("kpi-recovery-defensive");
+  const kpiRecoverySub = document.getElementById("kpi-recovery-sub");
+
+  if (kpiRecoveryBaseline) kpiRecoveryBaseline.textContent = statsBaseline.recoveryMonths;
+  if (kpiRecoveryDefensive) kpiRecoveryDefensive.textContent = statsDefensive.recoveryMonths;
+  if (kpiRecoverySub) {
+    kpiRecoverySub.textContent = `Empirical cycle duration: ${simulationResults.monthlyTableRows.length} Months`;
+  }
+
+  // 4. Terminal Wealth & Real Purchasing Power
+  const kpiTerminalBaseline = document.getElementById("kpi-terminal-baseline");
+  const kpiTerminalDefensive = document.getElementById("kpi-terminal-defensive");
+  const kpiTerminalSub = document.getElementById("kpi-terminal-sub");
+
+  if (kpiTerminalBaseline) kpiTerminalBaseline.textContent = formatCurrency(statsBaseline.terminalValue);
+  if (kpiTerminalDefensive) kpiTerminalDefensive.textContent = formatCurrency(statsDefensive.terminalValue);
+
+  if (kpiTerminalSub) {
+    const net = statsBaseline.terminalValue - statsDefensive.terminalValue;
+    const cpiPct = ((cpiCumulative - 1) * 100).toFixed(1);
+    if (net > 0) {
+      kpiTerminalSub.textContent = `Stay the Course 60/40 leads by +${formatCurrency(net)} (Inflation: +${cpiPct}%)`;
     } else {
-      elTermSub.textContent = netAdvantage >= 0
-        ? `Stay the course produced +${formatCurrency(netAdvantage)} more wealth`
-        : `Defensive shift produced +${formatCurrency(Math.abs(netAdvantage))} more wealth`;
+      kpiTerminalSub.textContent = `Defensive Rebalance leads by +${formatCurrency(Math.abs(net))} (Inflation: +${cpiPct}%)`;
     }
   }
 }
 
 function updateVerdictBanner() {
+  const { statsBaseline, statsDefensive, cpiCumulative } = simulationResults;
   const banner = document.getElementById("verdict-banner");
   const icon = document.getElementById("verdict-icon");
   const tag = document.getElementById("verdict-tag");
   const headline = document.getElementById("verdict-headline");
   const explanation = document.getElementById("verdict-explanation");
+
   if (!banner) return;
 
-  const { statsBaseline, statsDefensive, statsPureSp } = simulationResults;
   const netDiff = statsBaseline.terminalValue - statsDefensive.terminalValue;
   const troughDiff = statsDefensive.troughValue - statsBaseline.troughValue;
-  const pureSpGap = statsPureSp.terminalValue - statsDefensive.terminalValue;
-
-  if (activeScenario.regime === "stagflation") {
-    banner.className = "verdict-banner timing-won";
-    if (icon) icon.textContent = "⏳";
-    if (tag) tag.textContent = "STAGFLATION & LOST DECADE ANALYSIS";
-    const horizonMonths = sliderHorizon ? parseInt(sliderHorizon.value, 10) : activeScenario.durationMonths;
-    const years = (horizonMonths / 12).toFixed(1);
-
-    const inflationRate = activeScenario.id === "custom-macro"
-      ? (safeParseFloat(document.getElementById("custom-inflation-rate")?.value, 7.5))
-      : (activeScenario.id === "stagflation-1973-decade" ? 8.7 : (activeScenario.id === "secular-1966-1982" ? 7.4 : 2.5));
-    const inflationErosion = (1 - Math.pow(1 / (1 + inflationRate / 100), horizonMonths / 12)) * 100;
-
-    if (headline) {
-      if (netDiff < 0) {
-        headline.textContent = `Defensive Value & Floating Cash Wins by +${formatCurrency(Math.abs(netDiff))} Net Equity`;
-      } else {
-        headline.textContent = `Static 60/40 Leads by +${formatCurrency(netDiff)} in Nominal Ending Wealth`;
-      }
-    }
-    if (explanation) {
-      if (netDiff < 0) {
-        explanation.textContent = `Over this ${years}-year period, sticky ${inflationRate}% inflation destroyed purchasing power by -${inflationErosion.toFixed(0)}%. Rising yields inflicted heavy duration losses on intermediate bonds. Tilting toward Equal-Weight Value and rolling short-term T-Bills shielded capital, beating 60/40 by +${formatCurrency(Math.abs(netDiff))} while continuing monthly DCA.`;
-      } else {
-        explanation.textContent = `Over this ${years}-year period with ~${inflationRate}% inflation, continuous 401(k) DCA accumulated shares at depressed multiples, yielding ${formatCurrency(statsBaseline.terminalValue)} in 60/40 vs ${formatCurrency(statsDefensive.terminalValue)} in the defensive mix.`;
-      }
-    }
-    return;
-  }
-
-  if (activeScenario.regime === "bull") {
-    banner.className = "verdict-banner dca-won";
-    if (icon) icon.textContent = "📈";
-    if (tag) tag.textContent = "BULL RUN DRAG & EQUITY OPPORTUNITY COST";
-    if (headline) {
-      headline.textContent = `Custom Spread Trailed 60/40 by -${formatCurrency(Math.abs(netDiff))} (-${formatCurrency(pureSpGap)} vs. 100% S&P 500)`;
-    }
-    if (explanation) {
-      explanation.textContent = `Holding 50% in fixed income & cash (30% Treasuries + 20% Cash) created substantial drag during this bull market. Your custom mix reached ${formatCurrency(statsDefensive.terminalValue)}, trailing the static 60/40 baseline (${formatCurrency(statsBaseline.terminalValue)}) by -${formatCurrency(Math.abs(netDiff))}, and trailing 100% S&P 500 (${formatCurrency(statsPureSp.terminalValue)}) by -${formatCurrency(pureSpGap)}.`;
-    }
-    return;
-  }
+  const cpiPct = ((cpiCumulative - 1) * 100).toFixed(1);
 
   if (netDiff >= 0) {
-    // Stay the Course Wins
+    // 60/40 Wins
     banner.className = "verdict-banner dca-won";
     if (icon) icon.textContent = "🎯";
     if (tag) tag.textContent = "STAY THE COURSE WINS";
@@ -854,19 +884,16 @@ function updateVerdictBanner() {
       const bottomCushionText = troughDiff > 100
         ? `Even though shifting defensive cushioned the bottom by +${formatCurrency(troughDiff)}, continuing`
         : `Continuing`;
-      explanation.textContent = `${bottomCushionText} to dump contributions into discounted equities paid off massively during the recovery. Trying to time re-entry caused cash drag and missed the explosive initial rebound off the bottom.`;
+      explanation.textContent = `${bottomCushionText} to dump contributions into discounted equities paid off massively during the recovery. Cumulative inflation was +${cpiPct}%, and staying fully invested preserved real compounding power.`;
     }
   } else {
     // Defensive Shift Wins
     banner.className = "verdict-banner timing-won";
     if (icon) icon.textContent = "🛡️";
     if (tag) tag.textContent = "DEFENSIVE SHIFT WINS";
-    if (headline) headline.textContent = `Defensive Rebalancing Wins by +${formatCurrency(Math.abs(netDiff))} Net Equity`;
+    if (headline) headline.textContent = `Defensive Rebalancing Wins by +${formatCurrency(Math.abs(netDiff))} Net Wealth`;
     if (explanation) {
-      const bottomText = troughDiff > 100
-        ? `In this severe concentration unwind, Treasuries and Equal-Weight Value preserved massive capital (+${formatCurrency(troughDiff)} at the bottom) that overwhelmed the dollar-cost averaging benefits of staying in cap-weighted S&P 500.`
-        : `In this scenario, Treasuries and Equal-Weight Value limited equity concentration drag, allowing defensive rebalancing to beat staying in cap-weighted S&P 500 by +${formatCurrency(Math.abs(netDiff))} net wealth.`;
-      explanation.textContent = bottomText;
+      explanation.textContent = `In this secular regime, high cash T-Bill yields and Equal-Weight Value preserved massive capital (+${formatCurrency(Math.abs(netDiff))} lead) that beat static 60/40 while cumulative inflation rose +${cpiPct}%.`;
     }
   }
 }
@@ -909,7 +936,7 @@ function renderTrajectoryChart() {
   offCanvas.height = chart.height;
   const offCtx = offCanvas.getContext("2d");
 
-  // Grid lines
+  // Horizontal Grid Lines & Y Ticks
   offCtx.strokeStyle = "rgba(148, 163, 184, 0.12)";
   offCtx.lineWidth = 1;
   const yTicks = 5;
@@ -927,8 +954,8 @@ function renderTrajectoryChart() {
     offCtx.fillText(formatCurrency(val), padding.left - 10, y + 4);
   }
 
-  // X-axis Month / Year Ticks
-  const xStep = totalMonths > 120 ? 24 : (totalMonths > 60 ? 12 : (totalMonths > 24 ? 6 : (totalMonths > 12 ? 3 : 1)));
+  // X-axis Month / Calendar Year Ticks
+  const xStep = totalMonths > 360 ? 60 : (totalMonths > 180 ? 24 : (totalMonths > 60 ? 12 : (totalMonths > 24 ? 6 : (totalMonths > 12 ? 3 : 1))));
   for (let m = 0; m <= totalMonths; m += xStep) {
     const x = toX(m);
     offCtx.beginPath();
@@ -939,30 +966,18 @@ function renderTrajectoryChart() {
     offCtx.fillStyle = "#94a3b8";
     offCtx.font = window.CHART_FONTS.sm;
     offCtx.textAlign = "center";
-    const label = totalMonths >= 36 ? `Yr ${(m / 12).toFixed(0)}` : `Mo ${m}`;
+
+    let label;
+    if (basePoints[m]?.d && basePoints[m].d.includes("-")) {
+      const yr = basePoints[m].d.split("-")[0];
+      label = yr;
+    } else {
+      label = totalMonths >= 36 ? `Yr ${(m / 12).toFixed(0)}` : `Mo ${m}`;
+    }
     offCtx.fillText(label, x, padding.top + chartHeight + 20);
   }
 
-  // Trough marker line (Market Bottom) - Only for Bear Crashes
-  const troughM = simulationResults.troughMonth;
-  if (activeScenario.regime === "bear" && troughM > 0 && troughM < totalMonths) {
-    const xTrough = toX(troughM);
-    offCtx.strokeStyle = "rgba(244, 63, 94, 0.5)";
-    offCtx.lineWidth = 1.5;
-    offCtx.setLineDash([4, 4]);
-    offCtx.beginPath();
-    offCtx.moveTo(xTrough, padding.top);
-    offCtx.lineTo(xTrough, padding.top + chartHeight);
-    offCtx.stroke();
-    offCtx.setLineDash([]);
-
-    offCtx.fillStyle = "#fb7185";
-    offCtx.font = window.CHART_FONTS.sm;
-    offCtx.textAlign = "center";
-    offCtx.fillText("Market Trough", xTrough, padding.top + 12);
-  }
-
-  // Line 1: Stay the Course 60/40 (Teal)
+  // Draw Path 1: Baseline 60/40 (Teal)
   offCtx.strokeStyle = "#2dd4bf";
   offCtx.lineWidth = 3;
   offCtx.beginPath();
@@ -974,7 +989,7 @@ function renderTrajectoryChart() {
   });
   offCtx.stroke();
 
-  // Line 2: Defensive Mix (Purple)
+  // Draw Path 2: Custom Defensive (Purple)
   offCtx.strokeStyle = "#a855f7";
   offCtx.lineWidth = 3;
   offCtx.beginPath();
@@ -1025,11 +1040,14 @@ function renderTrajectoryChart() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
+      const dateStr = pBase.d && pBase.d.includes("-") ? `📅 ${pBase.d} • ` : "";
+      const cpiStr = pBase.cpiCum ? ` (CPI +${((pBase.cpiCum - 1) * 100).toFixed(1)}%)` : "";
+
       const lines = [
-        `Month ${hoverM} of Scenario`,
+        `${dateStr}Month ${hoverM} of ${totalMonths}${cpiStr}`,
         `🟢 Stay Course (60/40): ${formatCurrency(pBase.val)} (${(pBase.dd * 100).toFixed(1)}% DD)`,
         `🟣 Defensive Shift: ${formatCurrency(pDef.val)} (${(pDef.dd * 100).toFixed(1)}% DD)`,
-        `Net Lead: ${pBase.val >= pDef.val ? "+" : "-"}${formatCurrency(Math.abs(pBase.val - pDef.val))}`,
+        `Net Lead: ${pBase.val >= pDef.val ? "60/40 +" : "Defensive +"}${formatCurrency(Math.abs(pBase.val - pDef.val))}`,
       ];
 
       drawTooltip(ctx, lines, x, Math.min(yBase, yDef), {
@@ -1108,6 +1126,17 @@ function renderBreakdownTable() {
 // INITIALIZATION & EVENT HANDLERS
 // ===================================================================
 
+function syncHistoricalControlsWithScenario(scenario) {
+  if (!scenario.start || !scenario.end) return;
+  const [sYear, sMonth] = scenario.start.split("-");
+  const [eYear, eMonth] = scenario.end.split("-");
+
+  if (histStartYear) histStartYear.value = sYear;
+  if (histStartMonth) histStartMonth.value = sMonth;
+  if (histEndYear) histEndYear.value = eYear;
+  if (histEndMonth) histEndMonth.value = eMonth;
+}
+
 function updateScenarioDropdown() {
   if (!selectScenario) return;
   const filtered = SCENARIOS.filter((s) => s.regime === currentRegime);
@@ -1117,13 +1146,23 @@ function updateScenarioDropdown() {
     </option>
   `).join("");
 
-  // Sync Horizon Slider
-  if (sliderHorizon && valHorizonDisplay) {
-    sliderHorizon.value = activeScenario.durationMonths;
-    valHorizonDisplay.textContent = `${activeScenario.durationMonths} Mos (${(activeScenario.durationMonths / 12).toFixed(1)} Yrs)`;
+  const isHist = currentRegime === "historical";
+  if (historicalRangeDrawer) {
+    historicalRangeDrawer.style.display = isHist ? "block" : "none";
+  }
+  if (groupHorizonControl) {
+    groupHorizonControl.style.display = isHist ? "none" : "block";
   }
 
-  // Show/Hide custom builder drawer
+  if (isHist) {
+    syncHistoricalControlsWithScenario(activeScenario);
+  } else {
+    if (sliderHorizon && valHorizonDisplay) {
+      sliderHorizon.value = activeScenario.durationMonths || 24;
+      valHorizonDisplay.textContent = `${sliderHorizon.value} Mos (${(parseInt(sliderHorizon.value, 10) / 12).toFixed(1)} Yrs)`;
+    }
+  }
+
   if (customBuilderDrawer) {
     customBuilderDrawer.style.display = activeScenario.id === "custom-macro" ? "block" : "none";
   }
@@ -1133,18 +1172,16 @@ function updateScenarioDropdown() {
   const labelReentry = document.getElementById("label-reentry-timing");
   const subtextReentry = document.getElementById("reentry-subtext");
   if (selectReentryTiming && subtextReentry) {
-    if (currentRegime === "bull" || currentRegime === "stagflation") {
+    if (currentRegime === "bull" || currentRegime === "stagflation" || currentRegime === "historical") {
       selectReentryTiming.disabled = true;
       selectReentryTiming.style.opacity = "0.55";
       selectReentryTiming.style.cursor = "not-allowed";
       if (labelReentry) {
-        labelReentry.textContent = currentRegime === "bull"
-          ? "Re-Entry Timing (Bull Expansion Mode)"
-          : "Re-Entry Timing (Secular Era Mode)";
+        labelReentry.textContent = currentRegime === "historical"
+          ? "Re-Entry Timing (Empirical Full Era)"
+          : (currentRegime === "bull" ? "Re-Entry Timing (Bull Expansion Mode)" : "Re-Entry Timing (Secular Era Mode)");
       }
-      subtextReentry.textContent = currentRegime === "bull"
-        ? "In a continuous bull expansion, your custom spread is maintained for the full cycle to model bull drag and equity opportunity cost."
-        : "In a multi-year secular stagflation or lost decade, your custom spread is maintained throughout to model purchasing power and asset resilience.";
+      subtextReentry.textContent = "In multi-year secular regimes and empirical history, your defensive allocation is maintained to test real compounding and inflation resistance.";
     } else {
       selectReentryTiming.disabled = false;
       selectReentryTiming.style.opacity = "1";
@@ -1163,11 +1200,18 @@ function updateScenarioDetailsCard() {
   const elBond = document.getElementById("scenario-stat-bond");
   const chartTitle = document.getElementById("trajectory-chart-title");
 
-  const horizonMonths = sliderHorizon ? parseInt(sliderHorizon.value, 10) : activeScenario.durationMonths;
-
   if (elTitle) elTitle.textContent = activeScenario.descTitle;
   if (elText) elText.textContent = activeScenario.descText;
-  if (elDur) elDur.textContent = `${horizonMonths} Months (${(horizonMonths / 12).toFixed(1)} Yrs)`;
+
+  if (currentRegime === "historical") {
+    const sYr = histStartYear?.value || "1966";
+    const eYr = histEndYear?.value || "1982";
+    if (elDur) elDur.textContent = `${sYr} to ${eYr}`;
+  } else {
+    const horizonMonths = sliderHorizon ? parseInt(sliderHorizon.value, 10) : activeScenario.durationMonths;
+    if (elDur) elDur.textContent = `${horizonMonths} Months (${(horizonMonths / 12).toFixed(1)} Yrs)`;
+  }
+
   if (elSp) {
     elSp.textContent = activeScenario.spShockTotal;
     elSp.className = activeScenario.spShockTotal.startsWith("-") ? "red" : "green";
@@ -1205,58 +1249,41 @@ function updateAllocSlidersDisplay() {
 }
 
 function initEventHandlers() {
-  // Regime Toggles (Bear / Bull / Stagflation)
-  if (btnRegimeBear) {
-    btnRegimeBear.addEventListener("click", () => {
-      if (currentRegime === "bear") return;
-      currentRegime = "bear";
-      btnRegimeBear.classList.add("active");
-      btnRegimeBull?.classList.remove("active");
-      btnRegimeStagflation?.classList.remove("active");
-      const bearScenarios = SCENARIOS.filter((s) => s.regime === "bear");
-      activeScenario = bearScenarios[0];
+  // Regime Switch Buttons
+  const regimes = [
+    { btn: btnRegimeHistorical, id: "historical" },
+    { btn: btnRegimeStagflation, id: "stagflation" },
+    { btn: btnRegimeBear, id: "bear" },
+    { btn: btnRegimeBull, id: "bull" },
+  ];
+
+  regimes.forEach(({ btn, id }) => {
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      if (currentRegime === id) return;
+      currentRegime = id;
+      regimes.forEach((r) => r.btn?.classList.toggle("active", r.id === id));
+      const filtered = SCENARIOS.filter((s) => s.regime === id);
+      activeScenario = filtered[0];
       updateScenarioDropdown();
       runStressSimulation();
     });
-  }
+  });
 
-  if (btnRegimeBull) {
-    btnRegimeBull.addEventListener("click", () => {
-      if (currentRegime === "bull") return;
-      currentRegime = "bull";
-      btnRegimeBull.classList.add("active");
-      btnRegimeBear?.classList.remove("active");
-      btnRegimeStagflation?.classList.remove("active");
-      const bullScenarios = SCENARIOS.filter((s) => s.regime === "bull");
-      activeScenario = bullScenarios[0];
-      updateScenarioDropdown();
-      runStressSimulation();
-    });
-  }
-
-  if (btnRegimeStagflation) {
-    btnRegimeStagflation.addEventListener("click", () => {
-      if (currentRegime === "stagflation") return;
-      currentRegime = "stagflation";
-      btnRegimeStagflation.classList.add("active");
-      btnRegimeBear?.classList.remove("active");
-      btnRegimeBull?.classList.remove("active");
-      const stagScenarios = SCENARIOS.filter((s) => s.regime === "stagflation");
-      activeScenario = stagScenarios[0];
-      updateScenarioDropdown();
-      runStressSimulation();
-    });
-  }
-
+  // Scenario Dropdown Change
   if (selectScenario) {
     selectScenario.addEventListener("change", (e) => {
       const match = SCENARIOS.find((s) => s.id === e.target.value);
       if (match) {
         activeScenario = match;
-        if (sliderHorizon) {
-          sliderHorizon.value = match.durationMonths;
-          if (valHorizonDisplay) {
-            valHorizonDisplay.textContent = `${match.durationMonths} Mos (${(match.durationMonths / 12).toFixed(1)} Yrs)`;
+        if (currentRegime === "historical") {
+          syncHistoricalControlsWithScenario(match);
+        } else {
+          if (sliderHorizon) {
+            sliderHorizon.value = match.durationMonths || 24;
+            if (valHorizonDisplay) {
+              valHorizonDisplay.textContent = `${sliderHorizon.value} Mos (${(parseInt(sliderHorizon.value, 10) / 12).toFixed(1)} Yrs)`;
+            }
           }
         }
         if (customBuilderDrawer) {
@@ -1268,7 +1295,23 @@ function initEventHandlers() {
     });
   }
 
-  // Horizon / Time Period Slider
+  // Date Range Pickers (Start / End Month and Year)
+  [histStartMonth, histStartYear, histEndMonth, histEndYear].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("change", () => {
+      if (currentRegime === "historical") {
+        const customEntry = SCENARIOS.find((s) => s.id === "hist-custom-range");
+        if (customEntry) {
+          activeScenario = customEntry;
+          if (selectScenario) selectScenario.value = "hist-custom-range";
+        }
+        updateScenarioDetailsCard();
+        runStressSimulation();
+      }
+    });
+  });
+
+  // Horizon Slider
   if (sliderHorizon) {
     sliderHorizon.addEventListener("input", (e) => {
       const months = parseInt(e.target.value, 10);
@@ -1292,23 +1335,22 @@ function initEventHandlers() {
     }
   });
 
-  // Inputs & Sliders
+  // Allocation Sliders & DCA Inputs
   const inputsToListen = [
     inputStartPortfolio, inputMonthlyDca, inputEmployerMatch, selectDcaBehavior,
-    sliderSp500, sliderRsp, sliderTreasury, sliderCash, selectReentryTiming
+    sliderSp500, sliderRsp, sliderTreasury, sliderCash, selectReentryTiming,
   ];
 
   inputsToListen.forEach((el) => {
-    if (el) {
-      el.addEventListener("input", () => {
-        updateAllocSlidersDisplay();
-        runStressSimulation();
-      });
-      el.addEventListener("change", () => {
-        updateAllocSlidersDisplay();
-        runStressSimulation();
-      });
-    }
+    if (!el) return;
+    el.addEventListener("input", () => {
+      updateAllocSlidersDisplay();
+      runStressSimulation();
+    });
+    el.addEventListener("change", () => {
+      updateAllocSlidersDisplay();
+      runStressSimulation();
+    });
   });
 
   window.addEventListener("resize", rafThrottle(() => {
@@ -1316,9 +1358,9 @@ function initEventHandlers() {
   }));
 }
 
-// Initial Run
+// Initial Setup & Execution
+populateDateDropdowns();
 initEventHandlers();
 updateScenarioDropdown();
 updateAllocSlidersDisplay();
 runStressSimulation();
-

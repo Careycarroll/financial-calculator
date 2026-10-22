@@ -95,7 +95,7 @@
   box-sizing: border-box;
 }
 
-/* Regime Toggle (Bear vs Bull vs Stagflation) */
+/* Regime Toggle (Historical vs Stagflation vs Bear vs Bull) */
 .regime-toggle-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -108,16 +108,12 @@
   box-sizing: border-box;
 }
 
-#btn-regime-stagflation {
-  grid-column: 1 / -1;
-}
-
 .btn-regime-toggle {
   background: transparent;
   border: none;
   color: #94a3b8;
   padding: 0.45rem 0.4rem;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
@@ -135,9 +131,20 @@
 }
 
 .btn-regime-toggle.active {
-  background: #2dd4bf;
+  background: #38bdf8;
   color: #0f172a;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+#btn-regime-historical.active {
+  background: #38bdf8;
+  color: #0f172a;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+#btn-regime-stagflation.active {
+  background: #f59e0b;
+  color: #0f172a;
 }
 
 #btn-regime-bear.active {
@@ -150,9 +157,85 @@
   color: #0f172a;
 }
 
-#btn-regime-stagflation.active {
-  background: #f59e0b;
-  color: #0f172a;
+/* Historical Date Range Drawer */
+.historical-drawer {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.date-input-combo {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 0.35rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.date-input-combo select {
+  width: 100%;
+  padding: 0.38rem 0.25rem;
+  font-size: 0.73rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #f1f5f9;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.date-input-combo select:focus {
+  border-color: #38bdf8;
+  outline: none;
+}
+
+.hist-macro-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  background: #0b1120;
+  padding: 0.45rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid #1e293b;
+  margin-top: 0.55rem;
+  box-sizing: border-box;
+}
+
+.hist-macro-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.hist-macro-label {
+  font-size: 0.62rem;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hist-macro-val {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+}
+
+.hist-macro-val.green {
+  color: #2dd4bf;
+}
+
+.hist-macro-val.red {
+  color: #f43f5e;
+}
+
+.hist-macro-val.yellow {
+  color: #f59e0b;
 }
 
 /* Scenario Details Card */
