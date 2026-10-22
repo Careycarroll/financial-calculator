@@ -164,7 +164,7 @@ const SCENARIOS = [
     descText: "The S&P 500 had two separate 40%+ crashes and returned only +4.8%/yr nominal (-35% real). Bond yields spiked to 15%, destroying intermediate Treasuries (+3.2%/yr). Rolling T-Bills (+8.8%/yr) and Equal-Weight Value (+11.2%/yr) were the premier hedges.",
     spShockTotal: "-35.2% (Real)",
     bondRallyTotal: "-42.0% (Real)",
-    generator: (months) => generateStagflationSeries(months, 0.048, 0.112, 0.032, 0.088, 0.087),
+    generator: (months) => generate1973DecadeSeries(months),
     monthlyReturns: [],
   },
   {
@@ -172,12 +172,12 @@ const SCENARIOS = [
     name: "1966–1982: 16-Year Secular Stagflation (The Bengen Crisis) (192 Mo)",
     regime: "stagflation",
     durationMonths: 192,
-    troughMonth: 96,
+    troughMonth: 106,
     descTitle: "Worst Retirement Crisis in US History (CPI +232%)",
     descText: "The benchmark era that broke static withdrawal rules. The S&P was ~100 in 1966 and ~100 in 1982. Capital appreciation was 0.0% while cumulative inflation erased 65% of dollar purchasing power. Floating T-Bills (+7.2%/yr) and dividend-paying value (+8.9%/yr) protected capital.",
     spShockTotal: "-64.5% (Real)",
     bondRallyTotal: "-38.0% (Real)",
-    generator: (months) => generateStagflationSeries(months, 0.042, 0.089, 0.030, 0.072, 0.074),
+    generator: (months) => generate1966SecularSeries(months),
     monthlyReturns: [],
   },
   {
@@ -185,12 +185,12 @@ const SCENARIOS = [
     name: "2000–2012: 12-Year Post-Bubble 'Lost Decade' (144 Mo)",
     regime: "stagflation",
     durationMonths: 144,
-    troughMonth: 106,
+    troughMonth: 111,
     descTitle: "Two Mega-Crashes (Dot-Com + GFC) in 10 Years",
     descText: "Cap-weighted S&P 500 compounded at just +0.4%/yr over 12 full years. Equal-weight value (RSP) outperformed by +70% (+5.8%/yr). Intermediate Treasuries rallied (+6.8%/yr) as the Fed slashed rates from 6.5% to zero.",
     spShockTotal: "+5.1%",
     bondRallyTotal: "+72.0%",
-    generator: (months) => generateStagflationSeries(months, 0.004, 0.058, 0.068, 0.024, 0.025),
+    generator: (months) => generateLostDecade2000Series(months),
     monthlyReturns: [],
   },
   {
@@ -208,50 +208,178 @@ const SCENARIOS = [
   },
 ];
 
-// Helper for multi-year stagflation cycles with inflation waves & rate shocks
-function generateStagflationSeries(totalMonths, spAnnual, rspAnnual, bondAnnual, cashAnnual, inflationAnnual) {
+// Helper: 1973–1982 Historical 10-Year Stagflation Era
+function generate1973DecadeSeries(totalMonths) {
   const series = [];
-  const monthlyCash = cashAnnual / 12;
-  const spMonthlyBase = Math.pow(1 + spAnnual, 1 / 12) - 1;
-  const rspMonthlyBase = Math.pow(1 + rspAnnual, 1 / 12) - 1;
-  const bondMonthlyBase = Math.pow(1 + bondAnnual, 1 / 12) - 1;
+  const scale = totalMonths / 120;
 
   for (let m = 1; m <= totalMonths; m++) {
-    // 24-month cyclical waves representing inflation spikes, tightening, and relief
-    const cycle = Math.sin((m / 24) * 2 * Math.PI);
-    const wobble = 0.15 * Math.sin(m * 1.3);
+    const unscaledM = m / scale;
+    let sp, rsp, bond, cash, phase;
+    const wobble = 0.012 * Math.sin(m * 1.7) + 0.008 * Math.cos(m * 2.9);
 
-    // During inflation spikes (cycle > 0): rate hikes hurt bonds, value holds up, cash floats up
-    const sp = spMonthlyBase + (cycle * -0.012) + (wobble * 0.008);
-    const rsp = rspMonthlyBase + (cycle * 0.004) + (wobble * 0.006);
-    const bond = bondMonthlyBase + (cycle * -0.011) - 0.001; // duration loss during rate hike surges
-    const cash = monthlyCash * (1 + cycle * 0.35); // floating T-Bill rate hikes
-
-    let phase = "Stagflation Grind";
-    if (cycle > 0.5) phase = "Inflation Shock & Rate Spike";
-    else if (cycle < -0.5) phase = "Disinflation Relief";
-
-    series.push({
-      m,
-      phase,
-      sp,
-      rsp,
-      bond,
-      cash,
-      isTrough: false,
-    });
+    if (unscaledM <= 22) {
+      phase = "1973–74 Oil Embargo & Nifty Fifty Crash";
+      sp = -0.024 + wobble;
+      rsp = -0.013 + wobble * 0.7;
+      bond = -0.003 + wobble * 0.3;
+      cash = 0.0062; // 7.4% annual
+    } else if (unscaledM <= 48) {
+      phase = "Mid-70s Explosive Value Rebound";
+      sp = 0.020 + wobble;
+      rsp = 0.025 + wobble * 0.8;
+      bond = 0.005 + wobble * 0.3;
+      cash = 0.0048; // 5.8% annual
+    } else if (unscaledM <= 72) {
+      phase = "Sticky Inflation Plateau (9% CPI)";
+      sp = -0.001 + wobble;
+      rsp = 0.008 + wobble;
+      bond = 0.0015;
+      cash = 0.0065; // 7.8% annual
+    } else if (unscaledM <= 96) {
+      phase = "Second Oil Shock & Energy Boom (14.8% CPI)";
+      sp = 0.015 + wobble;
+      rsp = 0.023 + wobble;
+      bond = -0.004 + wobble;
+      cash = 0.0098; // 11.8% annual
+    } else if (unscaledM <= 114) {
+      phase = "Volcker 20% Rate Crunch Recession";
+      sp = -0.011 + wobble;
+      rsp = -0.003 + wobble;
+      bond = -0.007 + wobble;
+      cash = 0.0128; // 15.4% annual floating yield
+    } else {
+      phase = "Volcker Pivot & Secular Bull Dawn";
+      sp = 0.035 + wobble;
+      rsp = 0.028 + wobble;
+      bond = 0.018 + wobble;
+      cash = 0.0075;
+    }
+    series.push({ m, phase, sp, rsp, bond, cash, isTrough: Math.round(22 * scale) === m });
   }
   return series;
 }
 
+// Helper: 1966–1982 Historical 16-Year Secular Stagflation
+function generate1966SecularSeries(totalMonths) {
+  const series = [];
+  const scale = totalMonths / 192;
+
+  for (let m = 1; m <= totalMonths; m++) {
+    const unscaledM = m / scale;
+    let sp, rsp, bond, cash, phase;
+    const wobble = 0.012 * Math.sin(m * 1.5) + 0.007 * Math.cos(m * 3.1);
+
+    if (unscaledM <= 48) {
+      phase = "Late 60s Churn & 1969 Credit Crunch";
+      sp = -0.004 + wobble;
+      rsp = 0.005 + wobble * 0.8;
+      bond = 0.002;
+      cash = 0.0045;
+    } else if (unscaledM <= 84) {
+      phase = "Nifty Fifty Glamour Stock Peak";
+      sp = 0.014 + wobble;
+      rsp = 0.010 + wobble;
+      bond = 0.004;
+      cash = 0.0042;
+    } else if (unscaledM <= 106) {
+      phase = "1973–74 Oil Shock & Valuation Collapse";
+      sp = -0.025 + wobble;
+      rsp = -0.014 + wobble * 0.7;
+      bond = -0.003;
+      cash = 0.0065;
+    } else if (unscaledM <= 156) {
+      phase = "Mid-70s Expansion & Value Outperformance";
+      sp = 0.010 + wobble;
+      rsp = 0.018 + wobble * 0.8;
+      bond = 0.003;
+      cash = 0.0055;
+    } else if (unscaledM <= 180) {
+      phase = "Second Oil Shock (14.8% Inflation Peak)";
+      sp = 0.015 + wobble;
+      rsp = 0.022 + wobble;
+      bond = -0.005;
+      cash = 0.0095;
+    } else {
+      phase = "Volcker Tightening & 1982 Secular Low";
+      sp = -0.008 + wobble;
+      rsp = 0.002 + wobble;
+      bond = -0.006;
+      cash = 0.0125;
+    }
+    series.push({ m, phase, sp, rsp, bond, cash, isTrough: Math.round(106 * scale) === m });
+  }
+  return series;
+}
+
+// Helper: 2000–2012 Historical 12-Year 'Lost Decade' (Double M-Bust)
+function generateLostDecade2000Series(totalMonths) {
+  const series = [];
+  const scale = totalMonths / 144;
+
+  for (let m = 1; m <= totalMonths; m++) {
+    const unscaledM = m / scale;
+    let sp, rsp, bond, cash, phase;
+    const wobble = 0.012 * Math.sin(m * 1.8) + 0.007 * Math.cos(m * 2.7);
+
+    if (unscaledM <= 34) {
+      phase = "Dot-Com Bust (Tech -80% vs Value +10%)";
+      sp = -0.018 + wobble;
+      rsp = 0.003 + wobble * 0.7;
+      bond = 0.007 + wobble * 0.4;
+      cash = 0.0035;
+    } else if (unscaledM <= 94) {
+      phase = "Housing & Global Credit Expansion";
+      sp = 0.012 + wobble;
+      rsp = 0.015 + wobble * 0.8;
+      bond = 0.0035;
+      cash = 0.0028;
+    } else if (unscaledM <= 111) {
+      phase = "Great Financial Crisis (Credit Collapse)";
+      sp = -0.038 + wobble;
+      rsp = -0.035 + wobble;
+      bond = 0.011 + wobble * 0.3;
+      cash = 0.0020;
+    } else {
+      phase = "Zero-Rate Quantitative Easing Recovery";
+      sp = 0.022 + wobble;
+      rsp = 0.024 + wobble;
+      bond = 0.005;
+      cash = 0.0005;
+    }
+    series.push({ m, phase, sp, rsp, bond, cash, isTrough: Math.round(111 * scale) === m });
+  }
+  return series;
+}
+
+// Helper: Custom Macro Builder with 4-5 Year Business Cycles (Not a raw sine wave)
 function generateCustomMacroSeries(totalMonths) {
   const spAnn = (safeParseFloat(document.getElementById("custom-sp-return")?.value, 4.0)) / 100;
   const rspAnn = (safeParseFloat(document.getElementById("custom-rsp-return")?.value, 10.0)) / 100;
   const bondAnn = (safeParseFloat(document.getElementById("custom-bond-return")?.value, 2.5)) / 100;
   const cashAnn = (safeParseFloat(document.getElementById("custom-cash-yield")?.value, 8.0)) / 100;
-  const infAnn = (safeParseFloat(document.getElementById("custom-inflation-rate")?.value, 7.5)) / 100;
 
-  return generateStagflationSeries(totalMonths, spAnn, rspAnn, bondAnn, cashAnn, infAnn);
+  const series = [];
+  const monthlyCash = cashAnn / 12;
+  const spBase = Math.pow(1 + spAnn, 1 / 12) - 1;
+  const rspBase = Math.pow(1 + rspAnn, 1 / 12) - 1;
+  const bondBase = Math.pow(1 + bondAnn, 1 / 12) - 1;
+
+  for (let m = 1; m <= totalMonths; m++) {
+    // 48-month organic business cycle with irregular market noise
+    const businessCycle = Math.sin((m / 48) * 2 * Math.PI);
+    const noise = 0.010 * Math.sin(m * 1.6) + 0.006 * Math.cos(m * 2.7);
+
+    const sp = spBase + (businessCycle * 0.008) + noise;
+    const rsp = rspBase + (businessCycle * 0.005) + noise * 0.8;
+    const bond = bondBase - (businessCycle * 0.004) + noise * 0.3;
+    const cash = monthlyCash * (1 + businessCycle * 0.15);
+
+    let phase = businessCycle > 0.4 ? "Cyclical Expansion" : (businessCycle < -0.4 ? "Cyclical Contraction" : "Mid-Cycle Plateau");
+
+    series.push({ m, phase, sp, rsp, bond, cash, isTrough: false });
+  }
+  return series;
 }
 
 // Helper to generate monthly return profiles matching historical peaks and troughs
