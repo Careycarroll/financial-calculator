@@ -284,13 +284,19 @@ export function runStressSimulation() {
 
   // Calculate Re-entry Month
   let rotationMonth = Infinity;
-  if (reentryMode === "perfect") rotationMonth = troughMonth;
-  else if (reentryMode === "late-6mo") rotationMonth = Math.min(scenario.durationMonths, troughMonth + 6);
-  else if (reentryMode === "late-12mo") rotationMonth = Math.min(scenario.durationMonths, troughMonth + 12);
-  else if (reentryMode === "never") rotationMonth = Infinity;
+  if (scenario.regime === "bull") {
+    // In bull market regimes with no crash trough, stay in the custom allocation for the full cycle
+    rotationMonth = Infinity;
+  } else {
+    if (reentryMode === "perfect") rotationMonth = troughMonth;
+    else if (reentryMode === "late-6mo") rotationMonth = Math.min(scenario.durationMonths, troughMonth + 6);
+    else if (reentryMode === "late-12mo") rotationMonth = Math.min(scenario.durationMonths, troughMonth + 12);
+    else if (reentryMode === "never") rotationMonth = Infinity;
+  }
 
   let balBaseline = startPortfolio;
   let balDefensive = startPortfolio;
+  let balPureSp = startPortfolio;
 
   let peakBaseline = startPortfolio;
   let peakDefensive = startPortfolio;
@@ -309,6 +315,9 @@ export function runStressSimulation() {
   for (let idx = 0; idx < monthlySeries.length; idx++) {
     const row = monthlySeries[idx];
     const m = row.m;
+
+    // Benchmark: 100% S&P 500
+    balPureSp = (balPureSp * (1 + row.sp)) + totalMonthlyDca;
 
     // 1. Baseline Strategy: Static 60/40 (60% S&P 500, 40% Treasuries)
     const returnBaseline = (0.60 * row.sp) + (0.40 * row.bond);
@@ -389,6 +398,9 @@ export function runStressSimulation() {
       recoveryMonths: recoveredMonthDefensive || `${monthlySeries.length}+ Mos`,
       terminalValue: balDefensive,
     },
+    statsPureSp: {
+      terminalValue: balPureSp,
+    },
     monthlyTableRows,
     troughMonth,
   };
@@ -461,9 +473,14 @@ function updateKpiCards() {
   if (elTermDef) elTermDef.textContent = formatCurrency(statsDefensive.terminalValue);
   if (elTermSub) {
     const netAdvantage = statsBaseline.terminalValue - statsDefensive.terminalValue;
-    elTermSub.textContent = netAdvantage >= 0
-      ? `Stay the course produced +${formatCurrency(netAdvantage)} more wealth`
-      : `Defensive shift produced +${formatCurrency(Math.abs(netAdvantage))} more wealth`;
+    if (activeScenario.regime === "bull") {
+      const pureDiff = simulationResults.statsPureSp.terminalValue - statsDefensive.terminalValue;
+      elTermSub.textContent = `60/40 beat custom by +${formatCurrency(netAdvantage)} (100% S&P: +${formatCurrency(pureDiff)})`;
+    } else {
+      elTermSub.textContent = netAdvantage >= 0
+        ? `Stay the course produced +${formatCurrency(netAdvantage)} more wealth`
+        : `Defensive shift produced +${formatCurrency(Math.abs(netAdvantage))} more wealth`;
+    }
   }
 }
 
@@ -475,9 +492,23 @@ function updateVerdictBanner() {
   const explanation = document.getElementById("verdict-explanation");
   if (!banner) return;
 
-  const { statsBaseline, statsDefensive } = simulationResults;
+  const { statsBaseline, statsDefensive, statsPureSp } = simulationResults;
   const netDiff = statsBaseline.terminalValue - statsDefensive.terminalValue;
   const troughDiff = statsDefensive.troughValue - statsBaseline.troughValue;
+  const pureSpGap = statsPureSp.terminalValue - statsDefensive.terminalValue;
+
+  if (activeScenario.regime === "bull") {
+    banner.className = "verdict-banner dca-won";
+    if (icon) icon.textContent = "📈";
+    if (tag) tag.textContent = "BULL RUN DRAG & EQUITY OPPORTUNITY COST";
+    if (headline) {
+      headline.textContent = `Custom Spread Trailed 60/40 by -${formatCurrency(Math.abs(netDiff))} (-${formatCurrency(pureSpGap)} vs. 100% S&P 500)`;
+    }
+    if (explanation) {
+      explanation.textContent = `Holding 50% in fixed income & cash (30% Treasuries + 20% Cash) created substantial drag during this bull market. Your custom mix reached ${formatCurrency(statsDefensive.terminalValue)}, trailing the static 60/40 baseline (${formatCurrency(statsBaseline.terminalValue)}) by -${formatCurrency(Math.abs(netDiff))}, and trailing 100% S&P 500 (${formatCurrency(statsPureSp.terminalValue)}) by -${formatCurrency(pureSpGap)}.`;
+    }
+    return;
+  }
 
   if (netDiff >= 0) {
     // Stay the Course Wins
@@ -752,6 +783,24 @@ function updateScenarioDropdown() {
   `).join("");
 
   updateScenarioDetailsCard();
+
+  const labelReentry = document.getElementById("label-reentry-timing");
+  const subtextReentry = document.getElementById("reentry-subtext");
+  if (selectReentryTiming && subtextReentry) {
+    if (currentRegime === "bull") {
+      selectReentryTiming.disabled = true;
+      selectReentryTiming.style.opacity = "0.55";
+      selectReentryTiming.style.cursor = "not-allowed";
+      if (labelReentry) labelReentry.textContent = "Re-Entry Timing (Bull Expansion Mode)";
+      subtextReentry.textContent = "In a continuous bull expansion, your custom spread is maintained for the full cycle to model bull drag and equity opportunity cost.";
+    } else {
+      selectReentryTiming.disabled = false;
+      selectReentryTiming.style.opacity = "1";
+      selectReentryTiming.style.cursor = "default";
+      if (labelReentry) labelReentry.textContent = "Re-Entry Timing (Rotating Back to Equities)";
+      subtextReentry.textContent = "Most market-timers miss the violent initial +15% to +25% rebound off market bottoms.";
+    }
+  }
 }
 
 function updateScenarioDetailsCard() {

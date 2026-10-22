@@ -163,15 +163,15 @@
             </div>
 
             <!-- Re-entry Timing Slider -->
-            <div class="form-field" style="margin-top: 0.85rem;">
-              <label for="stress-reentry-timing">Re-Entry Timing (Rotating Back to Equities)</label>
+            <div class="form-field" style="margin-top: 0.85rem;" id="group-reentry-timing">
+              <label for="stress-reentry-timing" id="label-reentry-timing">Re-Entry Timing (Rotating Back to Equities)</label>
               <select id="stress-reentry-timing">
                 <option value="perfect">Perfect Timing (Re-enter at exact market trough)</option>
                 <option value="late-6mo" selected>Hesitant / 6 Months Late (Wait for confirmation)</option>
                 <option value="late-12mo">Very Late / 12 Months Late (Miss early recovery surge)</option>
                 <option value="never">Stay in Defensive Mix (Never rotate back)</option>
               </select>
-              <span class="field-subtext">Most market-timers miss the violent initial +15% to +25% rebound off market bottoms.</span>
+              <span class="field-subtext" id="reentry-subtext">Most market-timers miss the violent initial +15% to +25% rebound off market bottoms.</span>
             </div>
           </div>
         </aside>
