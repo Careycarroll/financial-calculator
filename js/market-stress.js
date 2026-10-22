@@ -159,26 +159,56 @@ function generateRegimeSeries(spCrash, rspCrash, bondRally, cashYieldAnnual, tot
   const series = [];
   const monthlyCash = cashYieldAnnual / 12;
 
+  // Down phase: waterfall acceleration towards capitulation trough
+  const downPower = 1.35;
+  let downWeights = [];
+  let sumDown = 0;
+  for (let m = 1; m <= troughMonth; m++) {
+    const w = Math.pow(m, downPower);
+    downWeights.push(w);
+    sumDown += w;
+  }
+
+  const spDownLog = Math.log(1 + spCrash);
+  const rspDownLog = Math.log(1 + rspCrash);
+  const bondDownLog = Math.log(1 + bondRally);
+
+  // Recovery phase: front-loaded explosive rebound tapering into steady trend
+  const recMonths = totalMonths - troughMonth;
+  const upPower = 1.45;
+  let upWeights = [];
+  let sumUp = 0;
+  for (let m = 1; m <= recMonths; m++) {
+    const w = Math.pow(recMonths - m + 1, upPower);
+    upWeights.push(w);
+    sumUp += w;
+  }
+
+  // Rebound target: recover back towards peak and post-crisis expansion
+  const recSpTarget = Math.abs(spCrash) * (recMonths >= troughMonth ? 1.25 : 1.10);
+  const recRspTarget = Math.abs(rspCrash) * (recMonths >= troughMonth ? 1.20 : 1.05);
+  const spUpLog = Math.log(1 + recSpTarget);
+  const rspUpLog = Math.log(1 + recRspTarget);
+
   for (let m = 1; m <= totalMonths; m++) {
     const isDownPhase = m <= troughMonth;
-    let phase = isDownPhase ? "Downturn / Crash" : "Recovery & Expansion";
-    if (m === troughMonth) phase = "Market Trough (Bottom)";
+    let phase = isDownPhase ? "Downturn Cascade" : "Recovery Surge";
+    if (m === troughMonth) phase = "Market Trough (Capitulation)";
 
     let sp, rsp, bond;
+    const wobble = 0.12 * Math.sin(m * 1.4);
+
     if (isDownPhase) {
-      // Negative compounding reaching spCrash at trough
-      const progress = m / troughMonth;
-      const weight = Math.sin((progress * Math.PI) / 2);
-      sp = (spCrash / troughMonth) * (0.8 + 0.4 * Math.sin(m * 1.5));
-      rsp = (rspCrash / troughMonth) * (0.8 + 0.4 * Math.sin(m * 1.2));
-      bond = (bondRally / troughMonth) * (0.9 + 0.3 * Math.cos(m * 1.1));
+      const w = downWeights[m - 1] / sumDown;
+      sp = (Math.exp(w * spDownLog) - 1) * (1 + wobble);
+      rsp = (Math.exp(w * rspDownLog) - 1) * (1 + wobble * 0.8);
+      bond = (Math.exp(w * bondDownLog) - 1) * (1 - wobble * 0.3);
     } else {
-      // Rebound phase
-      const recoveryMonths = totalMonths - troughMonth;
-      const recFactor = Math.abs(spCrash) * 1.15;
-      sp = (recFactor / recoveryMonths) * (0.85 + 0.3 * Math.sin(m * 1.2));
-      rsp = (Math.abs(rspCrash) * 1.10 / recoveryMonths) * (0.85 + 0.3 * Math.cos(m * 1.3));
-      bond = 0.0035; // coupon yield
+      const recIdx = m - troughMonth - 1;
+      const w = upWeights[recIdx] / sumUp;
+      sp = (Math.exp(w * spUpLog) - 1) * (1 + wobble);
+      rsp = (Math.exp(w * rspUpLog) - 1) * (1 + wobble * 0.8);
+      bond = 0.0035 * (1 - wobble * 0.2); // steady coupon yield
     }
 
     series.push({
@@ -197,20 +227,37 @@ function generateRegimeSeries(spCrash, rspCrash, bondRally, cashYieldAnnual, tot
 function generateBullSeries(spTotal, rspTotal, bondTotal, cashYieldAnnual, totalMonths) {
   const series = [];
   const monthlyCash = cashYieldAnnual / 12;
-  const spMonthly = Math.pow(1 + spTotal, 1 / totalMonths) - 1;
-  const rspMonthly = Math.pow(1 + rspTotal, 1 / totalMonths) - 1;
-  const bondMonthly = Math.pow(1 + bondTotal, 1 / totalMonths) - 1;
+
+  // Parabolic compounding momentum: accelerating weights
+  const power = 1.55;
+  let weights = [];
+  let sumW = 0;
+  for (let m = 1; m <= totalMonths; m++) {
+    const w = Math.pow(m, power);
+    weights.push(w);
+    sumW += w;
+  }
+
+  const spLog = Math.log(1 + spTotal);
+  const rspLog = Math.log(1 + rspTotal);
+  const bondLog = Math.log(1 + bondTotal);
 
   for (let m = 1; m <= totalMonths; m++) {
-    const wobble = 0.25 * Math.sin(m * 0.8);
+    const w = weights[m - 1] / sumW;
+    const wobble = 0.15 * Math.sin(m * 1.1);
+
+    const sp = (Math.exp(w * spLog) - 1) * (1 + wobble);
+    const rsp = (Math.exp(w * rspLog) - 1) * (1 + wobble * 0.7);
+    const bond = (Math.exp(w * bondLog) - 1) * (1 - wobble * 0.2);
+
     series.push({
       m,
-      phase: m <= totalMonths / 2 ? "Early Bull Surge" : "Matured Bull Expansion",
-      sp: spMonthly * (1 + wobble),
-      rsp: rspMonthly * (1 + wobble * 0.7),
-      bond: bondMonthly * (1 - wobble * 0.3),
+      phase: m <= totalMonths / 3 ? "Early Accumulation" : (m <= (2 * totalMonths) / 3 ? "Expansion Surge" : "Parabolic Melt-Up"),
+      sp,
+      rsp,
+      bond,
       cash: monthlyCash,
-      isTrough: m === 1,
+      isTrough: false,
     });
   }
   return series;
@@ -608,9 +655,9 @@ function renderTrajectoryChart() {
     offCtx.fillText(`Mo ${m}`, x, padding.top + chartHeight + 20);
   }
 
-  // Trough marker line (Market Bottom)
+  // Trough marker line (Market Bottom) - Only for Bear Crashes
   const troughM = simulationResults.troughMonth;
-  if (troughM > 0 && troughM <= totalMonths) {
+  if (activeScenario.regime === "bear" && troughM > 0 && troughM < totalMonths) {
     const xTrough = toX(troughM);
     offCtx.strokeStyle = "rgba(244, 63, 94, 0.5)";
     offCtx.lineWidth = 1.5;
