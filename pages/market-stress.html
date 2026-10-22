@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Market Stress &amp; Timing Simulator | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/drawdown-engine.css" />
+    <link rel="stylesheet" href="../css/market-stress.css" />
+  </head>
+  <body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link">Calculators</a>
+          <a href="fire.html" class="top-nav-link">FIRE Dashboard</a>
+          <a href="drawdown-engine.html" class="top-nav-link">Drawdown Engine</a>
+          <a href="market-stress.html" class="top-nav-link active">Market Stress</a>
+          <a href="news.html" class="top-nav-link">News Feed</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container stress-page-container">
+      <header class="engine-header">
+        <h1>⚡ Market Stress &amp; Timing Simulator</h1>
+        <p class="engine-tagline">
+          Analyze mega-cap concentration risk, high Treasury yields, and test whether an active defensive shift
+          beats staying the course (60/40) and continuously dollar-cost averaging into your 401(k) through crashes and expansions.
+        </p>
+      </header>
+
+      <!-- Quick Context Bar -->
+      <section class="stress-quick-context">
+        <div class="context-pill">
+          <span class="pill-label">Macro Reality:</span>
+          <span class="pill-value">Top 10 S&amp;P stocks = 35%+ of index weight</span>
+        </div>
+        <div class="context-pill">
+          <span class="pill-label">10-Yr Treasury:</span>
+          <span class="pill-value" id="badge-treasury-yield">4.35% (Real Safe Yield)</span>
+        </div>
+        <div class="context-pill">
+          <span class="pill-label">Equity Risk Premium:</span>
+          <span class="pill-value alert">20-Year Low (~1.1%)</span>
+        </div>
+      </section>
+
+      <main class="stress-layout">
+        <!-- LEFT: Controls & Assumptions -->
+        <aside class="control-panel">
+          <!-- 1. Portfolio & DCA Setup -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">💼 Portfolio &amp; 401(k) DCA</h2>
+            <div class="form-field">
+              <label for="stress-start-portfolio">Starting Portfolio ($)</label>
+              <input type="number" id="stress-start-portfolio" min="10000" step="10000" value="2860000" />
+              <span class="field-subtext">Current target net worth (Traditional 401k / IRA)</span>
+            </div>
+
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
+              <div class="form-field">
+                <label for="stress-monthly-dca">Employee DCA ($/mo)</label>
+                <input type="number" id="stress-monthly-dca" min="0" step="100" value="1916" />
+                <span class="field-subtext">$23k/yr IRS limit</span>
+              </div>
+              <div class="form-field">
+                <label for="stress-employer-match">Employer Match ($/mo)</label>
+                <input type="number" id="stress-employer-match" min="0" step="50" value="500" />
+                <span class="field-subtext">Company match inflow</span>
+              </div>
+            </div>
+
+            <div class="form-field" style="margin-top: 0.65rem;">
+              <label for="stress-dca-behavior">Crisis Contribution Discipline</label>
+              <select id="stress-dca-behavior">
+                <option value="continuous" selected>Keep Dumping Money In (DCA Through Crash)</option>
+                <option value="pause-cash">Panic / Pause Contributions to Cash (Timing Fear)</option>
+              </select>
+              <span class="field-subtext">Continuous DCA buys heavily discounted equity shares at the market bottom.</span>
+            </div>
+          </div>
+
+          <!-- 2. Market Regime & Scenario Selector -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">📉 Market Regime &amp; Scenario</h2>
+
+            <!-- Bear vs Bull Toggle -->
+            <div class="regime-toggle-group">
+              <button type="button" class="btn-regime-toggle active" id="btn-regime-bear" data-regime="bear">
+                🔻 Bear &amp; Crashes
+              </button>
+              <button type="button" class="btn-regime-toggle" id="btn-regime-bull" data-regime="bull">
+                🚀 Bull Expansions
+              </button>
+            </div>
+
+            <div class="form-field" style="margin-top: 0.75rem;">
+              <label for="stress-scenario-select">Historical / Forward Shock</label>
+              <select id="stress-scenario-select">
+                <!-- Populated dynamically via JS -->
+              </select>
+            </div>
+
+            <div class="scenario-details-card" id="scenario-details-card">
+              <div class="scenario-desc-title" id="scenario-desc-title">Current Concentration Unwind</div>
+              <p class="scenario-desc-text" id="scenario-desc-text">
+                Top 10 mega-caps compress by 30%, equal-weight drops 8%, while 10-Yr Treasuries rally as yields drop from 4.5% to 3.2%.
+              </p>
+              <div class="scenario-stats-strip" id="scenario-stats-strip">
+                <span>Duration: <strong id="scenario-stat-duration">24 Months</strong></span>
+                <span>S&amp;P Shock: <strong id="scenario-stat-sp" class="red">-22.5%</strong></span>
+                <span>Bond Rally: <strong id="scenario-stat-bond" class="green">+9.5%</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Allocation Comparison: 60/40 vs. Custom Hedge -->
+          <div class="panel-section">
+            <h2 class="panel-section-title">⚖️ Custom Defensive Allocation</h2>
+            <p class="field-subtext" style="margin-bottom: 0.75rem;">
+              Compare staying in standard <strong>60/40 (Unchanged)</strong> against shifting your portfolio into a balanced hedge:
+            </p>
+
+            <div class="alloc-slider-row">
+              <div class="alloc-slider-header">
+                <span>S&amp;P 500 (Market-Cap Weighted)</span>
+                <span class="alloc-pct-val" id="val-alloc-sp500">25%</span>
+              </div>
+              <input type="range" id="slider-alloc-sp500" min="0" max="100" step="5" value="25" class="alloc-range-slider" />
+            </div>
+
+            <div class="alloc-slider-row">
+              <div class="alloc-slider-header">
+                <span>Equal-Weight S&amp;P (RSP) / Value</span>
+                <span class="alloc-pct-val" id="val-alloc-rsp">25%</span>
+              </div>
+              <input type="range" id="slider-alloc-rsp" min="0" max="100" step="5" value="25" class="alloc-range-slider" />
+            </div>
+
+            <div class="alloc-slider-row">
+              <div class="alloc-slider-header">
+                <span>10-Year Intermediate Treasuries</span>
+                <span class="alloc-pct-val" id="val-alloc-treasury">30%</span>
+              </div>
+              <input type="range" id="slider-alloc-treasury" min="0" max="100" step="5" value="30" class="alloc-range-slider" />
+            </div>
+
+            <div class="alloc-slider-row">
+              <div class="alloc-slider-header">
+                <span>Cash / T-Bills (Safe Yield ~4.5%)</span>
+                <span class="alloc-pct-val" id="val-alloc-cash">20%</span>
+              </div>
+              <input type="range" id="slider-alloc-cash" min="0" max="100" step="5" value="20" class="alloc-range-slider" />
+            </div>
+
+            <div class="alloc-sum-pill" id="alloc-sum-pill">
+              <span>Total Allocation:</span>
+              <strong id="alloc-sum-text">100%</strong>
+            </div>
+
+            <!-- Re-entry Timing Slider -->
+            <div class="form-field" style="margin-top: 0.85rem;">
+              <label for="stress-reentry-timing">Re-Entry Timing (Rotating Back to Equities)</label>
+              <select id="stress-reentry-timing">
+                <option value="perfect">Perfect Timing (Re-enter at exact market trough)</option>
+                <option value="late-6mo" selected>Hesitant / 6 Months Late (Wait for confirmation)</option>
+                <option value="late-12mo">Very Late / 12 Months Late (Miss early recovery surge)</option>
+                <option value="never">Stay in Defensive Mix (Never rotate back)</option>
+              </select>
+              <span class="field-subtext">Most market-timers miss the violent initial +15% to +25% rebound off market bottoms.</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- RIGHT: Trajectory Canvas, Head-to-Head KPIs & Verdict -->
+        <section class="stress-main">
+          <!-- The Timing Verdict Hero Banner -->
+          <div class="verdict-banner" id="verdict-banner">
+            <div class="verdict-icon" id="verdict-icon">🛡️</div>
+            <div class="verdict-content">
+              <div class="verdict-header">
+                <span class="verdict-tag" id="verdict-tag">DECISION VERDICT</span>
+                <h3 class="verdict-headline" id="verdict-headline">Evaluating Strategy Payoff...</h3>
+              </div>
+              <p class="verdict-explanation" id="verdict-explanation">
+                Comparing continuous DCA in 60/40 vs. active defensive rebalancing.
+              </p>
+            </div>
+          </div>
+
+          <!-- Head-to-Head Dual KPI Cards -->
+          <div class="kpi-comparison-grid">
+            <!-- KPI 1: Max Drawdown -->
+            <div class="compare-card">
+              <span class="compare-card-title">Max Drawdown (Pain Point)</span>
+              <div class="compare-dual-vals">
+                <div class="compare-val-col">
+                  <span class="strat-label teal">Stay the Course (60/40)</span>
+                  <span class="strat-num red" id="kpi-dd-baseline">-18.4%</span>
+                </div>
+                <div class="compare-divider"></div>
+                <div class="compare-val-col">
+                  <span class="strat-label purple">Defensive Hedge</span>
+                  <span class="strat-num green" id="kpi-dd-defensive">-9.2%</span>
+                </div>
+              </div>
+              <span class="compare-sub" id="kpi-dd-sub">Defensive mix cushioned drop by +9.2%</span>
+            </div>
+
+            <!-- KPI 2: Lowest Point (Trough Value) -->
+            <div class="compare-card">
+              <span class="compare-card-title">Lowest Portfolio Trough</span>
+              <div class="compare-dual-vals">
+                <div class="compare-val-col">
+                  <span class="strat-label teal">Stay the Course (60/40)</span>
+                  <span class="strat-num" id="kpi-trough-baseline">$2,340,000</span>
+                </div>
+                <div class="compare-divider"></div>
+                <div class="compare-val-col">
+                  <span class="strat-label purple">Defensive Hedge</span>
+                  <span class="strat-num" id="kpi-trough-defensive">$2,610,000</span>
+                </div>
+              </div>
+              <span class="compare-sub" id="kpi-trough-sub">Preserved +$270k in trough equity</span>
+            </div>
+
+            <!-- KPI 3: Breakeven Recovery Time -->
+            <div class="compare-card">
+              <span class="compare-card-title">Recovery Time to Peak</span>
+              <div class="compare-dual-vals">
+                <div class="compare-val-col">
+                  <span class="strat-label teal">Stay the Course (60/40)</span>
+                  <span class="strat-num" id="kpi-recovery-baseline">16 Months</span>
+                </div>
+                <div class="compare-divider"></div>
+                <div class="compare-val-col">
+                  <span class="strat-label purple">Defensive Hedge</span>
+                  <span class="strat-num" id="kpi-recovery-defensive">22 Months</span>
+                </div>
+              </div>
+              <span class="compare-sub" id="kpi-recovery-sub">DCA at lows accelerated recovery by 6 mos</span>
+            </div>
+
+            <!-- KPI 4: Terminal Portfolio Wealth -->
+            <div class="compare-card highlight">
+              <span class="compare-card-title">Terminal Wealth (End of Cycle)</span>
+              <div class="compare-dual-vals">
+                <div class="compare-val-col">
+                  <span class="strat-label teal">Stay the Course (60/40)</span>
+                  <span class="strat-num bold teal" id="kpi-terminal-baseline">$3,420,000</span>
+                </div>
+                <div class="compare-divider"></div>
+                <div class="compare-val-col">
+                  <span class="strat-label purple">Defensive Hedge</span>
+                  <span class="strat-num bold purple" id="kpi-terminal-defensive">$3,280,000</span>
+                </div>
+              </div>
+              <span class="compare-sub" id="kpi-terminal-sub">Timing penalty cost -$140,000</span>
+            </div>
+          </div>
+
+          <!-- Interactive Canvas Chart: Trajectory Path Comparison -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3 class="chart-title" id="trajectory-chart-title">Portfolio Trajectory: Stay the Course vs. Defensive Timing</h3>
+                <span class="chart-badge">Continuous Monthly DCA Tracking</span>
+              </div>
+              <div class="chart-legend">
+                <div class="legend-tag">
+                  <span class="legend-color-dot" style="background: #2dd4bf;"></span>
+                  Stay the Course (Static 60/40 + Continuous DCA)
+                </div>
+                <div class="legend-tag">
+                  <span class="legend-color-dot" style="background: #a855f7;"></span>
+                  Custom Defensive Mix + Re-Entry Timing
+                </div>
+              </div>
+            </div>
+            <div class="canvas-container" style="height: 380px;">
+              <canvas id="stress-trajectory-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Monthly Stress Breakdown Table -->
+          <div class="chart-card" style="margin-top: 1.5rem;">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3 class="chart-title">Scenario Progression &amp; Asset Returns</h3>
+                <span class="chart-badge" id="stress-table-badge">Monthly Timeline</span>
+              </div>
+            </div>
+            <div class="ledger-table-wrap">
+              <table class="ledger-table">
+                <thead>
+                  <tr>
+                    <th style="text-align: center;">Month</th>
+                    <th>Market Event / Phase</th>
+                    <th>S&amp;P 500</th>
+                    <th>Equal-Weight</th>
+                    <th>10-Yr Treasury</th>
+                    <th>Cash Yield</th>
+                    <th class="teal">60/40 Portfolio</th>
+                    <th class="purple">Defensive Mix</th>
+                    <th>Advantage</th>
+                  </tr>
+                </thead>
+                <tbody id="stress-breakdown-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <p>&copy; 2026 Financial Calculator &bull; Market Stress &amp; Timing Simulator</p>
+      </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/font-scale.js"></script>
+    <script type="module" src="../js/market-stress.js"></script>
+  </body>
+</html>

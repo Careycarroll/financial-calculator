@@ -68,6 +68,10 @@ const TAX_CONFIG = {
 // State
 let simulationLedger = [];
 let ledgerFilterMode = "all"; // "all" | "5yr"
+let viewMode = "nominal"; // "nominal" | "real"
+let lastSimulationRuinAge = null;
+let lastLifetimeSpending = 0;
+let lastLifetimeTaxes = 0;
 
 // DOM Elements
 const inputStartAge = document.getElementById("drawdown-start-age");
@@ -91,10 +95,28 @@ const inputSS2Pia = document.getElementById("drawdown-ss2-pia");
 const inputSS2Age = document.getElementById("drawdown-ss2-age");
 const inputSSCola = document.getElementById("drawdown-ss-cola");
 
-const inputExpectedReturn = document.getElementById("drawdown-expected-return");
+// Asset Allocation & Returns
+const inputEquityPct = document.getElementById("drawdown-equity-pct");
+const inputStockReturn = document.getElementById("drawdown-stock-return");
+const inputBondReturn = document.getElementById("drawdown-bond-return");
+const displayBlendedReturn = document.getElementById("drawdown-blended-return");
+const displayAllocRatio = document.getElementById("alloc-ratio-badge");
 const inputCashYield = document.getElementById("drawdown-cash-yield");
 const inputInflation = document.getElementById("drawdown-inflation");
 const selectScenario = document.getElementById("drawdown-scenario");
+
+// 3-Bucket Strategy Configuration
+const selectBucketYears = document.getElementById("drawdown-bucket-target-years");
+const bucketDrawer = document.getElementById("bucket-config-drawer");
+const bucketTargetAmount = document.getElementById("bucket-target-amount");
+const btnBucketRebalance = document.getElementById("btn-bucket-rebalance");
+const cashBucketTargetTag = document.getElementById("cash-bucket-target-tag");
+const cashBufferSubtext = document.getElementById("cash-buffer-subtext");
+
+// View Mode Toggle (Nominal vs Real)
+const btnViewNominal = document.getElementById("btn-view-nominal");
+const btnViewReal = document.getElementById("btn-view-real");
+const viewModeDesc = document.getElementById("view-mode-desc");
 
 const btnSyncFire = document.getElementById("btn-sync-fire");
 const bridgeSyncStatus = document.getElementById("bridge-sync-status-text");
@@ -198,24 +220,52 @@ function calculateTaxes(ordinaryIncome, ltcgIncome, ssBenefits, filingStatus, st
 }
 
 // ===================================================================
-// STAGFLATION & MARKET RETURN GENERATOR
+// ASSET ALLOCATION & SCENARIO RETURN GENERATOR
 // ===================================================================
 
-function getScenarioReturnAndInflation(scenario, yearIndex, baseReturn, baseInflation) {
+export function updateBlendedReturnDisplay() {
+  const equityPct = inputEquityPct ? safeParseFloat(inputEquityPct.value, 60) : 60;
+  const bondPct = Math.max(0, 100 - equityPct);
+  const stockReturn = inputStockReturn ? safeParseFloat(inputStockReturn.value, 8.5) : 8.5;
+  const bondReturn = inputBondReturn ? safeParseFloat(inputBondReturn.value, 4.5) : 4.5;
+  const blended = (equityPct * stockReturn + bondPct * bondReturn) / 100;
+
+  if (displayBlendedReturn) {
+    displayBlendedReturn.value = `${blended.toFixed(2)}%`;
+  }
+  if (displayAllocRatio) {
+    displayAllocRatio.textContent = `${equityPct}% Stocks / ${bondPct}% Bonds`;
+  }
+
+  return { equityPct, bondPct, stockReturn, bondReturn, blended };
+}
+
+function getScenarioReturnAndInflation(scenario, yearIndex, equityPct, stockReturnRate, bondReturnRate, baseInflation) {
+  const equityWeight = equityPct / 100;
+  const bondWeight = (100 - equityPct) / 100;
+  const stockReturnDec = stockReturnRate / 100;
+  const bondReturnDec = bondReturnRate / 100;
+
   if (scenario === "stagflation-1966") {
     // 1966 Stagflation Stress (first 10 years experience severe equity drag & 6% inflation)
-    const shockReturns = [-0.10, -0.15, 0.05, -0.08, 0.00, 0.12, -0.12, -0.18, 0.20, 0.04];
-    const equityReturn = yearIndex < shockReturns.length ? shockReturns[yearIndex] : baseReturn;
+    const shockStockReturns = [-0.10, -0.15, 0.05, -0.08, 0.00, 0.12, -0.12, -0.18, 0.20, 0.04];
+    const stockReturnYear = yearIndex < shockStockReturns.length ? shockStockReturns[yearIndex] : stockReturnDec;
+    const bondReturnYear = bondReturnDec;
+    const blendedReturn = (equityWeight * stockReturnYear) + (bondWeight * bondReturnYear);
     const inflation = yearIndex < 10 ? 0.06 : baseInflation;
-    return { equityReturn, inflation };
+    return { blendedReturn, stockReturnYear, inflation };
   } else if (scenario === "bear-early") {
     // Early Bear Market: -20% in Yr 1, -15% in Yr 2, then recovers
-    const shockReturns = [-0.20, -0.15, 0.10, 0.12, 0.08];
-    const equityReturn = yearIndex < shockReturns.length ? shockReturns[yearIndex] : baseReturn;
-    return { equityReturn, inflation: baseInflation };
+    const shockStockReturns = [-0.20, -0.15, 0.10, 0.12, 0.08];
+    const stockReturnYear = yearIndex < shockStockReturns.length ? shockStockReturns[yearIndex] : stockReturnDec;
+    const bondReturnYear = bondReturnDec;
+    const blendedReturn = (equityWeight * stockReturnYear) + (bondWeight * bondReturnYear);
+    return { blendedReturn, stockReturnYear, inflation: baseInflation };
   }
+
   // Standard Normal Baseline
-  return { equityReturn: baseReturn, inflation: baseInflation };
+  const blendedReturn = (equityWeight * stockReturnDec) + (bondWeight * bondReturnDec);
+  return { blendedReturn, stockReturnYear: stockReturnDec, inflation: baseInflation };
 }
 
 // ===================================================================
@@ -230,17 +280,18 @@ export function runDrawdownSimulation() {
   const filingStatus = inputFilingStatus.value;
   const stateTaxRate = safeParseFloat(inputStateTax.value, 4.5);
 
-  let preTax = safeParseFloat(inputAssetPretax.value, 500000);
-  let roth = safeParseFloat(inputAssetRoth.value, 250000);
-  let taxable = safeParseFloat(inputAssetTaxable.value, 200000);
-  let taxableBasis = safeParseFloat(inputAssetTaxableBasis.value, 160000);
-  let cash = safeParseFloat(inputAssetCash.value, 50000);
+  let preTax = safeParseFloat(inputAssetPretax.value, 2860000);
+  let roth = safeParseFloat(inputAssetRoth.value, 0);
+  let taxable = safeParseFloat(inputAssetTaxable.value, 0);
+  let taxableBasis = safeParseFloat(inputAssetTaxableBasis.value, 0);
+  let cash = safeParseFloat(inputAssetCash.value, 0);
 
   const baseEssential = safeParseFloat(inputSpendEssential.value, 45000);
-  let currentDiscretionary = safeParseFloat(inputSpendDiscretionary.value, 15000);
+  let currentDiscretionary = safeParseFloat(inputSpendDiscretionary.value, 11400);
   const initialDiscretionary = currentDiscretionary;
 
-  const selectedStrategy = document.querySelector('input[name="drawdown-strategy"]:checked')?.value || "guyton-klinger";
+  const selectedStrategy = document.querySelector('input[name="drawdown-strategy"]:checked')?.value || "guardrailed-buckets";
+  const bucketTargetYears = selectBucketYears ? safeParseInt(selectBucketYears.value, 2) : 2;
 
   const ss1Pia = safeParseFloat(inputSS1Pia.value, 0);
   const ss1ClaimAge = safeParseInt(inputSS1Age.value, 67);
@@ -252,7 +303,11 @@ export function runDrawdownSimulation() {
 
   const ssColaRate = safeParseFloat(inputSSCola.value, 2.5) / 100;
   const baseInflation = safeParseFloat(inputInflation.value, 2.5) / 100;
-  const baseExpectedReturn = safeParseFloat(inputExpectedReturn.value, 7.0) / 100;
+
+  const alloc = updateBlendedReturnDisplay();
+  const equityPct = alloc.equityPct;
+  const stockReturnRate = alloc.stockReturn;
+  const bondReturnRate = alloc.bondReturn;
   const cashYield = safeParseFloat(inputCashYield.value, 3.5) / 100;
   const scenario = selectScenario.value;
 
@@ -262,7 +317,8 @@ export function runDrawdownSimulation() {
 
   let cumulativeInflation = 1.0;
   let cumulativeSsCola = 1.0;
-  let priorYearReturn = 0.07;
+  let priorYearReturn = (alloc.blended / 100);
+  let priorYearStockReturn = (stockReturnRate / 100);
   let gkEssential = baseEssential;
   let gkDiscretionary = currentDiscretionary;
 
@@ -280,7 +336,9 @@ export function runDrawdownSimulation() {
     const isSenior = age >= 65;
 
     // Step 0: Calculate returns and inflation for this year
-    const { equityReturn, inflation } = getScenarioReturnAndInflation(scenario, year - 1, baseExpectedReturn, baseInflation);
+    const { blendedReturn, stockReturnYear, inflation } = getScenarioReturnAndInflation(
+      scenario, year - 1, equityPct, stockReturnRate, bondReturnRate, baseInflation
+    );
     if (year > 1) {
       cumulativeInflation *= (1 + inflation);
       cumulativeSsCola *= (1 + ssColaRate);
@@ -317,22 +375,20 @@ export function runDrawdownSimulation() {
     if (selectedStrategy === "blanchett-smile") {
       // David Blanchett spending smile curve
       if (age >= 60 && age <= 75) {
-        // Slow-go years: drops ~1.5%/yr in real terms
         const smileFactor = Math.pow(0.985, age - 60);
         nominalEssential = baseEssential * smileFactor * cumulativeInflation;
         nominalDiscretionary = initialDiscretionary * smileFactor * cumulativeInflation;
         strategyNote = `Smile Slow-Go (${(smileFactor * 100).toFixed(0)}%)`;
       } else if (age > 80) {
-        // Late-life healthcare rise (+2%/yr in real terms)
         const healthFactor = 1.0 + (age - 80) * 0.02;
         nominalEssential = baseEssential * healthFactor * cumulativeInflation;
         strategyNote = `Healthcare Surge (+${((healthFactor - 1) * 100).toFixed(0)}%)`;
       }
-    } else if (selectedStrategy === "guyton-klinger") {
-      // Guyton-Klinger dynamic rules
+    } else if (selectedStrategy === "guyton-klinger" || selectedStrategy === "guardrailed-buckets") {
+      // Guyton-Klinger dynamic rules (powers both pure GK and Hybrid Guardrailed Buckets)
       if (year > 1) {
         // Withdrawal Rule: Skip inflation step-up if prior year return was negative
-        if (priorYearReturn < 0) {
+        if (priorYearStockReturn < 0 || priorYearReturn < 0) {
           strategyNote = "Skipped COLA (Down Market)";
         } else {
           gkEssential *= (1 + inflation);
@@ -348,7 +404,6 @@ export function runDrawdownSimulation() {
             gkDiscretionary *= 0.90;
             strategyNote = strategyNote.includes("Skipped") ? "GK: Trim Disc -10% & Skipped COLA" : "GK Guardrail: Trim Disc -10%";
           } else {
-            // If discretionary is 0 or exhausted, cut total spending to protect capital
             gkEssential *= 0.90;
             strategyNote = strategyNote.includes("Skipped") ? "GK: Trim Spend -10% & Skipped COLA" : "GK Guardrail: Trim Spend -10%";
           }
@@ -366,17 +421,55 @@ export function runDrawdownSimulation() {
       }
       nominalEssential = gkEssential;
       nominalDiscretionary = gkDiscretionary;
+    } else if (selectedStrategy === "bucket-strategy") {
+      // 3-Bucket Strategy: maintains baseline purchasing power adjusted for inflation
+      nominalEssential = baseEssential * cumulativeInflation;
+      nominalDiscretionary = initialDiscretionary * cumulativeInflation;
+      strategyNote = "3-Bucket Active";
     } else if (selectedStrategy === "constant-dollar") {
       nominalEssential = baseEssential * cumulativeInflation;
       nominalDiscretionary = initialDiscretionary * cumulativeInflation;
       strategyNote = "Constant Purchasing Power";
     } else if (selectedStrategy === "income-first") {
-      // Yield only
-      const annualYield = (startTaxable + startPreTax + startRoth) * 0.035 + (startCash * cashYield);
-      const totalIncome = annualYield + totalSSInflow;
-      nominalEssential = Math.min(nominalEssential, totalIncome);
-      nominalDiscretionary = Math.max(0, totalIncome - nominalEssential);
-      strategyNote = "Yield Distribution Only";
+      // Yield-driven withdrawal: spend dividends and interest, but never exceed requested budget
+      const equityWeight = equityPct / 100;
+      const bondWeight = (100 - equityPct) / 100;
+
+      // Realistic dividend sensitivity during market shocks
+      let equityYieldRate = 0.020; // 2.0% baseline equity dividend yield
+      if (scenario === "bear-early" && year <= 3) {
+        equityYieldRate = 0.013; // Dividend cuts during crash
+      } else if (scenario === "stagflation-1966" && year <= 8) {
+        equityYieldRate = 0.016; // Dividend growth lagging inflation
+      }
+      const bondYieldRate = bondReturnRate / 100;
+      const blendedPortYield = (equityWeight * equityYieldRate) + (bondWeight * bondYieldRate);
+      const annualInvestedYield = (startTaxable + startPreTax + startRoth) * blendedPortYield;
+      const annualCashYield = startCash * cashYield;
+      const totalIncome = annualInvestedYield + annualCashYield + totalSSInflow;
+
+      const targetEssential = baseEssential * cumulativeInflation;
+      const targetDiscretionary = initialDiscretionary * cumulativeInflation;
+      const targetTotalSpend = targetEssential + targetDiscretionary;
+
+      if (totalIncome >= targetTotalSpend) {
+        // Yield covers requested lifestyle budget. Excess yield remains invested!
+        nominalEssential = targetEssential;
+        nominalDiscretionary = targetDiscretionary;
+        strategyNote = "Yield Covers Budget";
+      } else if (totalIncome >= targetEssential) {
+        // Yield covers essential overhead, but forces cuts to discretionary spending
+        nominalEssential = targetEssential;
+        nominalDiscretionary = totalIncome - targetEssential;
+        const cutPct = Math.round((1 - (nominalDiscretionary / targetDiscretionary)) * 100);
+        strategyNote = `Yield Squeeze: Trim Disc -${cutPct}%`;
+      } else {
+        // Severe income shortfall: forces cuts into essential overhead
+        nominalEssential = Math.max(0, totalIncome);
+        nominalDiscretionary = 0;
+        const cutPct = Math.round((1 - (nominalEssential / targetEssential)) * 100);
+        strategyNote = `Severe Yield Shock: Essential Cut -${cutPct}%`;
+      }
     }
 
     const livingSpend = nominalEssential + nominalDiscretionary;
@@ -410,41 +503,83 @@ export function runDrawdownSimulation() {
       }
     }
 
-    // Step 4: Multi-Account Withdrawal Sequencing for remaining need
-    // Hierarchy: Taxable Brokerage -> Pre-Tax up to 12%/22% bracket -> Roth -> Cash
-    if (remainingNeed > 0 && taxable > 0) {
-      const draw = Math.min(taxable, remainingNeed);
-      taxable -= draw;
-      drawTaxable += draw;
+    // Step 4: Multi-Account Withdrawal Sequencing
+    const isDownMarket = stockReturnYear < 0 || blendedReturn < 0;
+    const isBucketModel = selectedStrategy === "bucket-strategy" || selectedStrategy === "guardrailed-buckets";
 
-      // Realize capital gains
-      const gainRatio = (startTaxable > taxableBasis && startTaxable > 0)
-        ? (startTaxable - taxableBasis) / startTaxable
-        : 0;
-      realizedLtcg += draw * gainRatio;
-      taxableBasis = Math.max(0, taxableBasis - (draw * (1 - gainRatio)));
-      remainingNeed -= draw;
-    }
+    if (isBucketModel && isDownMarket) {
+      // Bucket 1 Defense: Draw from liquid cash first during down markets
+      if (remainingNeed > 0 && cash > 0) {
+        const draw = Math.min(cash, remainingNeed);
+        cash -= draw;
+        drawCash += draw;
+        remainingNeed -= draw;
+        strategyNote = (strategyNote === "Standard" || strategyNote === "3-Bucket Active")
+          ? "Bucket Defense: Cash Draw (Zero Equity Sales)"
+          : `${strategyNote} + Bucket Defense`;
+      }
 
-    if (remainingNeed > 0 && preTax > 0) {
-      const draw = Math.min(preTax, remainingNeed);
-      preTax -= draw;
-      drawPreTax += draw;
-      remainingNeed -= draw;
-    }
+      // If cash is depleted, fallback to Taxable -> Pre-Tax -> Roth
+      if (remainingNeed > 0) {
+        strategyNote += " (Cash Depleted, Portfolio Fallback)";
+        if (remainingNeed > 0 && taxable > 0) {
+          const draw = Math.min(taxable, remainingNeed);
+          taxable -= draw;
+          drawTaxable += draw;
+          const gainRatio = (startTaxable > taxableBasis && startTaxable > 0)
+            ? (startTaxable - taxableBasis) / startTaxable : 0;
+          realizedLtcg += draw * gainRatio;
+          taxableBasis = Math.max(0, taxableBasis - (draw * (1 - gainRatio)));
+          remainingNeed -= draw;
+        }
+        if (remainingNeed > 0 && preTax > 0) {
+          const draw = Math.min(preTax, remainingNeed);
+          preTax -= draw;
+          drawPreTax += draw;
+          remainingNeed -= draw;
+        }
+        if (remainingNeed > 0 && roth > 0) {
+          const draw = Math.min(roth, remainingNeed);
+          roth -= draw;
+          drawRoth += draw;
+          remainingNeed -= draw;
+        }
+      }
+    } else {
+      // Standard Sequencing: Taxable -> Pre-Tax -> Roth -> Cash
+      if (remainingNeed > 0 && taxable > 0) {
+        const draw = Math.min(taxable, remainingNeed);
+        taxable -= draw;
+        drawTaxable += draw;
 
-    if (remainingNeed > 0 && roth > 0) {
-      const draw = Math.min(roth, remainingNeed);
-      roth -= draw;
-      drawRoth += draw;
-      remainingNeed -= draw;
-    }
+        const gainRatio = (startTaxable > taxableBasis && startTaxable > 0)
+          ? (startTaxable - taxableBasis) / startTaxable
+          : 0;
+        realizedLtcg += draw * gainRatio;
+        taxableBasis = Math.max(0, taxableBasis - (draw * (1 - gainRatio)));
+        remainingNeed -= draw;
+      }
 
-    if (remainingNeed > 0 && cash > 0) {
-      const draw = Math.min(cash, remainingNeed);
-      cash -= draw;
-      drawCash += draw;
-      remainingNeed -= draw;
+      if (remainingNeed > 0 && preTax > 0) {
+        const draw = Math.min(preTax, remainingNeed);
+        preTax -= draw;
+        drawPreTax += draw;
+        remainingNeed -= draw;
+      }
+
+      if (remainingNeed > 0 && roth > 0) {
+        const draw = Math.min(roth, remainingNeed);
+        roth -= draw;
+        drawRoth += draw;
+        remainingNeed -= draw;
+      }
+
+      if (remainingNeed > 0 && cash > 0) {
+        const draw = Math.min(cash, remainingNeed);
+        cash -= draw;
+        drawCash += draw;
+        remainingNeed -= draw;
+      }
     }
 
     // Step 5: Tax Calculations
@@ -457,7 +592,7 @@ export function runDrawdownSimulation() {
       isSenior
     );
 
-    // Pay taxes from remaining liquid cash / taxable
+    // Pay taxes from remaining liquid cash / taxable / roth
     let taxShortfall = 0;
     if (taxes.totalTax > 0) {
       let taxNeed = taxes.totalTax;
@@ -480,11 +615,48 @@ export function runDrawdownSimulation() {
       }
     }
 
+    // Step 5b: Bucket Refill Policy in Up/Normal Markets
+    if (isBucketModel && !isDownMarket) {
+      const targetCash = livingSpend * bucketTargetYears;
+      const cashDeficit = Math.max(0, targetCash - cash);
+      if (cashDeficit > 0 && (taxable + preTax + roth) > 0) {
+        const maxSweep = (taxable + preTax + roth) * 0.40;
+        const refillAmount = Math.min(cashDeficit, maxSweep);
+        let remainingRefill = refillAmount;
+
+        if (remainingRefill > 0 && taxable > 0) {
+          const fromTaxable = Math.min(taxable, remainingRefill);
+          taxable -= fromTaxable;
+          remainingRefill -= fromTaxable;
+        }
+        if (remainingRefill > 0 && preTax > 0) {
+          const fromPreTax = Math.min(preTax, remainingRefill);
+          preTax -= fromPreTax;
+          drawPreTax += fromPreTax;
+          remainingRefill -= fromPreTax;
+        }
+        if (remainingRefill > 0 && roth > 0) {
+          const fromRoth = Math.min(roth, remainingRefill);
+          roth -= fromRoth;
+          remainingRefill -= fromRoth;
+        }
+
+        const swept = refillAmount - remainingRefill;
+        cash += swept;
+        if (swept > 0) {
+          strategyNote = strategyNote.includes("Raise")
+            ? `${strategyNote} & Bucket Refilled (+${formatCurrency(swept)})`
+            : `Bucket Refilled (+${formatCurrency(swept)} into Cash)`;
+        }
+      }
+    }
+
     // Step 6: Market Growth on Remaining Account Balances
-    priorYearReturn = equityReturn;
-    preTax = Math.max(0, preTax * (1 + equityReturn));
-    roth = Math.max(0, roth * (1 + equityReturn));
-    taxable = Math.max(0, taxable * (1 + equityReturn));
+    priorYearReturn = blendedReturn;
+    priorYearStockReturn = stockReturnYear;
+    preTax = Math.max(0, preTax * (1 + blendedReturn));
+    roth = Math.max(0, roth * (1 + blendedReturn));
+    taxable = Math.max(0, taxable * (1 + blendedReturn));
     cash = Math.max(0, cash * (1 + cashYield));
 
     const endTotalPortfolio = preTax + roth + taxable + cash;
@@ -508,8 +680,13 @@ export function runDrawdownSimulation() {
       stateTax: taxes.stateTax,
       totalTax: taxes.totalTax,
       strategyNote,
+      cumulativeInflation,
     });
   }
+
+  lastSimulationRuinAge = portfolioRuinAge;
+  lastLifetimeSpending = lifetimeSpending;
+  lastLifetimeTaxes = lifetimeTaxes;
 
   updateKpis(portfolioRuinAge, lifetimeSpending, lifetimeTaxes);
   renderLedgerTable();
@@ -526,41 +703,75 @@ function updateKpis(portfolioRuinAge, lifetimeSpending, lifetimeTaxes) {
   const kpiLongevitySub = document.getElementById("kpi-longevity-sub");
   const kpiTerminal = document.getElementById("kpi-terminal-estate");
   const kpiTerminalTitle = document.getElementById("kpi-terminal-title");
+  const kpiTerminalSub = document.getElementById("kpi-terminal-sub");
   const kpiConsumption = document.getElementById("kpi-total-consumption");
+  const kpiConsumptionSub = document.getElementById("kpi-consumption-sub");
   const kpiTaxes = document.getElementById("kpi-total-taxes");
   const kpiTaxesSub = document.getElementById("kpi-taxes-sub");
 
   const lastRow = simulationLedger[simulationLedger.length - 1];
-  const terminalVal = lastRow ? lastRow.totalPortfolio : 0;
-  const totalSsInflow = simulationLedger.reduce((sum, r) => sum + r.ssInflow, 0);
-  const portfolioFundedSpending = Math.max(0, lifetimeSpending - totalSsInflow);
-  const kpiConsumptionSub = document.getElementById("kpi-consumption-sub");
+  const isReal = viewMode === "real";
+
+  // Terminal value
+  const rawTerminalVal = lastRow ? lastRow.totalPortfolio : 0;
+  const terminalVal = isReal && lastRow ? (rawTerminalVal / lastRow.cumulativeInflation) : rawTerminalVal;
+
+  // Lifetime spending & SS
+  const totalSsInflow = simulationLedger.reduce(
+    (sum, r) => sum + (isReal ? r.ssInflow / r.cumulativeInflation : r.ssInflow),
+    0
+  );
+  const displaySpending = simulationLedger.reduce(
+    (sum, r) => sum + (isReal ? r.livingSpend / r.cumulativeInflation : r.livingSpend),
+    0
+  );
+  const portfolioFundedSpending = Math.max(0, displaySpending - totalSsInflow);
+
+  // Lifetime taxes
+  const displayTaxes = simulationLedger.reduce(
+    (sum, r) => sum + (isReal ? r.totalTax / r.cumulativeInflation : r.totalTax),
+    0
+  );
 
   if (portfolioRuinAge === null) {
     if (kpiLongevity) {
       kpiLongevity.textContent = `Age ${lastRow?.age || 90}+ (Funded)`;
       kpiLongevity.className = "kpi-value green";
     }
-    if (kpiLongevitySub) kpiLongevitySub.textContent = `Full ${simulationLedger.length}-yr horizon solvent (0% ruin)`;
+    if (kpiLongevitySub) {
+      kpiLongevitySub.textContent = `Full ${simulationLedger.length}-yr horizon solvent (0% ruin)`;
+    }
   } else {
     if (kpiLongevity) {
       kpiLongevity.textContent = `Depleted Age ${portfolioRuinAge}`;
       kpiLongevity.className = "kpi-value red";
     }
-    if (kpiLongevitySub) kpiLongevitySub.textContent = "Capital exhausted before target horizon";
+    if (kpiLongevitySub) {
+      kpiLongevitySub.textContent = "Capital exhausted before target horizon";
+    }
   }
 
   if (kpiTerminal) kpiTerminal.textContent = formatCurrency(terminalVal);
   if (kpiTerminalTitle && lastRow) {
-    kpiTerminalTitle.textContent = `Terminal Estate (Age ${lastRow.age})`;
+    kpiTerminalTitle.textContent = isReal
+      ? `Terminal Estate (Real Age ${lastRow.age})`
+      : `Terminal Estate (Age ${lastRow.age})`;
   }
-  if (kpiConsumption) kpiConsumption.textContent = formatCurrency(lifetimeSpending);
+  if (kpiTerminalSub) {
+    kpiTerminalSub.textContent = isReal
+      ? "Purchasing power in Year 1 dollars"
+      : "Stepped-up basis for heirs (Nominal)";
+  }
+
+  if (kpiConsumption) kpiConsumption.textContent = formatCurrency(displaySpending);
   if (kpiConsumptionSub) {
     kpiConsumptionSub.textContent = `Portfolio: ${formatCurrency(portfolioFundedSpending)} | Soc Sec: ${formatCurrency(totalSsInflow)}`;
   }
-  if (kpiTaxes) kpiTaxes.textContent = formatCurrency(lifetimeTaxes);
+  if (kpiTaxes) kpiTaxes.textContent = formatCurrency(displayTaxes);
 
-  const effectiveRate = lifetimeSpending > 0 ? ((lifetimeTaxes / (lifetimeSpending + lifetimeTaxes)) * 100).toFixed(1) : "0.0";
+  const effectiveRate = displaySpending > 0
+    ? ((displayTaxes / (displaySpending + displayTaxes)) * 100).toFixed(1)
+    : "0.0";
   if (kpiTaxesSub) kpiTaxesSub.textContent = `Effective Tax Rate: ${effectiveRate}%`;
 }
 
@@ -581,12 +792,15 @@ function renderHorizonStackedChart() {
   const chart = createChartContext(canvas, rect.width, rect.height);
   const ctx = chart.ctx;
 
+  const isReal = viewMode === "real";
+  const getBal = (val, r) => isReal ? (val / r.cumulativeInflation) : val;
+
   const padding = { top: 25, right: 30, bottom: 45, left: 75 };
   const chartWidth = chart.width - padding.left - padding.right;
   const chartHeight = chart.height - padding.top - padding.bottom;
 
   const maxVal = Math.max(
-    ...simulationLedger.map((r) => r.totalPortfolio),
+    ...simulationLedger.map((r) => getBal(r.totalPortfolio, r)),
     100000
   ) * 1.15;
 
@@ -639,10 +853,10 @@ function renderHorizonStackedChart() {
   // Pre-compute stacked coordinates
   // Stacking order from bottom to top: Cash -> Taxable -> Pre-Tax -> Roth
   const stackedPoints = simulationLedger.map((row) => {
-    const c = row.balCash;
-    const t = c + row.balTaxable;
-    const p = t + row.balPretax;
-    const r = p + row.balRoth;
+    const c = getBal(row.balCash, row);
+    const t = c + getBal(row.balTaxable, row);
+    const p = t + getBal(row.balPretax, row);
+    const r = p + getBal(row.balRoth, row);
     return {
       age: row.age,
       x: toX(row.age),
@@ -741,15 +955,23 @@ function renderHorizonStackedChart() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
+      const pBalCash = getBal(r.balCash, r);
+      const pBalTaxable = getBal(r.balTaxable, r);
+      const pBalPretax = getBal(r.balPretax, r);
+      const pBalRoth = getBal(r.balRoth, r);
+      const pTotal = getBal(r.totalPortfolio, r);
+      const pSpend = getBal(r.livingSpend, r);
+      const pTax = getBal(r.totalTax, r);
+
       const lines = [
-        `Age ${r.age} (Year ${r.year})`,
-        `Total Net Worth: ${formatCurrency(r.totalPortfolio)}`,
-        `🟣 Roth: ${formatCurrency(r.balRoth)}`,
-        `🟡 Pre-Tax: ${formatCurrency(r.balPretax)}`,
-        `🟢 Taxable: ${formatCurrency(r.balTaxable)}`,
-        `🔵 Cash: ${formatCurrency(r.balCash)}`,
-        `Drawdown Need: ${formatCurrency(r.livingSpend)}`,
-        `Taxes: ${formatCurrency(r.totalTax)}`,
+        `Age ${r.age} (Year ${r.year}) ${isReal ? "(Real $)" : ""}`,
+        `Total Net Worth: ${formatCurrency(pTotal)}`,
+        `🟣 Roth: ${formatCurrency(pBalRoth)}`,
+        `🟡 Pre-Tax: ${formatCurrency(pBalPretax)}`,
+        `🟢 Taxable: ${formatCurrency(pBalTaxable)}`,
+        `🔵 Cash: ${formatCurrency(pBalCash)}`,
+        `Drawdown Need: ${formatCurrency(pSpend)}`,
+        `Taxes: ${formatCurrency(pTax)}`,
       ];
 
       drawTooltip(ctx, lines, p.x, p.yRoth, {
@@ -803,13 +1025,16 @@ function renderCashFlowStackedChart() {
   const chart = createChartContext(canvas, rect.width, rect.height);
   const ctx = chart.ctx;
 
+  const isReal = viewMode === "real";
+  const getVal = (v, r) => isReal ? (v / r.cumulativeInflation) : v;
+
   const padding = { top: 25, right: 30, bottom: 45, left: 75 };
   const chartWidth = chart.width - padding.left - padding.right;
   const chartHeight = chart.height - padding.top - padding.bottom;
 
   const maxOutflow = Math.max(
-    ...simulationLedger.map((r) => r.livingSpend + r.totalTax),
-    ...simulationLedger.map((r) => r.ssInflow),
+    ...simulationLedger.map((r) => getVal(r.livingSpend, r) + getVal(r.totalTax, r)),
+    ...simulationLedger.map((r) => getVal(r.ssInflow, r)),
     60000
   ) * 1.15;
 
@@ -846,7 +1071,9 @@ function renderCashFlowStackedChart() {
   // Draw Stacked Bars: Spend on bottom, Tax stacked on top
   simulationLedger.forEach((r, idx) => {
     const x = padding.left + (idx * barSpacing) + (barSpacing - barWidth) / 2;
-    const ySpend = toY(r.livingSpend);
+    const realSpend = getVal(r.livingSpend, r);
+    const realTax = getVal(r.totalTax, r);
+    const ySpend = toY(realSpend);
     const hSpend = Math.max(0, (padding.top + chartHeight) - ySpend);
 
     // Living spend bar
@@ -854,8 +1081,8 @@ function renderCashFlowStackedChart() {
     offCtx.fillRect(x, ySpend, barWidth, hSpend);
 
     // Tax bar stacked on top
-    if (r.totalTax > 0) {
-      const yTotal = toY(r.livingSpend + r.totalTax);
+    if (realTax > 0) {
+      const yTotal = toY(realSpend + realTax);
       const hTax = Math.max(0, ySpend - yTotal);
       offCtx.fillStyle = "#f43f5e";
       offCtx.fillRect(x, yTotal, barWidth, hTax);
@@ -876,7 +1103,7 @@ function renderCashFlowStackedChart() {
   offCtx.beginPath();
   simulationLedger.forEach((r, idx) => {
     const x = padding.left + (idx * barSpacing) + barSpacing / 2;
-    const y = toY(r.ssInflow);
+    const y = toY(getVal(r.ssInflow, r));
     if (idx === 0) offCtx.moveTo(x, y);
     else offCtx.lineTo(x, y);
   });
@@ -890,7 +1117,9 @@ function renderCashFlowStackedChart() {
     if (highlightIndex !== null && highlightIndex >= 0 && highlightIndex < simulationLedger.length) {
       const r = simulationLedger[highlightIndex];
       const x = padding.left + (highlightIndex * barSpacing) + barSpacing / 2;
-      const yTop = toY(r.livingSpend + r.totalTax);
+      const realSpend = getVal(r.livingSpend, r);
+      const realTax = getVal(r.totalTax, r);
+      const yTop = toY(realSpend + realTax);
 
       // Highlight line
       ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
@@ -903,11 +1132,11 @@ function renderCashFlowStackedChart() {
       ctx.setLineDash([]);
 
       const lines = [
-        `Age ${r.age} (Year ${r.year})`,
-        `Lifestyle Spend: ${formatCurrency(r.livingSpend)}`,
-        `Fed & State Taxes: ${formatCurrency(r.totalTax)}`,
-        `Social Security Inflow: ${formatCurrency(r.ssInflow)}`,
-        `Net Portfolio Draw: ${formatCurrency(r.portfolioDraw)}`,
+        `Age ${r.age} (Year ${r.year}) ${isReal ? "(Real $)" : ""}`,
+        `Lifestyle Spend: ${formatCurrency(realSpend)}`,
+        `Fed & State Taxes: ${formatCurrency(realTax)}`,
+        `Social Security Inflow: ${formatCurrency(getVal(r.ssInflow, r))}`,
+        `Net Portfolio Draw: ${formatCurrency(getVal(r.portfolioDraw, r))}`,
       ];
 
       drawTooltip(ctx, lines, x, yTop, {
@@ -954,6 +1183,8 @@ function renderLedgerTable() {
   const badge = document.getElementById("ledger-rows-badge");
   if (!tbody) return;
 
+  const isReal = viewMode === "real";
+
   const filtered = simulationLedger.filter((r, idx) => {
     if (ledgerFilterMode === "5yr") {
       return idx % 5 === 0 || idx === simulationLedger.length - 1;
@@ -961,28 +1192,31 @@ function renderLedgerTable() {
     return true;
   });
 
-  if (badge) badge.textContent = `${filtered.length} Rows`;
+  if (badge) badge.textContent = `${filtered.length} Rows ${isReal ? "(Real $)" : ""}`;
 
   tbody.innerHTML = filtered.map((r) => {
+    const infl = isReal ? r.cumulativeInflation : 1.0;
     let tagClass = "";
-    if (r.strategyNote.includes("Trim")) tagClass = "guardrail-cut";
-    else if (r.strategyNote.includes("Raise")) tagClass = "guardrail-raise";
+    if (r.strategyNote.includes("Trim") || r.strategyNote.includes("Squeeze") || r.strategyNote.includes("Shock")) tagClass = "guardrail-cut";
+    else if (r.strategyNote.includes("Raise") || r.strategyNote.includes("Covers")) tagClass = "guardrail-raise";
     else if (r.strategyNote.includes("RMD Swept")) tagClass = "rmd-sweep";
+    else if (r.strategyNote.includes("Defense")) tagClass = "bucket-defense";
+    else if (r.strategyNote.includes("Refilled")) tagClass = "bucket-refill";
 
     return `
       <tr>
         <td class="col-age">${r.age}</td>
         <td>${r.year}</td>
-        <td>${formatCurrency(r.balCash)}</td>
-        <td>${formatCurrency(r.balTaxable)}</td>
-        <td>${formatCurrency(r.balPretax)}</td>
-        <td>${formatCurrency(r.balRoth)}</td>
-        <td class="col-total">${formatCurrency(r.totalPortfolio)}</td>
-        <td>${formatCurrency(r.livingSpend)}</td>
-        <td style="color: #38bdf8;">${formatCurrency(r.ssInflow)}</td>
-        <td>${formatCurrency(r.portfolioDraw)}</td>
-        <td>${r.rmdAmount > 0 ? formatCurrency(r.rmdAmount) : "—"}</td>
-        <td class="col-tax">${formatCurrency(r.totalTax)}</td>
+        <td>${formatCurrency(r.balCash / infl)}</td>
+        <td>${formatCurrency(r.balTaxable / infl)}</td>
+        <td>${formatCurrency(r.balPretax / infl)}</td>
+        <td>${formatCurrency(r.balRoth / infl)}</td>
+        <td class="col-total">${formatCurrency(r.totalPortfolio / infl)}</td>
+        <td>${formatCurrency(r.livingSpend / infl)}</td>
+        <td style="color: #38bdf8;">${formatCurrency(r.ssInflow / infl)}</td>
+        <td>${formatCurrency(r.portfolioDraw / infl)}</td>
+        <td>${r.rmdAmount > 0 ? formatCurrency(r.rmdAmount / infl) : "—"}</td>
+        <td class="col-tax">${formatCurrency(r.totalTax / infl)}</td>
         <td class="col-strategy">
           ${tagClass ? `<span class="tag-strategy-action ${tagClass}">${r.strategyNote}</span>` : r.strategyNote}
         </td>
@@ -993,35 +1227,42 @@ function renderLedgerTable() {
 
 function exportLedgerToCsv() {
   if (simulationLedger.length === 0) return;
+  const isReal = viewMode === "real";
 
   const headers = [
-    "Age", "Year", "Cash_Balance", "Taxable_Balance", "PreTax_Balance", "Roth_Balance",
+    "Age", "Year", "Display_Mode", "Cumulative_Inflation",
+    "Cash_Balance", "Taxable_Balance", "PreTax_Balance", "Roth_Balance",
     "Total_Portfolio", "Living_Spend", "Social_Security", "Portfolio_Draw",
     "Mandated_RMD", "Total_Tax", "Strategy_Note"
   ];
 
-  const rows = simulationLedger.map((r) => [
-    r.age,
-    r.year,
-    Math.round(r.balCash),
-    Math.round(r.balTaxable),
-    Math.round(r.balPretax),
-    Math.round(r.balRoth),
-    Math.round(r.totalPortfolio),
-    Math.round(r.livingSpend),
-    Math.round(r.ssInflow),
-    Math.round(r.portfolioDraw),
-    Math.round(r.rmdAmount),
-    Math.round(r.totalTax),
-    `"${r.strategyNote.replace(/"/g, '""')}"`
-  ]);
+  const rows = simulationLedger.map((r) => {
+    const infl = isReal ? r.cumulativeInflation : 1.0;
+    return [
+      r.age,
+      r.year,
+      isReal ? "Real_Purchasing_Power" : "Nominal_Checkbook",
+      r.cumulativeInflation.toFixed(4),
+      Math.round(r.balCash / infl),
+      Math.round(r.balTaxable / infl),
+      Math.round(r.balPretax / infl),
+      Math.round(r.balRoth / infl),
+      Math.round(r.totalPortfolio / infl),
+      Math.round(r.livingSpend / infl),
+      Math.round(r.ssInflow / infl),
+      Math.round(r.portfolioDraw / infl),
+      Math.round(r.rmdAmount / infl),
+      Math.round(r.totalTax / infl),
+      `"${r.strategyNote.replace(/"/g, '""')}"`
+    ];
+  });
 
   const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `retirement_drawdown_simulation_${Date.now()}.csv`;
+  a.download = `retirement_drawdown_${viewMode}_${Date.now()}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1031,6 +1272,102 @@ function exportLedgerToCsv() {
 // ===================================================================
 // TWO-WAY FIRE CALCULATOR BRIDGE & INITIALIZATION
 // ===================================================================
+
+export function syncBucketTargetAndCash(autoRebalance = false) {
+  const selectedStrategy = document.querySelector('input[name="drawdown-strategy"]:checked')?.value || "guardrailed-buckets";
+  const isBucket = selectedStrategy === "bucket-strategy" || selectedStrategy === "guardrailed-buckets";
+
+  const essential = safeParseFloat(inputSpendEssential?.value, 45000);
+  const discretionary = safeParseFloat(inputSpendDiscretionary?.value, 11400);
+  const annualSpend = essential + discretionary;
+  const targetYears = selectBucketYears ? safeParseInt(selectBucketYears.value, 2) : 2;
+  const targetCash = Math.round(annualSpend * targetYears);
+
+  if (bucketTargetAmount) {
+    bucketTargetAmount.textContent = formatCurrency(targetCash);
+  }
+
+  if (cashBucketTargetTag) {
+    if (isBucket) {
+      cashBucketTargetTag.style.display = "inline-block";
+      cashBucketTargetTag.textContent = `Bucket 1 Target: ${formatCurrency(targetCash)} (${targetYears} Yrs)`;
+    } else {
+      cashBucketTargetTag.style.display = "none";
+    }
+  }
+
+  if (cashBufferSubtext) {
+    if (isBucket) {
+      cashBufferSubtext.textContent = `Bucket 1 maintains ${targetYears} yr${targetYears > 1 ? "s" : ""} of living expenses (${formatCurrency(targetCash)}) to shield equities during bear markets.`;
+    } else {
+      cashBufferSubtext.textContent = "Safe liquidity buffer protecting equities against early sequence risk.";
+    }
+  }
+
+  if (autoRebalance && isBucket) {
+    rebalanceCashToTarget(targetCash);
+  }
+}
+
+function rebalanceCashToTarget(targetCash) {
+  const currentCash = safeParseFloat(inputAssetCash?.value, 0);
+  const diff = targetCash - currentCash;
+  if (diff === 0) return;
+
+  let taxable = safeParseFloat(inputAssetTaxable?.value, 0);
+  let taxableBasis = safeParseFloat(inputAssetTaxableBasis?.value, 0);
+  let preTax = safeParseFloat(inputAssetPretax?.value, 0);
+  let roth = safeParseFloat(inputAssetRoth?.value, 0);
+
+  if (diff > 0) {
+    // Need more cash: rebalance from Taxable first, then Pre-Tax, then Roth
+    let remainingToMove = diff;
+    if (taxable > 0) {
+      const moveTaxable = Math.min(taxable, remainingToMove);
+      const basisRatio = taxable > 0 ? (taxableBasis / taxable) : 1;
+      taxable -= moveTaxable;
+      taxableBasis = Math.max(0, taxableBasis - (moveTaxable * basisRatio));
+      remainingToMove -= moveTaxable;
+    }
+    if (remainingToMove > 0 && preTax > 0) {
+      const movePreTax = Math.min(preTax, remainingToMove);
+      preTax -= movePreTax;
+      remainingToMove -= movePreTax;
+    }
+    if (remainingToMove > 0 && roth > 0) {
+      const moveRoth = Math.min(roth, remainingToMove);
+      roth -= moveRoth;
+      remainingToMove -= moveRoth;
+    }
+
+    const actualMoved = diff - remainingToMove;
+    const newCash = currentCash + actualMoved;
+
+    if (inputAssetTaxable) inputAssetTaxable.value = Math.round(taxable);
+    if (inputAssetTaxableBasis) inputAssetTaxableBasis.value = Math.round(taxableBasis);
+    if (inputAssetPretax) inputAssetPretax.value = Math.round(preTax);
+    if (inputAssetRoth) inputAssetRoth.value = Math.round(roth);
+    if (inputAssetCash) inputAssetCash.value = Math.round(newCash);
+  } else {
+    // Current cash is higher than target: return surplus to Taxable if taxable exists, else Pre-Tax
+    const surplus = Math.abs(diff);
+    if (taxable > 0 || (taxable === 0 && preTax === 0 && roth === 0)) {
+      taxable += surplus;
+      taxableBasis += surplus;
+      if (inputAssetTaxable) inputAssetTaxable.value = Math.round(taxable);
+      if (inputAssetTaxableBasis) inputAssetTaxableBasis.value = Math.round(taxableBasis);
+    } else if (preTax > 0) {
+      preTax += surplus;
+      if (inputAssetPretax) inputAssetPretax.value = Math.round(preTax);
+    } else {
+      roth += surplus;
+      if (inputAssetRoth) inputAssetRoth.value = Math.round(roth);
+    }
+    if (inputAssetCash) inputAssetCash.value = Math.round(targetCash);
+  }
+
+  updatePortfolioTotalDisplay();
+}
 
 function updatePortfolioTotalDisplay() {
   const pretax = safeParseFloat(inputAssetPretax.value, 0);
@@ -1045,6 +1382,7 @@ function updatePortfolioTotalDisplay() {
 }
 
 function syncFromFireCalculator(manualClick = false) {
+  if (!manualClick) return;
   try {
     let syncedItems = [];
 
@@ -1085,11 +1423,14 @@ function syncFromFireCalculator(manualClick = false) {
       if (fi["fire-retire-age"]) inputStartAge.value = fi["fire-retire-age"];
       if (fi["fire-life-expectancy"]) inputEndAge.value = fi["fire-life-expectancy"];
       if (fi["fire-inflation"]) inputInflation.value = fi["fire-inflation"];
-      if (fi["fire-annual-return"]) inputExpectedReturn.value = fi["fire-annual-return"];
+      if (fi["fire-annual-return"] && inputStockReturn) {
+        inputStockReturn.value = fi["fire-annual-return"];
+      }
       syncedItems.push("Ages & Return Expectations");
     }
 
     updatePortfolioTotalDisplay();
+    updateBlendedReturnDisplay();
     runDrawdownSimulation();
 
     if (manualClick && bridgeSyncStatus) {
@@ -1107,17 +1448,34 @@ function initEventHandlers() {
     inputAssetPretax, inputAssetRoth, inputAssetTaxable, inputAssetTaxableBasis, inputAssetCash,
     inputSpendEssential, inputSpendDiscretionary,
     inputSS1Pia, inputSS1Age, inputSS2Pia, inputSS2Age, inputSSCola,
-    inputExpectedReturn, inputCashYield, inputInflation, selectScenario
+    inputEquityPct, inputStockReturn, inputBondReturn, inputCashYield, inputInflation, selectScenario,
+    selectBucketYears
   ];
 
   inputsToListen.forEach((el) => {
     if (el) {
       el.addEventListener("input", () => {
+        const isBucket = document.querySelector('input[name="drawdown-strategy"]:checked')?.value === "bucket-strategy" ||
+                         document.querySelector('input[name="drawdown-strategy"]:checked')?.value === "guardrailed-buckets";
+        if (isBucket && (el === inputSpendEssential || el === inputSpendDiscretionary)) {
+          syncBucketTargetAndCash(true);
+        } else {
+          syncBucketTargetAndCash(false);
+        }
         updatePortfolioTotalDisplay();
+        updateBlendedReturnDisplay();
         runDrawdownSimulation();
       });
       el.addEventListener("change", () => {
+        const isBucket = document.querySelector('input[name="drawdown-strategy"]:checked')?.value === "bucket-strategy" ||
+                         document.querySelector('input[name="drawdown-strategy"]:checked')?.value === "guardrailed-buckets";
+        if (isBucket && (el === inputSpendEssential || el === inputSpendDiscretionary)) {
+          syncBucketTargetAndCash(true);
+        } else {
+          syncBucketTargetAndCash(false);
+        }
         updatePortfolioTotalDisplay();
+        updateBlendedReturnDisplay();
         runDrawdownSimulation();
       });
     }
@@ -1125,9 +1483,57 @@ function initEventHandlers() {
 
   document.querySelectorAll('input[name="drawdown-strategy"]').forEach((radio) => {
     radio.addEventListener("change", () => {
+      const isBucket = (radio.value === "bucket-strategy" || radio.value === "guardrailed-buckets") && radio.checked;
+      if (bucketDrawer) {
+        bucketDrawer.style.display = isBucket ? "block" : "none";
+      }
+      syncBucketTargetAndCash(isBucket);
       runDrawdownSimulation();
     });
   });
+
+  if (selectBucketYears) {
+    selectBucketYears.addEventListener("change", () => {
+      syncBucketTargetAndCash(true);
+      runDrawdownSimulation();
+    });
+  }
+
+  if (btnBucketRebalance) {
+    btnBucketRebalance.addEventListener("click", () => {
+      syncBucketTargetAndCash(true);
+      runDrawdownSimulation();
+    });
+  }
+
+  // Real vs Nominal View Toggle
+  if (btnViewNominal) {
+    btnViewNominal.addEventListener("click", () => {
+      if (viewMode === "nominal") return;
+      viewMode = "nominal";
+      btnViewNominal.classList.add("active");
+      btnViewReal?.classList.remove("active");
+      if (viewModeDesc) viewModeDesc.textContent = "Nominal future checkbook dollars";
+      updateKpis(lastSimulationRuinAge, lastLifetimeSpending, lastLifetimeTaxes);
+      renderLedgerTable();
+      renderHorizonStackedChart();
+      renderCashFlowStackedChart();
+    });
+  }
+
+  if (btnViewReal) {
+    btnViewReal.addEventListener("click", () => {
+      if (viewMode === "real") return;
+      viewMode = "real";
+      btnViewReal.classList.add("active");
+      btnViewNominal?.classList.remove("active");
+      if (viewModeDesc) viewModeDesc.textContent = "Real purchasing power in Year 1 dollars";
+      updateKpis(lastSimulationRuinAge, lastLifetimeSpending, lastLifetimeTaxes);
+      renderLedgerTable();
+      renderHorizonStackedChart();
+      renderCashFlowStackedChart();
+    });
+  }
 
   if (btnSyncFire) {
     btnSyncFire.addEventListener("click", () => {
@@ -1165,7 +1571,8 @@ function initEventHandlers() {
 
 // Initial Run
 initEventHandlers();
-syncFromFireCalculator(false);
+syncBucketTargetAndCash(true);
 updatePortfolioTotalDisplay();
+updateBlendedReturnDisplay();
 runDrawdownSimulation();
 

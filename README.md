@@ -12,6 +12,7 @@ A collection of interactive financial calculators built with vanilla JavaScript 
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 🔥 FIRE Dashboard              | FIRE number, Coast FIRE, retirement lifecycle projection, asset location breakdown, life milestones                          |
 | 🛡️ Drawdown Engine             | Multi-account withdrawal sequencing (Pre-Tax/Roth/Taxable/Cash), Guyton-Klinger guardrails, Blanchett smile, SECURE 2.0 RMDs |
+| ⚡ Market Stress               | Concentration risk (top 10 vs RSP), 10-Yr Treasuries vs safe cash, and 60/40 continuous DCA vs defensive rebalancing        |
 | 📈 Portfolio Projections       | Multi-scenario growth with inflation adjustment                                                                               |
 | 🏦 Loan Calculator             | Amortization, payoff schedule, interest breakdown                                                                             |
 | 🏦 Advanced Loan               | Extra payments, recurring ranges, one-time payments                                                                           |

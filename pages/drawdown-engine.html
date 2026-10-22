@@ -17,6 +17,7 @@
           <a href="../index.html" class="top-nav-link">Calculators</a>
           <a href="fire.html" class="top-nav-link">FIRE Dashboard</a>
           <a href="drawdown-engine.html" class="top-nav-link active">Drawdown Engine</a>
+          <a href="market-stress.html" class="top-nav-link">Market Stress</a>
           <a href="news.html" class="top-nav-link">News Feed</a>
         </div>
       </div>
@@ -85,7 +86,7 @@
               </div>
               <div class="form-field">
                 <label for="drawdown-asset-pretax">Balance ($)</label>
-                <input type="number" id="drawdown-asset-pretax" min="0" step="5000" value="500000" />
+                <input type="number" id="drawdown-asset-pretax" min="0" step="5000" value="2860000" />
               </div>
               <span class="field-subtext">Ordinary income upon distribution. SECURE 2.0 RMDs at 73/75.</span>
             </div>
@@ -97,7 +98,7 @@
               </div>
               <div class="form-field">
                 <label for="drawdown-asset-roth">Balance ($)</label>
-                <input type="number" id="drawdown-asset-roth" min="0" step="5000" value="250000" />
+                <input type="number" id="drawdown-asset-roth" min="0" step="5000" value="0" />
               </div>
               <span class="field-subtext">Tax-free growth &amp; distributions. No lifetime RMDs.</span>
             </div>
@@ -110,11 +111,11 @@
               <div class="form-grid-2">
                 <div class="form-field">
                   <label for="drawdown-asset-taxable">Market Value ($)</label>
-                  <input type="number" id="drawdown-asset-taxable" min="0" step="5000" value="200000" />
+                  <input type="number" id="drawdown-asset-taxable" min="0" step="5000" value="0" />
                 </div>
                 <div class="form-field">
                   <label for="drawdown-asset-taxable-basis">Cost Basis ($)</label>
-                  <input type="number" id="drawdown-asset-taxable-basis" min="0" step="5000" value="160000" />
+                  <input type="number" id="drawdown-asset-taxable-basis" min="0" step="5000" value="0" />
                 </div>
               </div>
               <span class="field-subtext">Subject to preferential LTCG. Stepped-up basis on transfer.</span>
@@ -124,18 +125,19 @@
             <div class="engine-account-card cash">
               <div class="account-card-header">
                 <span class="account-badge cash">🔵 Cash Buffer / Reserve</span>
+                <span class="bucket-target-tag" id="cash-bucket-target-tag" style="display: none;">Bucket 1 (2 Yrs Target)</span>
               </div>
               <div class="form-field">
                 <label for="drawdown-asset-cash">Liquid Cash ($)</label>
-                <input type="number" id="drawdown-asset-cash" min="0" step="1000" value="50000" />
+                <input type="number" id="drawdown-asset-cash" min="0" step="1000" value="0" />
               </div>
-              <span class="field-subtext">Safe liquidity buffer protecting equities against early sequence risk.</span>
+              <span class="field-subtext" id="cash-buffer-subtext">Safe liquidity buffer protecting equities against early sequence risk.</span>
             </div>
 
             <!-- Total Strip -->
             <div class="portfolio-total-strip">
               <span>Total Starting Portfolio:</span>
-              <span class="portfolio-total-val" id="drawdown-total-portfolio">$1,000,000</span>
+              <span class="portfolio-total-val" id="drawdown-total-portfolio">$2,860,000</span>
             </div>
           </div>
 
@@ -149,8 +151,8 @@
                 <span class="field-subtext">Housing, food, utilities, health</span>
               </div>
               <div class="form-field">
-                <label for="drawdown-spend-discretionary">Discretionary Spend ($/yr)</label>
-                <input type="number" id="drawdown-spend-discretionary" min="0" step="1000" value="15000" />
+                <label for="drawdown-spend-discretionary">Dynamic / Discretionary Spend ($/yr)</label>
+                <input type="number" id="drawdown-spend-discretionary" min="0" step="1000" value="11400" />
                 <span class="field-subtext">Travel, dining, hobbies (flexible)</span>
               </div>
             </div>
@@ -160,9 +162,17 @@
             </label>
             <div class="strategy-card-select">
               <label class="strategy-radio-label">
-                <input type="radio" name="drawdown-strategy" value="guyton-klinger" checked />
+                <input type="radio" name="drawdown-strategy" value="guardrailed-buckets" checked />
                 <div class="strategy-content">
-                  <span class="strategy-name">Guyton-Klinger Guardrails (Recommended)</span>
+                  <span class="strategy-name">Dynamic Guardrailed Buckets (Recommended Hybrid)</span>
+                  <span class="strategy-desc">Combines Bucket 1 Cash Reserve (freezes equity liquidations during downturns) with Guyton-Klinger Guardrails (trims dynamic spend by 10% &amp; skips COLAs during market shocks). Maximizes runway and portfolio longevity.</span>
+                </div>
+              </label>
+
+              <label class="strategy-radio-label">
+                <input type="radio" name="drawdown-strategy" value="guyton-klinger" />
+                <div class="strategy-content">
+                  <span class="strategy-name">Guyton-Klinger Guardrails (Pure Spending Rules)</span>
                   <span class="strategy-desc">Trim/raise discretionary spend by 10% when withdrawal rate breaches ±20% boundaries. Prevents portfolio ruin during market shocks.</span>
                 </div>
               </label>
@@ -190,6 +200,37 @@
                   <span class="strategy-desc">Spends only cash/bond yields and dividends. Forces lifestyle cuts during fluctuating dividend cycles.</span>
                 </div>
               </label>
+
+              <label class="strategy-radio-label">
+                <input type="radio" name="drawdown-strategy" value="bucket-strategy" />
+                <div class="strategy-content">
+                  <span class="strategy-name">3-Bucket Strategy (Cash Buffer + Equity Freeze)</span>
+                  <span class="strategy-desc">Bucket 1 (Cash Reserve) funds living spending during market downturns to freeze equity liquidations. In up years, surplus returns refill the cash bucket to target.</span>
+                </div>
+              </label>
+            </div>
+
+            <!-- Bucket Strategy Config Drawer -->
+            <div class="bucket-config-drawer" id="bucket-config-drawer" style="display: block;">
+              <div class="form-field">
+                <label for="drawdown-bucket-target-years">Target Cash Buffer (Living Expenses)</label>
+                <select id="drawdown-bucket-target-years">
+                  <option value="1">1 Year of Living Expenses</option>
+                  <option value="2" selected>2 Years of Living Expenses (Standard)</option>
+                  <option value="3">3 Years of Living Expenses (Conservative)</option>
+                  <option value="4">4 Years of Living Expenses (High Protection)</option>
+                </select>
+                <span class="field-subtext">Protects equities by exhausting Cash Bucket 1 before liquidating equities during down years.</span>
+              </div>
+              <div class="bucket-status-badge" id="bucket-status-badge">
+                <div class="bucket-status-info">
+                  <span class="bucket-status-title">Bucket 1 Allocation:</span>
+                  <span class="bucket-status-target" id="bucket-target-amount">$112,800</span>
+                </div>
+                <button type="button" class="btn-bucket-rebalance" id="btn-bucket-rebalance" title="Rebalance starting portfolio to match Bucket 1 target">
+                  Sync Cash to Target
+                </button>
+              </div>
             </div>
           </div>
 
@@ -231,19 +272,47 @@
             </span>
           </div>
 
-          <!-- 5. Market Returns & Stress Test -->
+          <!-- 5. Asset Allocation & Stress Test -->
           <div class="panel-section">
-            <h2 class="panel-section-title">📉 Market Returns &amp; Stress Test</h2>
-            <div class="form-grid-2">
-              <div class="form-field">
-                <label for="drawdown-expected-return">Nominal Return (%)</label>
-                <input type="number" id="drawdown-expected-return" min="0" max="15" step="0.1" value="7.0" />
+            <h2 class="panel-section-title">📊 Asset Allocation &amp; Stress Test</h2>
+            
+            <!-- Asset Allocation Slider -->
+            <div class="form-field">
+              <div class="alloc-header">
+                <label for="drawdown-equity-pct">Asset Allocation (Stocks vs. Bonds)</label>
+                <span class="alloc-ratio-badge" id="alloc-ratio-badge">60% Stocks / 40% Bonds</span>
               </div>
+              <input type="range" id="drawdown-equity-pct" min="0" max="100" step="5" value="60" class="alloc-range-slider" />
+              <div class="alloc-slider-labels">
+                <span>100% Bonds</span>
+                <span>60/40</span>
+                <span>100% Stocks</span>
+              </div>
+            </div>
+
+            <!-- Expected Returns per Asset Class -->
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
+              <div class="form-field">
+                <label for="drawdown-stock-return">Stock Return (%)</label>
+                <input type="number" id="drawdown-stock-return" min="0" max="20" step="0.1" value="8.5" />
+              </div>
+              <div class="form-field">
+                <label for="drawdown-bond-return">Bond Return (%)</label>
+                <input type="number" id="drawdown-bond-return" min="0" max="15" step="0.1" value="4.5" />
+              </div>
+            </div>
+
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
               <div class="form-field">
                 <label for="drawdown-cash-yield">Cash Yield (%)</label>
                 <input type="number" id="drawdown-cash-yield" min="0" max="10" step="0.1" value="3.5" />
               </div>
+              <div class="form-field">
+                <label for="drawdown-blended-return">Blended Return (%)</label>
+                <input type="text" id="drawdown-blended-return" value="6.90%" readonly style="background: rgba(15, 23, 42, 0.7); color: #2dd4bf; font-weight: 700; cursor: not-allowed;" />
+              </div>
             </div>
+
             <div class="form-field" style="margin-top: 0.65rem;">
               <label for="drawdown-scenario">Sequence-of-Returns Scenario</label>
               <select id="drawdown-scenario">
@@ -257,6 +326,22 @@
 
         <!-- RIGHT: Visualizations & Ledger -->
         <section class="engine-main">
+          <!-- Currency View Toggle (Nominal Future vs Real Purchasing Power) -->
+          <div class="view-mode-bar">
+            <div class="view-mode-info">
+              <span class="view-mode-label">Display Currency:</span>
+              <span class="view-mode-subtext" id="view-mode-desc">Nominal future checkbook dollars</span>
+            </div>
+            <div class="btn-group-toggle" role="group" aria-label="Currency View Toggle">
+              <button type="button" class="btn-toggle-view active" id="btn-view-nominal" data-mode="nominal">
+                📈 Future Dollars (Nominal)
+              </button>
+              <button type="button" class="btn-toggle-view" id="btn-view-real" data-mode="real">
+                💵 Today's Dollars (Real)
+              </button>
+            </div>
+          </div>
+
           <!-- KPI Summary Cards -->
           <div class="kpi-row">
             <div class="kpi-card highlight">
