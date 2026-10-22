@@ -3,11 +3,12 @@
    =================================================================== */
 
 .stress-page-container {
-  max-width: 1320px;
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Quick Context Strip */
@@ -16,6 +17,8 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1.25rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .context-pill {
@@ -27,6 +30,7 @@
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
   font-size: 0.82rem;
+  box-sizing: border-box;
 }
 
 .context-pill .pill-label {
@@ -43,18 +47,52 @@
   color: #f59e0b;
 }
 
-/* Layout */
+/* Layout Grid */
 .stress-layout {
   display: grid;
-  grid-template-columns: 380px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1080px) {
   .stress-layout {
     grid-template-columns: 1fr;
   }
+}
+
+/* Sidebar Controls */
+.control-panel {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.panel-section {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Regime Toggle (Bear vs Bull) */
@@ -65,6 +103,8 @@
   border-radius: 8px;
   border: 1px solid #334155;
   gap: 0.35rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .btn-regime-toggle {
@@ -111,6 +151,9 @@
   background: rgba(15, 23, 42, 0.75);
   border: 1px solid #334155;
   border-radius: 8px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .scenario-desc-title {
@@ -118,6 +161,7 @@
   font-weight: 700;
   color: #f1f5f9;
   margin-bottom: 0.35rem;
+  word-break: break-word;
 }
 
 .scenario-desc-text {
@@ -125,6 +169,7 @@
   color: #94a3b8;
   line-height: 1.45;
   margin: 0 0 0.65rem;
+  word-break: break-word;
 }
 
 .scenario-stats-strip {
@@ -135,6 +180,7 @@
   color: #cbd5e1;
   border-top: 1px solid rgba(51, 65, 85, 0.6);
   padding-top: 0.5rem;
+  box-sizing: border-box;
 }
 
 .scenario-stats-strip strong.red {
@@ -148,6 +194,8 @@
 /* Sliders */
 .alloc-slider-row {
   margin-bottom: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .alloc-slider-header {
@@ -169,6 +217,11 @@
   border-radius: 4px;
 }
 
+.alloc-range-slider {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .alloc-sum-pill {
   display: flex;
   justify-content: space-between;
@@ -180,6 +233,8 @@
   font-size: 0.8rem;
   color: #2dd4bf;
   font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .alloc-sum-pill.warning {
@@ -193,6 +248,10 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Decision Verdict Banner */
@@ -205,6 +264,10 @@
   border-radius: 12px;
   padding: 1rem 1.25rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .verdict-banner.timing-won {
@@ -221,10 +284,12 @@
   padding: 0.4rem;
   background: rgba(45, 212, 191, 0.12);
   border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .verdict-content {
   flex: 1;
+  min-width: 0;
 }
 
 .verdict-header {
@@ -248,6 +313,7 @@
   font-size: 1.05rem;
   font-weight: 700;
   color: #f8fafc;
+  word-break: break-word;
 }
 
 .verdict-explanation {
@@ -255,22 +321,27 @@
   font-size: 0.84rem;
   color: #94a3b8;
   line-height: 1.5;
+  word-break: break-word;
 }
 
 /* Head-to-Head KPI Grid */
 .kpi-comparison-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1380px) {
   .kpi-comparison-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .kpi-comparison-grid {
     grid-template-columns: 1fr;
   }
@@ -280,9 +351,13 @@
   background: #1e293b;
   border: 1px solid #334155;
   border-radius: 10px;
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 0.95rem;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .compare-card.highlight {
@@ -291,11 +366,15 @@
 }
 
 .compare-card-title {
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 600;
   color: #94a3b8;
   text-transform: uppercase;
   margin-bottom: 0.65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
 }
 
 .compare-dual-vals {
@@ -304,18 +383,24 @@
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .compare-val-col {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .compare-divider {
   width: 1px;
   height: 34px;
   background: #334155;
+  flex-shrink: 0;
 }
 
 .strat-label {
@@ -324,6 +409,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 0.15rem;
 }
 
 .strat-label.teal {
@@ -335,9 +421,12 @@
 }
 
 .strat-num {
-  font-size: 1.15rem;
+  font-size: clamp(0.92rem, 1.25vw, 1.15rem);
   font-weight: 700;
   color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .strat-num.red {
@@ -361,9 +450,125 @@
   color: #64748b;
   margin-top: auto;
   line-height: 1.35;
+  word-break: break-word;
 }
 
-/* Breakdown Table Colors */
+/* Chart Canvas Section */
+.chart-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.15rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chart-title-area {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.chart-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+  word-break: break-word;
+}
+
+.canvas-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 380px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.canvas-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+}
+
+/* Breakdown Table Wrap & Responsive Table */
+.ledger-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  max-height: 520px;
+  box-sizing: border-box;
+  background: #0f172a;
+}
+
+.ledger-table-wrap::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.ledger-table-wrap::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.ledger-table-wrap::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.ledger-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.ledger-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ledger-table th,
+.ledger-table td {
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid #334155;
+  box-sizing: border-box;
+}
+
+.ledger-table th {
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ledger-table tr:hover {
+  background: rgba(45, 212, 191, 0.04);
+}
+
 .ledger-table th.teal {
   color: #2dd4bf;
 }
@@ -379,6 +584,8 @@
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .tag-advantage-defensive {
@@ -388,5 +595,6 @@
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
+  display: inline-block;
+  white-space: nowrap;
 }
-

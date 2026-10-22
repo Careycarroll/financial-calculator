@@ -427,9 +427,13 @@ function updateKpiCards() {
   if (elTroughDef) elTroughDef.textContent = formatCurrency(statsDefensive.troughValue);
   if (elTroughSub) {
     const diff = statsDefensive.troughValue - statsBaseline.troughValue;
-    elTroughSub.textContent = diff >= 0
-      ? `Preserved +${formatCurrency(diff)} more equity at bottom`
-      : `Stay the course had +${formatCurrency(Math.abs(diff))} higher trough`;
+    if (Math.abs(diff) < 1) {
+      elTroughSub.textContent = "Both strategies maintained identical trough floor";
+    } else {
+      elTroughSub.textContent = diff > 0
+        ? `Preserved +${formatCurrency(diff)} more equity at bottom`
+        : `Stay the course had +${formatCurrency(Math.abs(diff))} higher trough`;
+    }
   }
 
   // Recovery Time
@@ -482,7 +486,10 @@ function updateVerdictBanner() {
     if (tag) tag.textContent = "STAY THE COURSE WINS";
     if (headline) headline.textContent = `Continuous 60/40 DCA Wins by +${formatCurrency(netDiff)} Terminal Wealth`;
     if (explanation) {
-      explanation.textContent = `Even though shifting defensive cushioned the bottom by +${formatCurrency(Math.max(0, troughDiff))}, continuing to dump contributions into discounted equities paid off massively during the recovery. Trying to time re-entry caused cash drag and missed the explosive initial rebound off the bottom.`;
+      const bottomCushionText = troughDiff > 100
+        ? `Even though shifting defensive cushioned the bottom by +${formatCurrency(troughDiff)}, continuing`
+        : `Continuing`;
+      explanation.textContent = `${bottomCushionText} to dump contributions into discounted equities paid off massively during the recovery. Trying to time re-entry caused cash drag and missed the explosive initial rebound off the bottom.`;
     }
   } else {
     // Defensive Shift Wins
@@ -491,7 +498,10 @@ function updateVerdictBanner() {
     if (tag) tag.textContent = "DEFENSIVE SHIFT WINS";
     if (headline) headline.textContent = `Defensive Rebalancing Wins by +${formatCurrency(Math.abs(netDiff))} Net Equity`;
     if (explanation) {
-      explanation.textContent = `In this severe concentration unwind, Treasuries and Equal-Weight Value preserved massive capital (+${formatCurrency(troughDiff)} at the bottom) that overwhelmed the dollar-cost averaging benefits of staying in cap-weighted S&P 500.`;
+      const bottomText = troughDiff > 100
+        ? `In this severe concentration unwind, Treasuries and Equal-Weight Value preserved massive capital (+${formatCurrency(troughDiff)} at the bottom) that overwhelmed the dollar-cost averaging benefits of staying in cap-weighted S&P 500.`
+        : `In this scenario, Treasuries and Equal-Weight Value limited equity concentration drag, allowing defensive rebalancing to beat staying in cap-weighted S&P 500 by +${formatCurrency(Math.abs(netDiff))} net wealth.`;
+      explanation.textContent = bottomText;
     }
   }
 }
