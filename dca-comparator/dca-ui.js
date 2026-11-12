@@ -408,15 +408,43 @@ export function runComparison() {
 
   // Execute DCA for each aligned fund series
   const simulations = alignment.series.map(s => {
-    const sim = simulateDCA(s.data, {
+    // Run active simulation with user's current DRIP setting
+    const activeSim = simulateDCA(s.data, {
       initialBalance: state.initialBalance,
       monthlyDeposit: state.monthlyDeposit,
       useDRIP: state.useDRIP
     });
+
+    // Also run paired simulation (DRIP ON vs DRIP OFF) to quantify exact dividend contribution
+    const simDRIP = state.useDRIP
+      ? activeSim
+      : simulateDCA(s.data, {
+          initialBalance: state.initialBalance,
+          monthlyDeposit: state.monthlyDeposit,
+          useDRIP: true
+        });
+
+    const simNoDRIP = !state.useDRIP
+      ? activeSim
+      : simulateDCA(s.data, {
+          initialBalance: state.initialBalance,
+          monthlyDeposit: state.monthlyDeposit,
+          useDRIP: false
+        });
+
+    const dripPayback = Math.max(0, simDRIP.metrics.finalBalance - simNoDRIP.metrics.finalBalance);
+    const dripPaybackPct = simNoDRIP.metrics.finalBalance > 0
+      ? (dripPayback / simNoDRIP.metrics.finalBalance) * 100
+      : 0;
+
     return {
       fund: s.fund,
-      trajectory: sim.trajectory,
-      metrics: sim.metrics
+      trajectory: activeSim.trajectory,
+      metrics: activeSim.metrics,
+      dripPayback,
+      dripPaybackPct,
+      dripFinalBalance: simDRIP.metrics.finalBalance,
+      noDripFinalBalance: simNoDRIP.metrics.finalBalance
     };
   });
 
@@ -512,6 +540,18 @@ function renderKPICards(simulations) {
     const netProfit = s.metrics.netProfit;
     const isPositive = netProfit >= 0;
 
+    const isDripActive = state.useDRIP;
+    const dripPillHtml = `
+      <div class="kpi-drip-pill ${isDripActive ? '' : 'inactive'}" title="${isDripActive ? 'Gain added purely by reinvesting dividends into additional shares' : 'Dividends foregone by taking price return only'}">
+        <span class="drip-pill-label">
+          ${isDripActive ? '💰 DRIP Payback:' : '💤 Foregone DRIP:'}
+        </span>
+        <span class="drip-pill-val">
+          +${formatCurrency(s.dripPayback)} (+${s.dripPaybackPct.toFixed(1)}% ${isDripActive ? 'boost' : 'if on'})
+        </span>
+      </div>
+    `;
+
     card.innerHTML = `
       ${isLeader ? '<div class="leader-badge">★ Top Performer</div>' : ''}
       <div class="kpi-card-header">
@@ -527,10 +567,20 @@ function renderKPICards(simulations) {
         ${isPositive ? '+' : ''}${formatCurrency(netProfit)} (${s.metrics.totalReturnPct.toFixed(1)}%)
       </div>
 
+      ${dripPillHtml}
+
       <div class="kpi-stats-table">
         <div class="kpi-stat-row">
           <span>Total Invested</span>
           <strong>${formatCurrency(s.metrics.totalInvested)}</strong>
+        </div>
+        <div class="kpi-stat-row">
+          <span>Capital Appreciation (Price)</span>
+          <strong>${formatCurrency(s.noDripFinalBalance)}</strong>
+        </div>
+        <div class="kpi-stat-row">
+          <span>Reinvested Dividends</span>
+          <strong style="color: #2dd4bf;">+${formatCurrency(s.dripPayback)}</strong>
         </div>
         <div class="kpi-stat-row">
           <span>Annualized Return (CAGR)</span>

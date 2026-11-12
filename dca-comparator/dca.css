@@ -6,17 +6,17 @@
 .dca-page-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem 2rem 3rem;
+  padding: 1rem 1.5rem 2.5rem;
 }
 
 .engine-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
 }
 
 .engine-header h1 {
-  font-size: 1.85rem;
+  font-size: 1.65rem;
   font-weight: 800;
   color: var(--text-primary);
   display: flex;
@@ -27,24 +27,24 @@
 
 .engine-tagline {
   color: var(--text-secondary);
-  font-size: 0.95rem;
-  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
   max-width: 900px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 /* Quick Context / Status Banner */
 .dca-status-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.6rem;
   align-items: center;
   background: rgba(30, 41, 59, 0.7);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.65rem 1rem;
-  margin-bottom: 1.5rem;
-  font-size: 0.85rem;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 1rem;
+  font-size: 0.82rem;
 }
 
 .status-pill {
@@ -260,6 +260,9 @@
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: 0.85rem;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-field:last-child {
@@ -275,7 +278,12 @@
 }
 
 .form-field input[type="number"],
+.form-field input[type="text"],
 .form-field select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: #0f172a;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -287,14 +295,17 @@
 }
 
 .form-field input[type="number"]:focus,
+.form-field input[type="text"]:focus,
 .form-field select:focus {
   border-color: var(--accent);
 }
 
 .form-grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Toggle Switches & Radio Groups */
@@ -452,6 +463,42 @@
 
 .kpi-profit-gain.negative {
   color: #ef4444;
+}
+
+/* DRIP Payback Highlight Pill */
+.kpi-drip-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.78rem;
+}
+
+.kpi-drip-pill.inactive {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.drip-pill-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.drip-pill-val {
+  color: #2dd4bf;
+  font-weight: 700;
+}
+
+.kpi-drip-pill.inactive .drip-pill-val {
+  color: #fbbf24;
 }
 
 .kpi-stats-table {
