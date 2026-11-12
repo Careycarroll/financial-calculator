@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node scripts/test_dca_engine.js",
+    "test:dca": "node scripts/test_dca_engine.js"
   },
   "repository": {
     "type": "git",

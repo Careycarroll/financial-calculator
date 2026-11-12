@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Historical Fund DCA Backtester | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="dca.css" />
+  </head>
+  <body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link">Calculators</a>
+          <a href="../pages/fire.html" class="top-nav-link">FIRE Dashboard</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">Drawdown Engine</a>
+          <a href="../pages/market-stress.html" class="top-nav-link">Market Stress</a>
+          <a href="index.html" class="top-nav-link active">DCA Backtest</a>
+          <a href="../pages/news.html" class="top-nav-link">News Feed</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container dca-page-container">
+      <header class="engine-header">
+        <h1>📊 Historical Fund DCA Backtester</h1>
+        <p class="engine-tagline">
+          Run recurring monthly Dollar-Cost Averaging (DCA) simulations across 2 to 3 index funds or custom ETF price histories.
+          Compare total portfolio accumulation, Money-Weighted Internal Rate of Return (IRR), annualized CAGR, and test the power of dividend reinvestment (DRIP).
+        </p>
+      </header>
+
+      <!-- Dynamic Status & Bottleneck Bar -->
+      <section class="dca-status-bar" id="dca-status-bar">
+        <div class="status-pill highlight">
+          <span>Active Timeline:</span>
+          <strong id="status-total-months">-- Months</strong>
+        </div>
+        <div class="status-pill bottleneck" id="status-bottleneck">
+          Calculating common date intersection...
+        </div>
+        <div class="status-pill" style="margin-left:auto;">
+          <span>Engine:</span>
+          <strong style="color:#2dd4bf;">100% Client-Side (Zero Server APIs)</strong>
+        </div>
+      </section>
+
+      <!-- Alert Notification Container -->
+      <div id="dca-alerts-container"></div>
+
+      <main class="dca-layout">
+        <!-- LEFT COLUMN: Controls, Uploads & Settings -->
+        <aside class="dca-control-panel">
+          <!-- 1. Benchmark Presets & Custom CSV Dropzone -->
+          <div class="panel-card">
+            <h2 class="panel-card-title">
+              <span>📁 Select &amp; Upload Funds</span>
+              <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">Max 3</span>
+            </h2>
+
+            <!-- Pre-bundled ticker chips -->
+            <label style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.35rem; display: block;">
+              Pre-bundled Benchmark Tickers:
+            </label>
+            <div class="preset-chips-container" id="preset-chips">
+              <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div class="dropzone" id="dca-dropzone">
+              <input type="file" id="dca-file-input" class="file-input-hidden" multiple accept=".csv" />
+              <div class="dropzone-icon">📥</div>
+              <div class="dropzone-text">Drop CSV files here or click to browse</div>
+              <div class="dropzone-subtext">Yahoo Finance or Stooq format (Date, Adj Close, Close)</div>
+            </div>
+
+            <!-- Active Selected Funds List -->
+            <label style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; margin-top: 0.85rem; margin-bottom: 0.25rem; display: block;">
+              Active Comparison Series:
+            </label>
+            <div class="active-funds-list" id="active-funds-list">
+              <!-- Populated dynamically via JS -->
+            </div>
+          </div>
+
+          <!-- 2. Investment DCA Strategy -->
+          <div class="panel-card">
+            <h2 class="panel-card-title">💰 Investment Parameters</h2>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label for="input-initial-balance">Initial Principal ($)</label>
+                <input type="number" id="input-initial-balance" min="0" step="500" value="1000" />
+              </div>
+              <div class="form-field">
+                <label for="input-monthly-deposit">Monthly DCA ($)</label>
+                <input type="number" id="input-monthly-deposit" min="0" step="100" value="500" />
+              </div>
+            </div>
+
+            <div style="margin-top: 0.75rem; border-top: 1px solid rgba(148, 163, 184, 0.15); padding-top: 0.75rem;">
+              <label class="checkbox-row" for="check-drip">
+                <input type="checkbox" id="check-drip" checked />
+                <span class="checkbox-label">Reinvest Dividends (DRIP / Total Return)</span>
+              </label>
+              <span style="font-size: 0.73rem; color: var(--text-secondary); display: block; margin-left: 1.6rem;">
+                When checked, uses dividend-adjusted price (<code>Adj Close</code>). Uncheck to simulate price return only without dividend reinvestment.
+              </span>
+            </div>
+          </div>
+
+          <!-- 3. Timeline Scrubber & Alignment Mode -->
+          <div class="panel-card">
+            <h2 class="panel-card-title">⏳ Timeline &amp; View Mode</h2>
+
+            <!-- Segmented Control for Mode -->
+            <div class="form-field">
+              <label>Alignment Mode</label>
+              <div class="segmented-control">
+                <button type="button" class="segmented-btn active" id="btn-mode-calendar">📅 Calendar Dates</button>
+                <button type="button" class="segmented-btn" id="btn-mode-elapsed">⏳ Elapsed Time (Year 0+)</button>
+              </div>
+            </div>
+
+            <div class="form-grid-2" style="margin-top: 0.65rem;">
+              <div class="form-field">
+                <label for="select-start-month">Start Month</label>
+                <select id="select-start-month"></select>
+              </div>
+              <div class="form-field">
+                <label for="select-end-month">End Month</label>
+                <select id="select-end-month"></select>
+              </div>
+            </div>
+
+            <!-- Quick Preset Duration Buttons -->
+            <div style="margin-top: 0.5rem;">
+              <label style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Quick Presets:</label>
+              <div class="date-preset-buttons">
+                <button type="button" class="btn-date-preset" data-preset="1y">1 Year</button>
+                <button type="button" class="btn-date-preset" data-preset="3y">3 Years</button>
+                <button type="button" class="btn-date-preset" data-preset="5y">5 Years</button>
+                <button type="button" class="btn-date-preset" data-preset="10y">10 Years</button>
+                <button type="button" class="btn-date-preset active" data-preset="max">Max Overlap</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- RIGHT COLUMN: Chart & Performance Metrics -->
+        <section class="dca-results-panel">
+          <!-- KPI Summary Cards -->
+          <div class="kpi-cards-grid" id="kpi-cards-container">
+            <!-- Cards populated dynamically via JS -->
+          </div>
+
+          <!-- Interactive Responsive Line Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">📈 Comparative Portfolio Growth Over Time</div>
+              <div class="chart-legend" id="chart-legend">
+                <!-- Legend items populated dynamically -->
+              </div>
+            </div>
+
+            <div class="canvas-wrapper">
+              <canvas id="dca-chart-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Detailed Monthly Breakdown Table (Collapsible) -->
+          <div class="panel-card">
+            <details>
+              <summary class="details-summary">📋 View Monthly Balance &amp; Contribution Table</summary>
+              <div class="details-table-wrapper">
+                <table class="details-table">
+                  <thead id="details-table-head"></thead>
+                  <tbody id="details-table-body"></tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2026 Financial Calculator &bull; Client-Side Empirical DCA Comparison Engine</p>
+      </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="dca-ui.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>
