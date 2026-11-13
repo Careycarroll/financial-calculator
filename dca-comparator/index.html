@@ -55,14 +55,30 @@
         <!-- LEFT COLUMN: Controls, Uploads & Settings -->
         <aside class="dca-control-panel">
           <!-- 1. Benchmark Presets & Custom CSV Dropzone -->
-          <div class="panel-card">
+          <div class="panel-card" id="panel-fund-selection">
             <h2 class="panel-card-title">
               <span>📁 Select &amp; Upload Funds</span>
               <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">Max 3</span>
             </h2>
 
+            <!-- Drag & Drop Zone (Moved to Top for Fast Uploads) -->
+            <div class="dropzone" id="dca-dropzone" style="margin-bottom: 0.85rem;">
+              <input type="file" id="dca-file-input" class="file-input-hidden" multiple accept=".csv,.txt" />
+              <div class="dropzone-icon">📥</div>
+              <div class="dropzone-text">Drop CSV or Stooq TXT files here or click to browse</div>
+              <div class="dropzone-subtext">Yahoo Finance (.csv) or Stooq (.txt / .csv) formats supported</div>
+            </div>
+
+            <!-- Search & Filter Bar -->
+            <input type="text" id="dca-universe-search-input" class="universe-search-input" placeholder="🔍 Filter funds (e.g. QQQ, PTL)..." />
+
+            <div class="universe-action-row" id="dca-universe-action-row" style="display: none;">
+              <span id="dca-universe-filtered-count">Showing all funds</span>
+              <button type="button" id="btn-clear-custom-library" class="btn-link-action" title="Remove all saved custom funds from browser storage">Clear Library</button>
+            </div>
+
             <!-- Pre-bundled ticker chips -->
-            <label style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.35rem; display: block;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.35rem; display: block;">
               Pre-bundled Benchmark Tickers:
             </label>
             <div class="preset-chips-container" id="preset-chips">
@@ -71,37 +87,14 @@
 
             <!-- Saved Custom Funds (Cached in Browser) -->
             <div id="custom-funds-section" style="display: none; margin-bottom: 0.85rem;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                <label style="font-size: 0.78rem; font-weight: 700; color: #38bdf8;">
-                  💾 Saved Custom Funds:
-                </label>
-                <button type="button" id="btn-clear-custom-library" title="Remove all saved funds from browser storage" style="background: none; border: none; font-size: 0.7rem; color: #94a3b8; cursor: pointer; text-decoration: underline;">
-                  Clear All
-                </button>
+              <label style="font-size: 0.75rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.35rem; display: block;">
+                💾 Saved Custom Library:
+              </label>
+              <div class="scrollable-chips" id="custom-chips-scroll-wrap">
+                <div class="preset-chips-container" id="custom-library-chips" style="margin-bottom: 0;">
+                  <!-- Populated dynamically via JS -->
+                </div>
               </div>
-              <div class="preset-chips-container" id="custom-library-chips">
-                <!-- Populated dynamically via JS -->
-              </div>
-            </div>
-
-            <!-- Drag & Drop Zone -->
-            <div class="dropzone" id="dca-dropzone">
-              <input type="file" id="dca-file-input" class="file-input-hidden" multiple accept=".csv,.txt" />
-              <div class="dropzone-icon">📥</div>
-              <div class="dropzone-text">Drop CSV or Stooq TXT files here or click to browse</div>
-              <div class="dropzone-subtext">Yahoo Finance (.csv) or Stooq (.txt / .csv) formats supported</div>
-            </div>
-
-            <!-- Free Data Sourcing Links -->
-            <div class="data-sources-hint">
-              <span class="hint-title">💡 Need fresh data for another fund?</span>
-              <p class="hint-text">
-                &bull; <a href="https://stooq.com/db/h/" target="_blank" rel="noopener"><strong>Stooq Download Hub</strong></a> &ndash; Free English portal for US daily updates (no login).
-                <br />
-                &bull; Direct ticker download: <code>https://stooq.com/q/d/l/?s=<strong>TICKER</strong>.us&amp;i=d</code>
-                <br />
-                &bull; Or browse your project's <a href="../data/top-50-funds.md" target="_blank"><strong>Top 50 Funds Catalog</strong></a> for quick download links.
-              </p>
             </div>
 
             <!-- Active Selected Funds List -->
@@ -110,6 +103,18 @@
             </label>
             <div class="active-funds-list" id="active-funds-list">
               <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Free Data Sourcing Links -->
+            <div class="data-sources-hint" style="margin-top: 0.85rem;">
+              <span class="hint-title">💡 Need fresh data for another fund?</span>
+              <p class="hint-text">
+                &bull; <a href="https://stooq.com/db/h/" target="_blank" rel="noopener"><strong>Stooq Download Hub</strong></a> &ndash; Free English portal for US daily updates (no login).
+                <br />
+                &bull; Direct ticker download: <code>https://stooq.com/q/d/l/?s=<strong>TICKER</strong>.us&amp;i=d</code>
+                <br />
+                &bull; Or browse your project's <a href="../data/top-50-funds.md" target="_blank"><strong>Top 50 Funds Catalog</strong></a> for quick download links.
+              </p>
             </div>
           </div>
 

@@ -35,7 +35,8 @@ const state = {
   viewMode: 'calendar', // 'calendar' | 'elapsed'
   customStart: null,
   customEnd: null,
-  hoverIndex: -1
+  hoverIndex: -1,
+  searchQuery: ''
 };
 
 // Simulation results cache for rendering
@@ -83,6 +84,9 @@ function cacheDOMElements() {
     dropzone: document.getElementById('dca-dropzone'),
     fileInput: document.getElementById('dca-file-input'),
     presetChips: document.getElementById('preset-chips'),
+    inputUniverseSearch: document.getElementById('dca-universe-search-input'),
+    universeActionRow: document.getElementById('dca-universe-action-row'),
+    universeFilteredCount: document.getElementById('dca-universe-filtered-count'),
     customFundsSection: document.getElementById('custom-funds-section'),
     customLibraryChips: document.getElementById('custom-library-chips'),
     btnClearCustomLibrary: document.getElementById('btn-clear-custom-library'),
@@ -160,14 +164,24 @@ function renderCustomLibraryChips() {
 
   if (customLibrary.length === 0) {
     elements.customFundsSection.style.display = 'none';
+    if (elements.universeActionRow) elements.universeActionRow.style.display = 'none';
     elements.customLibraryChips.innerHTML = '';
     return;
   }
 
   elements.customFundsSection.style.display = 'block';
+  if (elements.universeActionRow) elements.universeActionRow.style.display = 'flex';
   elements.customLibraryChips.innerHTML = '';
 
+  const query = (state.searchQuery || '').trim().toLowerCase();
+  let matchCount = 0;
+  const frag = document.createDocumentFragment();
+
   customLibrary.forEach(fund => {
+    const isMatch = !query || fund.ticker.toLowerCase().includes(query) || (fund.name && fund.name.toLowerCase().includes(query));
+    if (!isMatch) return;
+    matchCount++;
+
     const isActive = state.activeFunds.some(f => f.ticker === fund.ticker);
     const activeFund = state.activeFunds.find(f => f.ticker === fund.ticker);
     const dotColor = isActive ? (activeFund?.color || '#38bdf8') : '#94a3b8';
@@ -193,8 +207,16 @@ function renderCustomLibraryChips() {
       deleteCustomFund(fund.ticker);
     });
 
-    elements.customLibraryChips.appendChild(chip);
+    frag.appendChild(chip);
   });
+
+  elements.customLibraryChips.appendChild(frag);
+
+  if (elements.universeFilteredCount) {
+    elements.universeFilteredCount.textContent = query
+      ? `Showing ${matchCount} of ${customLibrary.length} funds`
+      : `All ${customLibrary.length} saved funds`;
+  }
 }
 
 function toggleCustomFund(fund) {
@@ -412,6 +434,14 @@ function attachEventListeners() {
       resetDateRangeToMax();
       runComparison();
       showAlert('Cleared all saved custom funds from browser storage.', 'info');
+    });
+  }
+
+  // Universe Search / Filter
+  if (elements.inputUniverseSearch) {
+    elements.inputUniverseSearch.addEventListener('input', e => {
+      state.searchQuery = e.target.value;
+      renderCustomLibraryChips();
     });
   }
 
