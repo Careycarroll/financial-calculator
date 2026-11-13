@@ -80,6 +80,16 @@ assert(metrics.annualVolatility > 0.10, 'Tech equity volatility should exceed 10
 assert(metrics.sharpeRatio !== 0, 'Sharpe ratio should be computed');
 assert(metrics.sortinoRatio !== 0, 'Sortino ratio should be computed');
 assert(metrics.maxDrawdown < 0, 'Max Drawdown should be negative');
-console.log(`✅ PASS: QQQ Metrics => CAGR: ${(metrics.cagr * 100).toFixed(2)}%, Vol: ${(metrics.annualVolatility * 100).toFixed(2)}%, Sharpe: ${metrics.sharpeRatio}, Sortino: ${metrics.sortinoRatio}, MaxDD: ${(metrics.maxDrawdown * 100).toFixed(2)}%`);
+assert(metrics.calmarRatio > 0, 'Calmar ratio should be computed and positive for profitable fund');
+assert(metrics.ulcerIndex > 0, 'Ulcer index should be positive');
+assert(metrics.martinRatio !== 0, 'Martin (UPI) ratio should be computed');
+assert(metrics.gainToPainRatio > 0, 'Gain-to-Pain ratio should be positive');
+assert(metrics.omegaRatio > 0, 'Omega ratio should be positive');
+assert(metrics.treynorRatio !== 0, 'Treynor ratio should be computed');
+assert(qqqProfile.informationRatio !== undefined, 'Information ratio should be computed');
+assert(qqqProfile.mSquared > 0, 'M^2 normalized return should be positive');
+
+console.log(`✅ PASS: QQQ Core Metrics => CAGR: ${(metrics.cagr * 100).toFixed(2)}%, Vol: ${(metrics.annualVolatility * 100).toFixed(2)}%, Sharpe: ${metrics.sharpeRatio}, Sortino: ${metrics.sortinoRatio}, MaxDD: ${(metrics.maxDrawdown * 100).toFixed(2)}%`);
+console.log(`✅ PASS: Advanced Suite => Calmar: ${metrics.calmarRatio}, Ulcer: ${metrics.ulcerIndex}%, Martin(UPI): ${metrics.martinRatio}, Gain-to-Pain: ${metrics.gainToPainRatio}, Omega: ${metrics.omegaRatio}, Treynor: ${metrics.treynorRatio}, M²: ${(qqqProfile.mSquared * 100).toFixed(2)}%, IR: ${qqqProfile.informationRatio}`);
 
 console.log('\n🎉 ALL REGRESSION ENGINE TESTS PASSED SUCCESSFULLY!');
