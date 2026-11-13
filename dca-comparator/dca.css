@@ -201,6 +201,46 @@
   cursor: pointer;
 }
 
+/* Free Data Sourcing Links */
+.data-sources-hint {
+  margin-top: 0.65rem;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.74rem;
+}
+
+.hint-title {
+  display: block;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 0.2rem;
+}
+
+.hint-text {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.hint-text a {
+  color: #2dd4bf;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.hint-text a:hover {
+  color: #5eead4;
+}
+
+.hint-text code {
+  background: rgba(30, 41, 59, 0.8);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #f1f5f9;
+  font-size: 0.7rem;
+}
+
 /* Active Fund Items */
 .active-funds-list {
   display: flex;

@@ -31,7 +31,7 @@ export function parseCSV(text, filename = 'data.csv') {
   }
 
   // Parse header line (stripping quotes, brackets, angle brackets <DATE>)
-  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["'<]|["'>]$/g, ''));
+  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["'<]+|["'>]+$/g, ''));
   const normHeaders = rawHeaders.map(h => h.toLowerCase().replace(/[\s_<>\-'\"]+/g, ''));
 
   const dateIdx = normHeaders.findIndex(h => h === 'date' || h === 'datetime' || h === 'timestamp');

@@ -272,14 +272,9 @@ function attachEventListeners() {
 }
 
 function handleUploadedFiles(files) {
-  const fileList = Array.from(files).filter(f =>
-    f.name.endsWith('.csv') ||
-    f.name.endsWith('.txt') ||
-    f.type.includes('csv') ||
-    f.type.includes('plain')
-  );
+  const fileList = Array.from(files).filter(f => f.name.endsWith('.csv') || f.type === 'text/csv');
   if (fileList.length === 0) {
-    showAlert('Please upload standard CSV or Stooq text files (.csv, .txt).', 'warning');
+    showAlert('Please upload standard CSV files (.csv).', 'warning');
     return;
   }
 
@@ -311,7 +306,7 @@ function handleUploadedFiles(files) {
           data: monthly
         });
       } catch (err) {
-        showAlert(err.message, 'warning');
+        showAlert(`${err.message} You can download clean files from <a href="https://stooq.com/db/h/" target="_blank" rel="noopener" style="color:#5eead4;text-decoration:underline;">Stooq</a>.`, 'warning');
       } finally {
         filesProcessed++;
         if (filesProcessed === fileList.length && newFunds.length > 0) {
