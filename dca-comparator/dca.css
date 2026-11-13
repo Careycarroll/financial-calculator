@@ -201,6 +201,71 @@
   background: rgba(239, 68, 68, 0.15);
 }
 
+/* Search Bar & Universe Actions */
+.universe-search-input {
+  background: var(--bg-input, #0f172a);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+
+.universe-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.universe-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.55rem;
+}
+
+.btn-link-action {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.72rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-link-action:hover {
+  color: #5eead4;
+}
+
+/* Scrollable Container for 900+ Custom Funds */
+.scrollable-chips {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 6px;
+  padding: 0.45rem;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.scrollable-chips::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-chips::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 3px;
+}
+
+.scrollable-chips::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
 /* Drag & Drop Upload Zone */
 .dropzone {
   border: 2px dashed rgba(148, 163, 184, 0.3);
