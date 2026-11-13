@@ -34,6 +34,63 @@
         </p>
       </header>
 
+      <!-- View Mode Selector (Simple Overview vs. Quant Lab) -->
+      <div class="view-mode-toggle-bar">
+        <div class="mode-segmented-control">
+          <button type="button" class="mode-btn active" id="btn-mode-simple">
+            <span>🌱 Simple Overview</span>
+            <span class="mode-desc">Core Alpha, SML Chart &amp; Plain-English Insights</span>
+          </button>
+          <button type="button" class="mode-btn" id="btn-mode-quant">
+            <span>🔬 Quant Lab</span>
+            <span class="mode-desc">Full 12-Metric Matrix, Rolling Charts &amp; Up/Down Spread</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Concept C: Visual Cheat Sheet Guide (Collapsible) -->
+      <section class="cheat-sheet-card" id="cheat-sheet-section">
+        <div class="cheat-sheet-header open" id="cheat-sheet-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Quick Guide: How to Read Risk &amp; Alpha</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="cheat-sheet-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="cheat-sheet-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🟢 Alpha (&alpha;)</div>
+              <strong>Manager Skill / Pure Edge</strong>
+              <p>Did the fund beat expectations? Any return above 0% means it earned extra profit beyond just riding market risk.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">🔵 Beta (&beta;)</div>
+              <strong>Volatility Multiplier</strong>
+              <p>1.0 moves exactly with the market. &gt;1.0 means bigger swings (aggressive); &lt;1.0 cushions market drops (defensive).</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🟣 Sharpe Ratio</div>
+              <strong>Quality of Returns</strong>
+              <p>Excess return divided by volatility. Scores above 1.0 indicate high-efficiency, smooth long-term compounding.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">⚖️ Capture Ratio</div>
+              <strong>Asymmetric Defense</strong>
+              <p>Compares bull-market gains to bear-market drops. The goal is capturing rallies while absorbing fewer crash losses.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Takeaway Story Banner -->
+      <div class="story-takeaway-banner" id="story-takeaway-banner">
+        <span class="story-icon">💡</span>
+        <div class="story-text" id="story-takeaway-text">
+          Analyzing fund performance against benchmark...
+        </div>
+      </div>
+
       <!-- Status Bar -->
       <section class="regression-status-bar" id="regression-status-bar">
         <div class="status-pill highlight">
@@ -44,7 +101,7 @@
           <span>Active Universe:</span>
           <strong id="status-universe-count">5 Funds</strong>
         </div>
-        <div class="status-pill bottleneck">
+        <div class="status-pill bottleneck" id="status-rf-pill">
           <span>Risk-Free Rate:</span>
           <strong id="status-rf-rate">3.00% (Annual)</strong>
         </div>
@@ -61,8 +118,8 @@
         <!-- SIDEBAR CONTROLS -->
         <aside class="regression-sidebar">
           <!-- 1. Benchmark & Parameters -->
-          <div class="panel-card">
-            <h2 class="panel-card-title">🎯 Model Benchmark &amp; Risk-Free</h2>
+          <div class="panel-card" id="panel-benchmark">
+            <h2 class="panel-card-title">🎯 Model Benchmark</h2>
 
             <div class="form-field">
               <label for="select-benchmark">Reference Benchmark (MKT)</label>
@@ -74,8 +131,12 @@
                 <option value="BND">BND - Vanguard Total Bond Market ETF</option>
               </select>
             </div>
+          </div>
 
-            <div class="form-field" style="margin-top: 0.5rem;">
+          <!-- 2. Advanced Parameters (Quant Lab Mode) -->
+          <div class="panel-card" id="panel-advanced-params" style="display: none;">
+            <h2 class="panel-card-title">⚙️ Econometric Settings</h2>
+            <div class="form-field">
               <label for="input-risk-free-rate">Risk-Free Rate ($R_f$) % / Yr</label>
               <input type="number" id="input-risk-free-rate" min="0" max="15" step="0.25" value="3.00" />
               <div class="rf-quick-buttons">
@@ -97,8 +158,8 @@
             </div>
           </div>
 
-          <!-- 2. Rolling Window & Options -->
-          <div class="panel-card">
+          <!-- 3. Rolling Window & Options (Quant Lab Mode) -->
+          <div class="panel-card" id="panel-rolling-setup" style="display: none;">
             <h2 class="panel-card-title">⏳ Rolling Window Setup</h2>
             <div class="form-field">
               <label for="select-rolling-window">Rolling Window Duration</label>
@@ -116,8 +177,8 @@
             </div>
           </div>
 
-          <!-- 3. Fund Universe & Upload -->
-          <div class="panel-card">
+          <!-- 4. Fund Universe & Upload -->
+          <div class="panel-card" id="panel-fund-universe">
             <h2 class="panel-card-title">
               <span>📁 Fund Universe</span>
               <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;" id="universe-badge">5 Funds</span>
@@ -152,21 +213,24 @@
 
         <!-- MAIN RESULTS & VISUALIZATIONS -->
         <section class="regression-main">
-          <!-- TOP 4 KPI HIGHLIGHT CARDS -->
-          <div class="kpi-cards-grid" id="kpi-highlights-grid">
+          <!-- TOP 4 KPI HIGHLIGHT CARDS (Quant Lab Mode) -->
+          <div class="kpi-cards-grid" id="kpi-highlights-grid" style="display: none;">
             <!-- Populated dynamically via JS -->
           </div>
 
           <!-- CHART CARD WITH TABS -->
           <div class="chart-card">
             <div class="chart-header">
-              <div class="chart-tabs">
+              <div class="chart-tabs" id="chart-tabs-wrapper" style="display: none;">
                 <button type="button" class="chart-tab-btn active" data-tab="sml">📐 Security Market Line (SML)</button>
                 <button type="button" class="chart-tab-btn" data-tab="rolling">⏳ Rolling Beta &amp; Alpha</button>
                 <button type="button" class="chart-tab-btn" data-tab="capture">⚖️ Up/Down Capture Ratios</button>
               </div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent);" id="simple-chart-title">
+                📐 Security Market Line: Risk (&beta;) vs. Return
+              </div>
               <div style="font-size: 0.78rem; color: var(--text-secondary);">
-                Hover over data points for econometric details
+                Hover over data points for details
               </div>
             </div>
 
@@ -179,10 +243,38 @@
             </div>
           </div>
 
-          <!-- LEADERBOARD SCORECARD -->
-          <div class="scorecard-card">
+          <!-- SIMPLE OVERVIEW SCORECARD (Simple Mode) -->
+          <div class="scorecard-card" id="simple-scorecard-card">
             <div class="scorecard-header">
-              <h3 class="scorecard-title">🏆 Econometric Regression Leaderboard</h3>
+              <h3 class="scorecard-title">🏆 Executive Fund Scorecard</h3>
+            </div>
+            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0 0 0.85rem;">
+              Funds with <strong>Positive Alpha</strong> beat the market after adjusting for volatility.
+            </p>
+
+            <div class="table-responsive">
+              <table class="scorecard-table">
+                <thead>
+                  <tr>
+                    <th>Fund / Ticker</th>
+                    <th>Annual Return</th>
+                    <th>Volatility Risk (&beta;)</th>
+                    <th>True Manager Alpha (&alpha;)</th>
+                    <th>Sharpe Efficiency</th>
+                    <th>Performance Verdict</th>
+                  </tr>
+                </thead>
+                <tbody id="simple-scorecard-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- QUANT LAB DETAILED SCORECARD (Quant Lab Mode) -->
+          <div class="scorecard-card" id="quant-scorecard-card" style="display: none;">
+            <div class="scorecard-header">
+              <h3 class="scorecard-title">🔬 Complete Econometric Matrix</h3>
               <button type="button" class="btn-export" id="btn-export-csv">📥 Export CSV</button>
             </div>
             <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0 0 0.85rem;">

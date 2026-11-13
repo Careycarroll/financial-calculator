@@ -61,6 +61,210 @@ body.regression-page {
   max-width: 900px;
 }
 
+/* Mode Toggle Bar */
+.view-mode-toggle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.mode-segmented-control {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.25rem;
+  gap: 0.35rem;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.55rem 1.15rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: all 0.18s ease;
+}
+
+.mode-btn span:first-child {
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mode-btn .mode-desc {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+  font-weight: normal;
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.mode-btn.active {
+  background: #1e293b;
+  color: var(--accent);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.mode-btn.active .mode-desc {
+  color: #bae6fd;
+}
+
+/* Cheat Sheet Card */
+.cheat-sheet-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px var(--shadow);
+}
+
+.cheat-sheet-header {
+  padding: 0.75rem 1.15rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: rgba(30, 41, 59, 0.5);
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.cheat-sheet-header:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.cheat-sheet-header.open {
+  border-bottom-color: var(--border);
+}
+
+.cheat-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.cheat-sheet-sub {
+  font-size: 0.74rem;
+  font-weight: normal;
+  color: var(--text-secondary);
+}
+
+.cheat-sheet-arrow {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.cheat-sheet-arrow.open {
+  transform: rotate(180deg);
+}
+
+.cheat-sheet-body {
+  padding: 1rem 1.15rem;
+  background: #0f172a;
+}
+
+.cheat-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .cheat-sheet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .cheat-sheet-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cheat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: rgba(30, 41, 59, 0.4);
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.cheat-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.2rem;
+}
+
+.cheat-badge.alpha-badge { color: var(--success); }
+.cheat-badge.beta-badge { color: var(--accent); }
+.cheat-badge.sharpe-badge { color: var(--purple); }
+.cheat-badge.capture-badge { color: var(--warning); }
+
+.cheat-item strong {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.cheat-item p {
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Takeaway Story Banner */
+.story-takeaway-banner {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.story-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.story-text {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.story-text strong {
+  color: #38bdf8;
+}
+
 /* Status Bar */
 .regression-status-bar {
   display: flex;

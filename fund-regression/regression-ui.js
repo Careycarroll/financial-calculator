@@ -24,6 +24,7 @@ const PALETTE = [
 
 // App State
 const state = {
+  viewMode: 'simple', // 'simple' | 'quant'
   benchmarkTicker: 'VOO',
   annualRf: 0.03,
   useDRIP: true,
@@ -47,15 +48,28 @@ function init() {
   renderUniverseChips();
   populateDropdowns();
   attachEventListeners();
+  setMode('simple');
   runAnalysis();
 }
 
 function cacheDOMElements() {
   elements = {
+    btnModeSimple: document.getElementById('btn-mode-simple'),
+    btnModeQuant: document.getElementById('btn-mode-quant'),
+    cheatSheetSection: document.getElementById('cheat-sheet-section'),
+    cheatSheetToggle: document.getElementById('cheat-sheet-toggle'),
+    cheatSheetBody: document.getElementById('cheat-sheet-body'),
+    cheatSheetArrow: document.getElementById('cheat-sheet-arrow'),
+    storyTakeawayText: document.getElementById('story-takeaway-text'),
     statusBenchmarkName: document.getElementById('status-benchmark-name'),
     statusUniverseCount: document.getElementById('status-universe-count'),
     statusRfRate: document.getElementById('status-rf-rate'),
+    statusRfPill: document.getElementById('status-rf-pill'),
     alertsContainer: document.getElementById('regression-alerts-container'),
+    panelBenchmark: document.getElementById('panel-benchmark'),
+    panelAdvancedParams: document.getElementById('panel-advanced-params'),
+    panelRollingSetup: document.getElementById('panel-rolling-setup'),
+    panelFundUniverse: document.getElementById('panel-fund-universe'),
     selectBenchmark: document.getElementById('select-benchmark'),
     inputRf: document.getElementById('input-risk-free-rate'),
     quickRfButtons: document.querySelectorAll('.btn-quick-rf'),
@@ -69,9 +83,14 @@ function cacheDOMElements() {
     dropzone: document.getElementById('regression-dropzone'),
     fileInput: document.getElementById('regression-file-input'),
     kpiGrid: document.getElementById('kpi-highlights-grid'),
+    chartTabsWrapper: document.getElementById('chart-tabs-wrapper'),
+    simpleChartTitle: document.getElementById('simple-chart-title'),
     chartTabButtons: document.querySelectorAll('.chart-tab-btn'),
     canvas: document.getElementById('regression-chart'),
     chartLegend: document.getElementById('regression-chart-legend'),
+    simpleScorecardCard: document.getElementById('simple-scorecard-card'),
+    simpleScorecardBody: document.getElementById('simple-scorecard-body'),
+    quantScorecardCard: document.getElementById('quant-scorecard-card'),
     scorecardBody: document.getElementById('scorecard-table-body'),
     sortHeaders: document.querySelectorAll('.scorecard-table th[data-sort]'),
     btnExportCSV: document.getElementById('btn-export-csv')
@@ -203,10 +222,51 @@ function toggleUniverseFund(ticker) {
   runAnalysis();
 }
 
+function setMode(mode) {
+  state.viewMode = mode;
+  if (mode === 'simple') {
+    elements.btnModeSimple.classList.add('active');
+    elements.btnModeQuant.classList.remove('active');
+    elements.panelAdvancedParams.style.display = 'none';
+    elements.panelRollingSetup.style.display = 'none';
+    elements.kpiGrid.style.display = 'none';
+    elements.chartTabsWrapper.style.display = 'none';
+    elements.simpleChartTitle.style.display = 'block';
+    elements.simpleScorecardCard.style.display = 'block';
+    elements.quantScorecardCard.style.display = 'none';
+    elements.statusRfPill.style.display = 'none';
+    state.activeTab = 'sml';
+  } else {
+    elements.btnModeQuant.classList.add('active');
+    elements.btnModeSimple.classList.remove('active');
+    elements.panelAdvancedParams.style.display = 'block';
+    elements.panelRollingSetup.style.display = 'block';
+    elements.kpiGrid.style.display = 'grid';
+    elements.chartTabsWrapper.style.display = 'flex';
+    elements.simpleChartTitle.style.display = 'none';
+    elements.simpleScorecardCard.style.display = 'none';
+    elements.quantScorecardCard.style.display = 'block';
+    elements.statusRfPill.style.display = 'inline-flex';
+  }
+  renderCurrentChart();
+}
+
 // ----------------------------------------------------
 // Event Listeners
 // ----------------------------------------------------
 function attachEventListeners() {
+  // Mode Buttons (Concept B)
+  elements.btnModeSimple.addEventListener('click', () => setMode('simple'));
+  elements.btnModeQuant.addEventListener('click', () => setMode('quant'));
+
+  // Cheat Sheet Accordion Toggle (Concept C)
+  elements.cheatSheetToggle.addEventListener('click', () => {
+    const isClosed = elements.cheatSheetBody.style.display === 'none';
+    elements.cheatSheetBody.style.display = isClosed ? 'block' : 'none';
+    elements.cheatSheetToggle.classList.toggle('open', isClosed);
+    elements.cheatSheetArrow.classList.toggle('open', isClosed);
+  });
+
   // Benchmark Change
   elements.selectBenchmark.addEventListener('change', e => {
     state.benchmarkTicker = e.target.value;
@@ -394,9 +454,102 @@ function runAnalysis() {
   });
 
   state.profiles = profiles;
+  renderTakeawayStory();
   renderKPIHighlights();
+  renderSimpleScorecard();
   renderScorecardTable();
   renderCurrentChart();
+}
+
+function renderTakeawayStory() {
+  if (!elements.storyTakeawayText || state.profiles.length === 0) return;
+
+  const bench = state.profiles.find(p => p.ticker === state.benchmarkTicker);
+  const nonBench = state.profiles.filter(p => p.ticker !== state.benchmarkTicker);
+
+  if (nonBench.length === 0) {
+    elements.storyTakeawayText.innerHTML = `Comparing benchmark <strong>${bench?.ticker || 'Benchmark'}</strong> against itself. Select additional funds from the universe below to evaluate relative performance.`;
+    return;
+  }
+
+  const topAlpha = [...nonBench].sort((a, b) => b.capm.annualizedAlpha - a.capm.annualizedAlpha)[0];
+  const defensive = [...nonBench].sort((a, b) => a.capm.beta - b.capm.beta)[0];
+  const alphaPct = (topAlpha.capm.annualizedAlpha * 100).toFixed(2);
+  const alphaSign = topAlpha.capm.annualizedAlpha > 0 ? '+' : '';
+
+  let story = `Compared to the <strong>${bench?.ticker || 'Benchmark'}</strong> baseline: `;
+  if (topAlpha.capm.annualizedAlpha > 0.005) {
+    story += `<strong>${topAlpha.ticker}</strong> generated the highest true manager Alpha (<strong>${alphaSign}${alphaPct}% / yr</strong> above market expectations). `;
+  } else {
+    story += `no fund strongly outperformed expectations after factoring in volatility (top Alpha was <strong>${alphaSign}${alphaPct}% / yr</strong>). `;
+  }
+
+  if (defensive && defensive.capm.beta < 0.65) {
+    story += `<strong>${defensive.ticker}</strong> served as a defensive hedge with a low Market Beta of <strong>${defensive.capm.beta.toFixed(2)}</strong> (absorbing only ${(defensive.capm.beta * 100).toFixed(0)}% of market volatility).`;
+  } else {
+    story += `Universe funds predominantly exhibited equity-correlated movements.`;
+  }
+
+  elements.storyTakeawayText.innerHTML = story;
+}
+
+function renderSimpleScorecard() {
+  if (!elements.simpleScorecardBody) return;
+  elements.simpleScorecardBody.innerHTML = '';
+
+  const sorted = [...state.profiles].sort((a, b) => b.capm.annualizedAlpha - a.capm.annualizedAlpha);
+
+  sorted.forEach(p => {
+    const isBench = p.ticker === state.benchmarkTicker;
+    const alphaSign = p.capm.annualizedAlpha > 0 ? '+' : '';
+    const alphaColor = isBench ? '#94a3b8' : (p.capm.annualizedAlpha >= 0 ? '#10b981' : '#ef4444');
+
+    // Friendly Risk Meter
+    let riskDesc = '';
+    if (isBench) {
+      riskDesc = '1.0x (Market Index)';
+    } else if (p.capm.beta >= 1.2) {
+      riskDesc = `<span style="color:#f59e0b">High Swings (${p.capm.beta.toFixed(2)}x)</span>`;
+    } else if (p.capm.beta < 0.5) {
+      riskDesc = `<span style="color:#60a5fa">Defensive (${p.capm.beta.toFixed(2)}x)</span>`;
+    } else {
+      riskDesc = `Moderate (${p.capm.beta.toFixed(2)}x)`;
+    }
+
+    // Sharpe quality
+    let sharpeDesc = '';
+    if (p.fundRisk.sharpeRatio >= 1.0) sharpeDesc = `<strong style="color:#c084fc">${p.fundRisk.sharpeRatio.toFixed(2)}</strong> (Elite)`;
+    else if (p.fundRisk.sharpeRatio >= 0.7) sharpeDesc = `<strong>${p.fundRisk.sharpeRatio.toFixed(2)}</strong> (Good)`;
+    else sharpeDesc = `${p.fundRisk.sharpeRatio.toFixed(2)} (Moderate)`;
+
+    // Verdict Badge
+    let verdict = '';
+    if (isBench) {
+      verdict = '<span class="badge-defensive">Market Baseline</span>';
+    } else if (p.capm.annualizedAlpha > 0.02) {
+      verdict = '<span class="badge-winner">★ Beating Market</span>';
+    } else if (p.dualBeta.upCapture > p.dualBeta.downCapture && p.capm.beta <= 1.0) {
+      verdict = '<span class="badge-asymmetric">🚀 Asymmetric Protection</span>';
+    } else if (p.capm.beta < 0.5) {
+      verdict = '<span class="badge-defensive">🛡️ Volatility Hedge</span>';
+    } else {
+      verdict = '<span style="color:#94a3b8; font-size:0.75rem;">Core Asset</span>';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <strong style="color:${p.color}">${p.ticker}</strong>
+        <div style="font-size:0.72rem; color:#94a3b8;">${p.name}</div>
+      </td>
+      <td><strong>${(p.fundRisk.cagr * 100).toFixed(2)}%</strong></td>
+      <td>${riskDesc}</td>
+      <td style="color:${alphaColor}"><strong>${isBench ? '0.00% (Base)' : `${alphaSign}${(p.capm.annualizedAlpha * 100).toFixed(2)}% / yr`}</strong></td>
+      <td>${sharpeDesc}</td>
+      <td>${verdict}</td>
+    `;
+    elements.simpleScorecardBody.appendChild(tr);
+  });
 }
 
 // ----------------------------------------------------
