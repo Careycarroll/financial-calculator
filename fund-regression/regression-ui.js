@@ -126,16 +126,31 @@ function getCustomLibrary() {
   }
 }
 
-function saveCustomFundToLibrary(fund) {
+function saveCustomFundsBatch(funds) {
   try {
     const lib = getCustomLibrary();
-    const idx = lib.findIndex(f => f.ticker === fund.ticker);
-    if (idx !== -1) lib[idx] = fund;
-    else lib.push(fund);
-    localStorage.setItem(STORAGE_KEY_CUSTOM_FUNDS, JSON.stringify(lib));
+    const map = new Map(lib.map(f => [f.ticker, f]));
+    funds.forEach(fund => {
+      map.set(fund.ticker, {
+        ticker: fund.ticker,
+        name: fund.name,
+        color: fund.color,
+        data: fund.data
+      });
+    });
+    const updated = Array.from(map.values());
+    try {
+      localStorage.setItem(STORAGE_KEY_CUSTOM_FUNDS, JSON.stringify(updated));
+    } catch (quotaErr) {
+      console.warn('LocalStorage quota limit reached. Preserved in memory for this session.', quotaErr);
+    }
   } catch (e) {
     console.warn('Could not cache to localStorage', e);
   }
+}
+
+function saveCustomFundToLibrary(fund) {
+  saveCustomFundsBatch([fund]);
 }
 
 function loadCustomLibraryIntoUniverse() {
@@ -156,23 +171,27 @@ function loadCustomLibraryIntoUniverse() {
 function populateDropdowns() {
   // Benchmark selector
   elements.selectBenchmark.innerHTML = '';
+  const benchFrag = document.createDocumentFragment();
   allFunds.forEach(f => {
     const opt = document.createElement('option');
     opt.value = f.ticker;
     opt.textContent = `${f.ticker} - ${f.name}`;
     if (f.ticker === state.benchmarkTicker) opt.selected = true;
-    elements.selectBenchmark.appendChild(opt);
+    benchFrag.appendChild(opt);
   });
+  elements.selectBenchmark.appendChild(benchFrag);
 
   // Focus fund selector
   elements.selectFocusFund.innerHTML = '';
+  const focusFrag = document.createDocumentFragment();
   allFunds.forEach(f => {
     const opt = document.createElement('option');
     opt.value = f.ticker;
     opt.textContent = `${f.ticker} - ${f.name}`;
     if (f.ticker === state.focusFundTicker) opt.selected = true;
-    elements.selectFocusFund.appendChild(opt);
+    focusFrag.appendChild(opt);
   });
+  elements.selectFocusFund.appendChild(focusFrag);
 }
 
 function renderUniverseChips() {
@@ -181,6 +200,7 @@ function renderUniverseChips() {
 
   // Presets
   elements.presetUniverseChips.innerHTML = '';
+  const presetFrag = document.createDocumentFragment();
   PRESET_BENCHMARKS.forEach(p => {
     const isMatch = !query || p.ticker.toLowerCase().includes(query) || p.name.toLowerCase().includes(query);
     if (!isMatch) return;
@@ -197,8 +217,9 @@ function renderUniverseChips() {
     `;
     chip.title = `${p.name} - Click to include/exclude`;
     chip.addEventListener('click', () => toggleUniverseFund(p.ticker));
-    elements.presetUniverseChips.appendChild(chip);
+    presetFrag.appendChild(chip);
   });
+  elements.presetUniverseChips.appendChild(presetFrag);
 
   // Custom funds from library
   const custom = allFunds.filter(f => !PRESET_BENCHMARKS.some(p => p.ticker === f.ticker));
@@ -207,6 +228,7 @@ function renderUniverseChips() {
   } else {
     elements.savedCustomSection.style.display = 'block';
     elements.customUniverseChips.innerHTML = '';
+    const customFrag = document.createDocumentFragment();
     custom.forEach(cf => {
       const isMatch = !query || cf.ticker.toLowerCase().includes(query) || cf.name.toLowerCase().includes(query);
       if (!isMatch) return;
@@ -223,8 +245,9 @@ function renderUniverseChips() {
       `;
       chip.title = `${cf.name} - Click to toggle`;
       chip.addEventListener('click', () => toggleUniverseFund(cf.ticker));
-      elements.customUniverseChips.appendChild(chip);
+      customFrag.appendChild(chip);
     });
+    elements.customUniverseChips.appendChild(customFrag);
   }
 
   elements.universeBadge.textContent = `${state.selectedTickers.size} Selected`;
@@ -525,43 +548,152 @@ function resetZoom() {
   renderCurrentChart();
 }
 
+let activeProgressToast = null;
+
+function showProgressToast(msg) {
+  if (!elements.alertsContainer) return;
+  if (!activeProgressToast) {
+    activeProgressToast = document.createElement('div');
+    activeProgressToast.className = 'alert-box alert-info alert-progress';
+    activeProgressToast.style.cssText = `
+      background: rgba(56, 189, 248, 0.2);
+      border: 1px solid #38bdf8;
+      color: #bae6fd;
+      padding: 0.65rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    `;
+    elements.alertsContainer.prepend(activeProgressToast);
+  }
+  activeProgressToast.innerHTML = `<span>⚡</span> <span>${msg}</span>`;
+}
+
+function clearProgressToast() {
+  if (activeProgressToast) {
+    activeProgressToast.remove();
+    activeProgressToast = null;
+  }
+}
+
 // ----------------------------------------------------
-// File Upload Processing
+// File Upload Processing (Optimized Async Batch)
 // ----------------------------------------------------
-function handleFiles(files) {
-  Array.from(files).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = ev => {
+async function handleFiles(files) {
+  const fileList = Array.from(files).filter(f => {
+    const name = f.name.toLowerCase();
+    return name.endsWith('.csv') || name.endsWith('.txt');
+  });
+
+  if (fileList.length === 0) {
+    showAlert('Please select valid CSV or TXT fund price files.', 'warning');
+    return;
+  }
+
+  const total = fileList.length;
+  const startTime = performance.now();
+  const CHUNK_SIZE = 50;
+  const newFunds = [];
+  const errors = [];
+
+  if (total > 1) {
+    showProgressToast(`Importing ${total} funds... (0 / ${total})`);
+  }
+
+  for (let i = 0; i < total; i += CHUNK_SIZE) {
+    const chunk = fileList.slice(i, i + CHUNK_SIZE);
+
+    const chunkResults = await Promise.all(chunk.map(async file => {
       try {
-        const parsed = parseCSV(ev.target.result, file.name);
-        const monthly = resampleToMonthly(parsed.rows);
-        if (monthly.length < 12) {
-          showAlert(`"${parsed.ticker}" has less than 12 monthly points. Insufficient for regression.`, 'warning');
-          return;
+        let text = '';
+        if (typeof file.text === 'function') {
+          text = await file.text();
+        } else {
+          text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = ev => resolve(ev.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+          });
         }
 
-        const color = PALETTE[allFunds.length % PALETTE.length];
-        const newFund = {
-          ticker: parsed.ticker,
-          name: `${parsed.ticker} (Custom Upload)`,
-          color,
-          data: monthly
+        const parsed = parseCSV(text, file.name);
+        const monthly = resampleToMonthly(parsed.rows);
+        if (monthly.length < 12) {
+          return { error: `"${parsed.ticker}" has less than 12 monthly points.` };
+        }
+
+        return {
+          fund: {
+            ticker: parsed.ticker,
+            name: `${parsed.ticker} (Custom Upload)`,
+            data: monthly
+          }
         };
-
-        saveCustomFundToLibrary(newFund);
-        allFunds.push(newFund);
-        state.selectedTickers.add(newFund.ticker);
-
-        populateDropdowns();
-        renderUniverseChips();
-        runAnalysis();
-        showAlert(`Successfully loaded ${parsed.ticker} into regression universe!`, 'info');
       } catch (err) {
-        showAlert(err.message, 'warning');
+        return { error: `Failed to parse ${file.name}: ${err.message}` };
       }
-    };
-    reader.readAsText(file);
+    }));
+
+    chunkResults.forEach(res => {
+      if (res.fund) newFunds.push(res.fund);
+      if (res.error) errors.push(res.error);
+    });
+
+    if (total > 1) {
+      const processed = Math.min(i + CHUNK_SIZE, total);
+      showProgressToast(`Importing ${total} funds... (${processed} / ${total})`);
+      // Yield to UI loop so progress updates and browser paints smoothly
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  clearProgressToast();
+
+  if (newFunds.length === 0) {
+    showAlert('No valid funds could be imported from the selected files.', 'warning');
+    return;
+  }
+
+  // Batch insert into allFunds and select them
+  newFunds.forEach(fund => {
+    const existingIdx = allFunds.findIndex(f => f.ticker === fund.ticker);
+    if (existingIdx !== -1) {
+      allFunds[existingIdx].data = fund.data;
+      fund.color = allFunds[existingIdx].color;
+    } else {
+      fund.color = PALETTE[allFunds.length % PALETTE.length];
+      allFunds.push(fund);
+    }
+    state.selectedTickers.add(fund.ticker);
   });
+
+  // Single batch save to localStorage
+  saveCustomFundsBatch(newFunds);
+
+  // Single DOM updates & single econometric run
+  populateDropdowns();
+  renderUniverseChips();
+  runAnalysis();
+
+  const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
+  if (total === 1) {
+    showAlert(`Successfully loaded ${newFunds[0].ticker} into regression universe!`, 'info');
+  } else {
+    showAlert(`⚡ Successfully imported ${newFunds.length} funds in ${elapsedSec}s!`, 'info');
+  }
+
+  if (errors.length > 0) {
+    if (errors.length <= 3) {
+      errors.forEach(e => showAlert(e, 'warning'));
+    } else {
+      showAlert(`${errors.length} files were skipped due to formatting or insufficient history (<12 months).`, 'warning');
+    }
+  }
 }
 
 // ----------------------------------------------------
@@ -629,6 +761,7 @@ function renderTakeawayStory() {
 function renderSimpleScorecard() {
   if (!elements.simpleScorecardBody) return;
   elements.simpleScorecardBody.innerHTML = '';
+  const frag = document.createDocumentFragment();
 
   const sorted = [...state.profiles].sort((a, b) => b.capm.annualizedAlpha - a.capm.annualizedAlpha);
 
@@ -681,8 +814,9 @@ function renderSimpleScorecard() {
       <td>${sharpeDesc}</td>
       <td>${verdict}</td>
     `;
-    elements.simpleScorecardBody.appendChild(tr);
+    frag.appendChild(tr);
   });
+  elements.simpleScorecardBody.appendChild(frag);
 }
 
 // ----------------------------------------------------
@@ -792,6 +926,7 @@ function renderScorecardTable() {
   });
 
   elements.scorecardBody.innerHTML = '';
+  const frag = document.createDocumentFragment();
   sorted.forEach(p => {
     const isBench = p.ticker === state.benchmarkTicker;
     const alphaSign = p.capm.annualizedAlpha > 0 ? '+' : '';
@@ -828,8 +963,9 @@ function renderScorecardTable() {
       <td style="color:#f59e0b">${(p.fundRisk.maxDrawdown * 100).toFixed(1)}%</td>
       <td>${badge}</td>
     `;
-    elements.scorecardBody.appendChild(tr);
+    frag.appendChild(tr);
   });
+  elements.scorecardBody.appendChild(frag);
 }
 
 function exportScorecardCSV() {

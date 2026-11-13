@@ -427,7 +427,7 @@ function attachEventListeners() {
   }, 100));
 }
 
-function handleUploadedFiles(files) {
+async function handleUploadedFiles(files) {
   const fileList = Array.from(files).filter(f => {
     const name = f.name.toLowerCase();
     return (
@@ -442,44 +442,80 @@ function handleUploadedFiles(files) {
     return;
   }
 
-  let filesProcessed = 0;
+  const total = fileList.length;
+  const CHUNK_SIZE = 50;
   const newFunds = [];
+  const errors = [];
 
-  fileList.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
+  if (total > 5) {
+    showAlert(`⚡ Batch importing ${total} funds into DCA library...`, 'info');
+  }
+
+  for (let i = 0; i < total; i += CHUNK_SIZE) {
+    const chunk = fileList.slice(i, i + CHUNK_SIZE);
+    const chunkResults = await Promise.all(chunk.map(async file => {
       try {
-        const text = e.target.result;
-        const parsed = parseCSV(text, file.name);
-        if (parsed.warnings.length > 0) {
-          parsed.warnings.forEach(w => showAlert(w, 'warning'));
+        let text = '';
+        if (typeof file.text === 'function') {
+          text = await file.text();
+        } else {
+          text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+          });
         }
 
+        const parsed = parseCSV(text, file.name);
         const monthly = resampleToMonthly(parsed.rows);
         if (monthly.length === 0) {
-          showAlert(`Could not extract monthly price points from "${file.name}".`, 'warning');
-          return;
+          return { error: `Could not extract monthly price points from "${file.name}".` };
         }
 
+        return {
+          fund: {
+            ticker: parsed.ticker,
+            name: `${parsed.ticker} (Custom Upload)`,
+            data: monthly
+          }
+        };
+      } catch (err) {
+        return { error: err.message };
+      }
+    }));
+
+    chunkResults.forEach(res => {
+      if (res.fund) {
         const color = FUND_COLORS[(state.activeFunds.length + newFunds.length) % FUND_COLORS.length];
         newFunds.push({
           id: `custom_${Date.now()}_${newFunds.length}`,
-          ticker: parsed.ticker,
-          name: `${parsed.ticker} (Custom Upload)`,
-          color,
-          data: monthly
+          ...res.fund,
+          color
         });
-      } catch (err) {
-        showAlert(`${err.message} You can download clean files from <a href="https://stooq.com/db/h/" target="_blank" rel="noopener" style="color:#5eead4;text-decoration:underline;">Stooq</a>.`, 'warning');
-      } finally {
-        filesProcessed++;
-        if (filesProcessed === fileList.length && newFunds.length > 0) {
-          addUploadedFunds(newFunds);
-        }
       }
-    };
-    reader.readAsText(file);
-  });
+      if (res.error) errors.push(res.error);
+    });
+
+    if (total > 5) {
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  if (newFunds.length > 0) {
+    addUploadedFunds(newFunds);
+    if (total === 1) {
+      showAlert(`Successfully loaded ${newFunds[0].ticker} into your library!`, 'info');
+    } else {
+      showAlert(`⚡ Successfully imported ${newFunds.length} fund(s) into your library!`, 'info');
+    }
+  } else {
+    showAlert('Could not extract monthly price points from uploaded files.', 'warning');
+  }
+
+  if (errors.length > 0 && errors.length <= 3) {
+    errors.forEach(e => showAlert(e, 'warning'));
+  }
 }
 
 function addUploadedFunds(newFunds) {
