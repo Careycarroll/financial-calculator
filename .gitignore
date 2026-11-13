@@ -1,0 +1,13 @@
+# Raw bulk historical datasets (1.9 GB Stooq archives)
+data/nasdaq etfs/
+data/nasdaq stocks/
+data/nyse etfs/
+data/nyse stocks/
+data/nysemkt etfs/
+data/nysemkt stocks/
+data/*.zip
+
+# Dependencies & OS artifacts
+node_modules/
+.DS_Store
+Thumbs.db

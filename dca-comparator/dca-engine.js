@@ -30,9 +30,9 @@ export function parseCSV(text, filename = 'data.csv') {
     throw new Error(`File "${filename}" contains no data rows.`);
   }
 
-  // Parse header line
-  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
-  const normHeaders = rawHeaders.map(h => h.toLowerCase().replace(/[\s_-]+/g, ''));
+  // Parse header line (stripping quotes, brackets, angle brackets <DATE>)
+  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["'<]|["'>]$/g, ''));
+  const normHeaders = rawHeaders.map(h => h.toLowerCase().replace(/[\s_<>\-'\"]+/g, ''));
 
   const dateIdx = normHeaders.findIndex(h => h === 'date' || h === 'datetime' || h === 'timestamp');
   const adjIdx = normHeaders.findIndex(h => h === 'adjclose' || h === 'adjustedclose' || h === 'adj_close');
@@ -63,9 +63,16 @@ export function parseCSV(text, filename = 'data.csv') {
     const validAdj = Number.isFinite(adjClose) ? adjClose : rawClose;
     const validClose = Number.isFinite(rawClose) ? rawClose : validAdj;
 
-    if (rawDate && Number.isFinite(validAdj) && validAdj > 0) {
+    // Normalize date: supports YYYY-MM-DD, YYYY/MM/DD, or Stooq compact YYYYMMDD
+    let normalizedDate = rawDate;
+    const compactMatch = rawDate.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (compactMatch) {
+      normalizedDate = `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}`;
+    }
+
+    if (normalizedDate && Number.isFinite(validAdj) && validAdj > 0) {
       rows.push({
-        date: rawDate,
+        date: normalizedDate,
         close: validClose,
         adjClose: validAdj
       });
@@ -76,9 +83,10 @@ export function parseCSV(text, filename = 'data.csv') {
     throw new Error(`No valid numeric price rows could be parsed from "${filename}".`);
   }
 
-  // Deduce ticker symbol from filename (e.g., "VOO.csv" -> "VOO")
+  // Deduce ticker symbol from filename (e.g., "VOO.csv", "voo.us.txt" -> "VOO")
   const ticker = filename
-    .replace(/\.[^/.]+$/, '')
+    .replace(/\.(us|txt|csv)$/gi, '')
+    .replace(/\.(us|txt|csv)$/gi, '')
     .replace(/[^a-zA-Z0-9_-]/g, '')
     .toUpperCase();
 

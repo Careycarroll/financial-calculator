@@ -272,9 +272,14 @@ function attachEventListeners() {
 }
 
 function handleUploadedFiles(files) {
-  const fileList = Array.from(files).filter(f => f.name.endsWith('.csv') || f.type === 'text/csv');
+  const fileList = Array.from(files).filter(f =>
+    f.name.endsWith('.csv') ||
+    f.name.endsWith('.txt') ||
+    f.type.includes('csv') ||
+    f.type.includes('plain')
+  );
   if (fileList.length === 0) {
-    showAlert('Please upload standard CSV files (.csv).', 'warning');
+    showAlert('Please upload standard CSV or Stooq text files (.csv, .txt).', 'warning');
     return;
   }
 

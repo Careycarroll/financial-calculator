@@ -35,6 +35,18 @@ assert(parsed.rows.length === 4, 'All 4 rows parsed');
 assert(parsed.rows[0].adjClose === 375.0, 'First adjClose parsed');
 assert(parsed.rows[0].close === 383.5, 'First close parsed');
 
+console.log('\n--- TEST 1B: Stooq Format Parser ---');
+const stooqText = `<TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT>
+VOO.US,D,20220103,000000,439.1,440.5,437.2,439.8,12345,0
+VOO.US,D,20220104,000000,440.0,441.2,438.9,440.1,15432,0
+VOO.US,D,20220201,000000,412.3,415.0,410.2,414.6,18921,0`;
+
+const parsedStooq = parseCSV(stooqText, 'voo.us.txt');
+assert(parsedStooq.ticker === 'VOO', 'Ticker VOO extracted from voo.us.txt');
+assert(parsedStooq.rows.length === 3, 'All 3 Stooq rows parsed');
+assert(parsedStooq.rows[0].date === '2022-01-03', 'Stooq compact date 20220103 normalized to 2022-01-03');
+assert(parsedStooq.rows[0].close === 439.8, 'Stooq close parsed');
+
 console.log('\n--- TEST 2: Monthly Resampling ---');
 const monthly = resampleToMonthly(parsed.rows);
 assert(monthly.length === 3, 'Resampled 4 daily rows into 3 monthly rows (Jan, Feb, Mar)');
