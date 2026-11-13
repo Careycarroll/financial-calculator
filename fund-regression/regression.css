@@ -716,6 +716,20 @@ body.regression-page {
   color: var(--accent);
 }
 
+.zoom-level-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+  padding: 0.2rem 0.45rem;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 4px;
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
 .zoom-hint {
   font-size: 0.68rem;
   color: var(--text-secondary);

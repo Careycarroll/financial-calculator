@@ -9,6 +9,12 @@ import { analyzeFundRegression } from './regression-engine.js';
 
 const STORAGE_KEY_CUSTOM_FUNDS = 'dca_custom_funds_library';
 
+const ZOOM_STEPS = [
+  0.5, 0.6, 0.7, 0.8, 0.9,
+  1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+  2.2, 2.4, 2.6, 2.8, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 10.0, 15.0, 20.0, 30.0
+];
+
 const PALETTE = [
   '#38bdf8', // Sky Blue
   '#a855f7', // Purple
@@ -101,6 +107,7 @@ function cacheDOMElements() {
     btnZoomIn: document.getElementById('btn-zoom-in'),
     btnZoomOut: document.getElementById('btn-zoom-out'),
     btnZoomReset: document.getElementById('btn-zoom-reset'),
+    zoomLevelPill: document.getElementById('zoom-level-pill'),
     canvas: document.getElementById('regression-chart'),
     chartLegend: document.getElementById('regression-chart-legend'),
     simpleScorecardCard: document.getElementById('simple-scorecard-card'),
@@ -429,17 +436,21 @@ function attachEventListeners() {
     elements.btnDeselectAllFunds.addEventListener('click', deselectAllFunds);
   }
 
-  // Zoom Button Controls
+  // Zoom Button Controls (Granular stepped ladder)
   if (elements.btnZoomIn) {
     elements.btnZoomIn.addEventListener('click', () => {
       const rect = elements.canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, 1.10);
+      const current = Math.round(state.zoom * 10) / 10;
+      const nextStep = ZOOM_STEPS.find(s => s > current + 0.04) || 30.0;
+      zoomTo(rect.width / 2, rect.height / 2, nextStep);
     });
   }
   if (elements.btnZoomOut) {
     elements.btnZoomOut.addEventListener('click', () => {
       const rect = elements.canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, 0.909);
+      const current = Math.round(state.zoom * 10) / 10;
+      const prevStep = [...ZOOM_STEPS].reverse().find(s => s < current - 0.04) || 0.5;
+      zoomTo(rect.width / 2, rect.height / 2, prevStep);
     });
   }
   if (elements.btnZoomReset) {
@@ -547,6 +558,18 @@ function zoomAt(x, y, factor) {
   state.panX = x - (x - state.panX) * scaleRatio;
   state.panY = y - (y - state.panY) * scaleRatio;
   state.zoom = newZoom;
+  updateZoomUI();
+  renderCurrentChart();
+}
+
+function zoomTo(x, y, targetZoom) {
+  const newZoom = Math.max(0.5, Math.min(30, targetZoom));
+  if (Math.abs(newZoom - state.zoom) < 0.0001) return;
+  const scaleRatio = newZoom / state.zoom;
+  state.panX = x - (x - state.panX) * scaleRatio;
+  state.panY = y - (y - state.panY) * scaleRatio;
+  state.zoom = newZoom;
+  updateZoomUI();
   renderCurrentChart();
 }
 
@@ -554,7 +577,14 @@ function resetZoom() {
   state.zoom = 1.0;
   state.panX = 0;
   state.panY = 0;
+  updateZoomUI();
   renderCurrentChart();
+}
+
+function updateZoomUI() {
+  if (elements.zoomLevelPill) {
+    elements.zoomLevelPill.textContent = `${state.zoom.toFixed(1)}x`;
+  }
 }
 
 let activeProgressToast = null;
