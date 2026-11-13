@@ -433,13 +433,13 @@ function attachEventListeners() {
   if (elements.btnZoomIn) {
     elements.btnZoomIn.addEventListener('click', () => {
       const rect = elements.canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, 1.2);
+      zoomAt(rect.width / 2, rect.height / 2, 1.10);
     });
   }
   if (elements.btnZoomOut) {
     elements.btnZoomOut.addEventListener('click', () => {
       const rect = elements.canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, 0.83);
+      zoomAt(rect.width / 2, rect.height / 2, 0.909);
     });
   }
   if (elements.btnZoomReset) {
@@ -491,7 +491,7 @@ function attachEventListeners() {
     }
   });
 
-  // Canvas Wheel Zoom (Smooth trackpad & mouse wheel scaling)
+  // Canvas Wheel Zoom (Ultra-smooth, gentle trackpad & mouse wheel scaling)
   elements.canvas.addEventListener('wheel', e => {
     e.preventDefault();
     const rect = elements.canvas.getBoundingClientRect();
@@ -503,9 +503,9 @@ function attachEventListeners() {
     if (e.deltaMode === 1) dy *= 16;
     else if (e.deltaMode === 2) dy *= 100;
 
-    // Damped exponential curve: gentle trackpad gestures and smooth mouse notches
-    const clampedDy = Math.max(-60, Math.min(60, dy));
-    const factor = Math.exp(-clampedDy * 0.002);
+    // Soft damped exponential curve: tuned down sensitivity for micro-control
+    const clampedDy = Math.max(-30, Math.min(30, dy));
+    const factor = Math.exp(-clampedDy * 0.0008);
     zoomAt(mouseX, mouseY, factor);
   }, { passive: false });
 
