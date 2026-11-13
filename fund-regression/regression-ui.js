@@ -35,7 +35,14 @@ const state = {
   sortColumn: 'alpha',
   sortDirection: 'desc',
   profiles: [],
-  mousePos: null
+  mousePos: null,
+  // Zoom & Pan
+  zoom: 1.0,
+  panX: 0,
+  panY: 0,
+  isDragging: false,
+  dragStart: { x: 0, y: 0 },
+  searchQuery: ''
 };
 
 let elements = {};
@@ -77,6 +84,10 @@ function cacheDOMElements() {
     selectRollingWindow: document.getElementById('select-rolling-window'),
     selectFocusFund: document.getElementById('select-focus-fund'),
     universeBadge: document.getElementById('universe-badge'),
+    inputUniverseSearch: document.getElementById('universe-search-input'),
+    universeFilteredCount: document.getElementById('universe-filtered-count'),
+    btnSelectAllFunds: document.getElementById('btn-select-all-funds'),
+    btnDeselectAllFunds: document.getElementById('btn-deselect-all-funds'),
     presetUniverseChips: document.getElementById('preset-universe-chips'),
     savedCustomSection: document.getElementById('saved-custom-section'),
     customUniverseChips: document.getElementById('custom-universe-chips'),
@@ -86,6 +97,10 @@ function cacheDOMElements() {
     chartTabsWrapper: document.getElementById('chart-tabs-wrapper'),
     simpleChartTitle: document.getElementById('simple-chart-title'),
     chartTabButtons: document.querySelectorAll('.chart-tab-btn'),
+    canvasWrapper: document.getElementById('canvas-wrapper'),
+    btnZoomIn: document.getElementById('btn-zoom-in'),
+    btnZoomOut: document.getElementById('btn-zoom-out'),
+    btnZoomReset: document.getElementById('btn-zoom-reset'),
     canvas: document.getElementById('regression-chart'),
     chartLegend: document.getElementById('regression-chart-legend'),
     simpleScorecardCard: document.getElementById('simple-scorecard-card'),
@@ -161,9 +176,16 @@ function populateDropdowns() {
 }
 
 function renderUniverseChips() {
+  const query = (state.searchQuery || '').trim().toLowerCase();
+  let matchCount = 0;
+
   // Presets
   elements.presetUniverseChips.innerHTML = '';
   PRESET_BENCHMARKS.forEach(p => {
+    const isMatch = !query || p.ticker.toLowerCase().includes(query) || p.name.toLowerCase().includes(query);
+    if (!isMatch) return;
+    matchCount++;
+
     const isSelected = state.selectedTickers.has(p.ticker);
     const isBench = state.benchmarkTicker === p.ticker;
     const chip = document.createElement('button');
@@ -186,6 +208,10 @@ function renderUniverseChips() {
     elements.savedCustomSection.style.display = 'block';
     elements.customUniverseChips.innerHTML = '';
     custom.forEach(cf => {
+      const isMatch = !query || cf.ticker.toLowerCase().includes(query) || cf.name.toLowerCase().includes(query);
+      if (!isMatch) return;
+      matchCount++;
+
       const isSelected = state.selectedTickers.has(cf.ticker);
       const isBench = state.benchmarkTicker === cf.ticker;
       const chip = document.createElement('button');
@@ -202,6 +228,26 @@ function renderUniverseChips() {
   }
 
   elements.universeBadge.textContent = `${state.selectedTickers.size} Selected`;
+  if (elements.universeFilteredCount) {
+    elements.universeFilteredCount.textContent = query
+      ? `Showing ${matchCount} of ${allFunds.length} funds`
+      : `All ${allFunds.length} funds`;
+  }
+}
+
+function selectAllFunds() {
+  allFunds.forEach(f => state.selectedTickers.add(f.ticker));
+  renderUniverseChips();
+  runAnalysis();
+}
+
+function deselectAllFunds() {
+  state.selectedTickers.clear();
+  state.selectedTickers.add(state.benchmarkTicker);
+  const other = allFunds.find(f => f.ticker !== state.benchmarkTicker);
+  if (other) state.selectedTickers.add(other.ticker);
+  renderUniverseChips();
+  runAnalysis();
 }
 
 function toggleUniverseFund(ticker) {
@@ -344,6 +390,39 @@ function attachEventListeners() {
   // Export CSV
   elements.btnExportCSV.addEventListener('click', exportScorecardCSV);
 
+  // Search Universe Filter
+  if (elements.inputUniverseSearch) {
+    elements.inputUniverseSearch.addEventListener('input', e => {
+      state.searchQuery = e.target.value;
+      renderUniverseChips();
+    });
+  }
+
+  // Select / Deselect All
+  if (elements.btnSelectAllFunds) {
+    elements.btnSelectAllFunds.addEventListener('click', selectAllFunds);
+  }
+  if (elements.btnDeselectAllFunds) {
+    elements.btnDeselectAllFunds.addEventListener('click', deselectAllFunds);
+  }
+
+  // Zoom Button Controls
+  if (elements.btnZoomIn) {
+    elements.btnZoomIn.addEventListener('click', () => {
+      const rect = elements.canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, 1.35);
+    });
+  }
+  if (elements.btnZoomOut) {
+    elements.btnZoomOut.addEventListener('click', () => {
+      const rect = elements.canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, 0.74);
+    });
+  }
+  if (elements.btnZoomReset) {
+    elements.btnZoomReset.addEventListener('click', resetZoom);
+  }
+
   // Drag and Drop Upload
   const dropzone = elements.dropzone;
   const fileInput = elements.fileInput;
@@ -374,14 +453,52 @@ function attachEventListeners() {
     }
   });
 
-  // Canvas Mouse Move Tooltip
+  // Canvas Mouse Dragging & Pan
+  elements.canvas.addEventListener('mousedown', e => {
+    state.isDragging = true;
+    state.hasDragged = false;
+    state.dragStart = { x: e.clientX, y: e.clientY };
+    if (elements.canvasWrapper) elements.canvasWrapper.classList.add('grabbing');
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (state.isDragging) {
+      state.isDragging = false;
+      if (elements.canvasWrapper) elements.canvasWrapper.classList.remove('grabbing');
+    }
+  });
+
+  // Canvas Wheel Zoom
+  elements.canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = elements.canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.15 : 0.87;
+    zoomAt(mouseX, mouseY, factor);
+  }, { passive: false });
+
+  // Canvas Double Click Reset
+  elements.canvas.addEventListener('dblclick', resetZoom);
+
+  // Canvas Mouse Move (Pan or Hover Tooltip)
   elements.canvas.addEventListener('mousemove', e => {
     const rect = elements.canvas.getBoundingClientRect();
-    state.mousePos = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
-    renderCurrentChart();
+    if (state.isDragging) {
+      const dx = e.clientX - state.dragStart.x;
+      const dy = e.clientY - state.dragStart.y;
+      if (Math.hypot(dx, dy) > 3) state.hasDragged = true;
+      state.panX += dx;
+      state.panY += dy;
+      state.dragStart = { x: e.clientX, y: e.clientY };
+      renderCurrentChart();
+    } else {
+      state.mousePos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      renderCurrentChart();
+    }
   });
 
   elements.canvas.addEventListener('mouseleave', () => {
@@ -390,6 +507,22 @@ function attachEventListeners() {
   });
 
   window.addEventListener('resize', debounce(() => renderCurrentChart(), 100));
+}
+
+function zoomAt(x, y, factor) {
+  const newZoom = Math.max(0.5, Math.min(30, state.zoom * factor));
+  const scaleRatio = newZoom / state.zoom;
+  state.panX = x - (x - state.panX) * scaleRatio;
+  state.panY = y - (y - state.panY) * scaleRatio;
+  state.zoom = newZoom;
+  renderCurrentChart();
+}
+
+function resetZoom() {
+  state.zoom = 1.0;
+  state.panX = 0;
+  state.panY = 0;
+  renderCurrentChart();
 }
 
 // ----------------------------------------------------
@@ -751,13 +884,14 @@ function renderCurrentChart() {
 /**
  * Tab 1: Security Market Line (SML) Scatter Plot
  * X: Beta (Market Risk) | Y: Annualized Return (Expected vs Actual)
+ * Features: Interactive Pan & Zoom, Clipping Mask, Intelligent Label Decluttering for 900+ Funds
  */
 function renderSMLChart() {
   const canvas = elements.canvas;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.parentElement.clientWidth;
-  const h = 420;
+  const h = 480;
 
   canvas.width = w * dpr;
   canvas.height = h * dpr;
@@ -767,7 +901,7 @@ function renderSMLChart() {
 
   ctx.clearRect(0, 0, w, h);
 
-  const pad = { top: 30, right: 75, bottom: 50, left: 65 };
+  const pad = { top: 30, right: 65, bottom: 50, left: 65 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
@@ -782,58 +916,44 @@ function renderSMLChart() {
   const returns = state.profiles.map(p => p.fundRisk.cagr);
 
   const minBeta = Math.min(-0.2, ...betas);
-  const maxBeta = Math.max(1.6, Math.max(...betas) * 1.25);
+  const maxBeta = Math.max(1.6, Math.max(...betas) * 1.15);
 
-  const minRet = Math.min(-0.05, Math.min(...returns) * 1.2, rf - 0.02);
-  const maxRet = Math.max(0.25, Math.max(...returns) * 1.2);
+  const minRet = Math.min(-0.05, Math.min(...returns) * 1.15, rf - 0.02);
+  const maxRet = Math.max(0.25, Math.max(...returns) * 1.15);
 
-  const xToPx = beta => pad.left + ((beta - minBeta) / (maxBeta - minBeta)) * plotW;
-  const yToPx = ret => pad.top + plotH - ((ret - minRet) / (maxRet - minRet)) * plotH;
+  // Coordinate transforms with pan & zoom
+  const xToPx = beta => {
+    const norm = (beta - minBeta) / (maxBeta - minBeta);
+    const baseX = pad.left + norm * plotW;
+    return pad.left + (baseX - pad.left) * state.zoom + state.panX;
+  };
 
-  // Background Grid Lines
+  const yToPx = ret => {
+    const norm = (ret - minRet) / (maxRet - minRet);
+    const baseY = pad.top + plotH - norm * plotH;
+    return (pad.top + plotH) - ((pad.top + plotH) - baseY) * state.zoom + state.panY;
+  };
+
+  // 1. Plot Area Clipping Mask (Content does not spill into margins)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad.left, pad.top, plotW, plotH);
+  ctx.clip();
+
+  // Grid Lines inside plot
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
 
-  // Horizontal Grid (Returns)
-  const retSteps = 6;
-  ctx.font = '11px sans-serif';
-  ctx.fillStyle = '#94a3b8';
-  ctx.textAlign = 'right';
-
-  for (let i = 0; i <= retSteps; i++) {
-    const val = minRet + (i / retSteps) * (maxRet - minRet);
-    const py = yToPx(val);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, py);
-    ctx.lineTo(pad.left + plotW, py);
-    ctx.stroke();
-    ctx.fillText(`${(val * 100).toFixed(0)}%`, pad.left - 8, py + 4);
-  }
-
-  // Vertical Grid (Beta)
-  const betaSteps = 6;
-  ctx.textAlign = 'center';
-  for (let i = 0; i <= betaSteps; i++) {
-    const val = minBeta + (i / betaSteps) * (maxBeta - minBeta);
-    const px = xToPx(val);
-    ctx.beginPath();
-    ctx.moveTo(px, pad.top);
-    ctx.lineTo(px, pad.top + plotH);
-    ctx.stroke();
-    ctx.fillText(val.toFixed(1), px, pad.top + plotH + 18);
-  }
-
-  // SML Theoretical Line: Expected Return E(Ri) = Rf + Beta * (Rm - Rf)
   const smlY0 = yToPx(rf + minBeta * (rm - rf));
   const smlYMax = yToPx(rf + maxBeta * (rm - rf));
 
-  // Shaded positive alpha zone (above SML)
+  // Shaded Positive Alpha Zone (Above SML)
   ctx.fillStyle = 'rgba(16, 185, 129, 0.04)';
   ctx.beginPath();
   ctx.moveTo(xToPx(minBeta), smlY0);
   ctx.lineTo(xToPx(maxBeta), smlYMax);
-  ctx.lineTo(xToPx(maxBeta), pad.top);
-  ctx.lineTo(xToPx(minBeta), pad.top);
+  ctx.lineTo(xToPx(maxBeta), yToPx(maxRet + 5));
+  ctx.lineTo(xToPx(minBeta), yToPx(maxRet + 5));
   ctx.closePath();
   ctx.fill();
 
@@ -853,47 +973,116 @@ function renderSMLChart() {
   ctx.textAlign = 'left';
   ctx.fillText('Security Market Line (SML: Expected Return)', xToPx(0.1), yToPx(rf + 0.1 * (rm - rf)) - 8);
 
-  // Rf Marker on Y-axis
+  // Rf Marker on SML
   ctx.fillStyle = '#f59e0b';
   ctx.fillText(`Rf: ${(rf * 100).toFixed(1)}%`, pad.left + 5, yToPx(rf) - 6);
 
-  // Plot Funds as Dots
+  // 2. Identify Hovered Point
   let hoveredPoint = null;
+  if (state.mousePos) {
+    let closestDist = Infinity;
+    state.profiles.forEach(p => {
+      const px = xToPx(p.capm.beta);
+      const py = yToPx(p.fundRisk.cagr);
+      const dist = Math.hypot(state.mousePos.x - px, state.mousePos.y - py);
+      if (dist < 18 && dist < closestDist) {
+        closestDist = dist;
+        hoveredPoint = { p, px, py };
+      }
+    });
+  }
 
+  // 3. Draw All Dots
   state.profiles.forEach(p => {
     const px = xToPx(p.capm.beta);
     const py = yToPx(p.fundRisk.cagr);
-    const isBench = p.ticker === state.benchmarkTicker;
+    if (px < pad.left - 20 || px > pad.left + plotW + 20 || py < pad.top - 20 || py > pad.top + plotH + 20) return;
 
-    // Check hover
-    if (state.mousePos) {
-      const dist = Math.hypot(state.mousePos.x - px, state.mousePos.y - py);
-      if (dist < 14) {
-        hoveredPoint = { p, px, py };
-      }
-    }
+    const isBench = p.ticker === state.benchmarkTicker;
+    const isHovered = hoveredPoint && hoveredPoint.p.ticker === p.ticker;
 
     // Outer Glow
     ctx.beginPath();
-    ctx.arc(px, py, isBench ? 9 : 7, 0, Math.PI * 2);
-    ctx.fillStyle = isBench ? '#a855f7' : (p.color || '#38bdf8');
-    ctx.shadowColor = isBench ? 'rgba(168, 85, 247, 0.8)' : 'rgba(56, 189, 248, 0.6)';
-    ctx.shadowBlur = 10;
+    ctx.arc(px, py, isHovered ? 11 : (isBench ? 8 : 5.5), 0, Math.PI * 2);
+    ctx.fillStyle = isHovered ? '#38bdf8' : (isBench ? '#a855f7' : (p.color || '#38bdf8'));
+    ctx.shadowColor = isHovered ? 'rgba(56, 189, 248, 0.9)' : (isBench ? 'rgba(168, 85, 247, 0.7)' : 'rgba(56, 189, 248, 0.4)');
+    ctx.shadowBlur = isHovered ? 14 : 7;
     ctx.fill();
-    ctx.shadowBlur = 0; // reset
+    ctx.shadowBlur = 0;
 
-    // White Dot Center
+    // Center White Dot
     ctx.beginPath();
-    ctx.arc(px, py, isBench ? 4 : 3, 0, Math.PI * 2);
+    ctx.arc(px, py, isHovered ? 5 : (isBench ? 3.5 : 2.5), 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
-
-    // Ticker label above dot
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillStyle = '#f8fafc';
-    ctx.textAlign = 'center';
-    ctx.fillText(p.ticker, px, py - 11);
   });
+
+  // 4. Intelligent Label Rendering (Prevents Overlapping White Blob for 900+ Funds!)
+  const placedLabels = [];
+  const isCrowded = state.profiles.length > 30 && state.zoom < 2.5;
+
+  const sortedForLabels = [...state.profiles].sort((a, b) => {
+    if (hoveredPoint && a.ticker === hoveredPoint.p.ticker) return -1;
+    if (hoveredPoint && b.ticker === hoveredPoint.p.ticker) return 1;
+    if (a.ticker === state.benchmarkTicker) return -1;
+    if (b.ticker === state.benchmarkTicker) return 1;
+    return Math.abs(b.capm.annualizedAlpha) - Math.abs(a.capm.annualizedAlpha);
+  });
+
+  sortedForLabels.forEach(p => {
+    const px = xToPx(p.capm.beta);
+    const py = yToPx(p.fundRisk.cagr);
+    if (px < pad.left - 10 || px > pad.left + plotW + 10 || py < pad.top - 10 || py > pad.top + plotH + 10) return;
+
+    const isBench = p.ticker === state.benchmarkTicker;
+    const isHovered = hoveredPoint && hoveredPoint.p.ticker === p.ticker;
+
+    if (isCrowded && !isBench && !isHovered) {
+      const bw = 38;
+      const bh = 14;
+      const bx = px - bw / 2;
+      const by = py - 18;
+
+      const collides = placedLabels.some(b => 
+        bx < b.x2 && bx + bw > b.x1 && by < b.y2 && by + bh > b.y1
+      );
+      if (collides) return; // Suppress overlapping label in dense cluster
+      placedLabels.push({ x1: bx, y1: by, x2: bx + bw, y2: by + bh });
+    }
+
+    ctx.font = (isBench || isHovered) ? 'bold 12px sans-serif' : '10px sans-serif';
+    ctx.fillStyle = isHovered ? '#38bdf8' : (isBench ? '#d8b4fe' : '#f8fafc');
+    ctx.textAlign = 'center';
+    ctx.fillText(p.ticker, px, py - 9);
+  });
+
+  ctx.restore(); // End clipping
+
+  // 5. Draw Plot Border
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+  // Dynamic Axis Ticks
+  const retSteps = 6;
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= retSteps; i++) {
+    const py = pad.top + (i / retSteps) * plotH;
+    const baseY = (pad.top + plotH) - ((pad.top + plotH) - py + state.panY) / state.zoom;
+    const val = minRet + (((pad.top + plotH) - baseY) / plotH) * (maxRet - minRet);
+    ctx.fillText(`${(val * 100).toFixed(0)}%`, pad.left - 8, py + 4);
+  }
+
+  const betaSteps = 6;
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= betaSteps; i++) {
+    const px = pad.left + (i / betaSteps) * plotW;
+    const baseX = (px - state.panX - pad.left) / state.zoom + pad.left;
+    const val = minBeta + ((baseX - pad.left) / plotW) * (maxBeta - minBeta);
+    ctx.fillText(val.toFixed(1), px, pad.top + plotH + 18);
+  }
 
   // Axis Titles
   ctx.font = 'bold 12px sans-serif';
@@ -915,8 +1104,9 @@ function renderSMLChart() {
   // Legend
   elements.chartLegend.innerHTML = `
     <span class="legend-item"><span style="display:inline-block; width:14px; height:2px; background:#38bdf8; border-top:1px dashed #38bdf8;"></span> Theoretical SML Line</span>
-    <span class="legend-item"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span> Green Area: Positive Alpha Zone (Beating SML)</span>
+    <span class="legend-item"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span> Green Area: Positive Alpha Zone</span>
     <span class="legend-item"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#a855f7;"></span> Purple Dot: Benchmark (${state.benchmarkTicker})</span>
+    <span class="legend-item" style="color:#38bdf8;"><span style="display:inline-block; width:12px; height:12px; border:1px solid #38bdf8; border-radius:3px; text-align:center; line-height:10px; font-size:9px;">+</span> Zoom: ${state.zoom.toFixed(1)}x</span>
   `;
 }
 

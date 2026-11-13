@@ -184,6 +184,25 @@
               <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;" id="universe-badge">5 Funds</span>
             </h2>
 
+            <!-- Drag & Drop Upload Zone (Moved to Top for Quick Uploads) -->
+            <div class="dropzone" id="regression-dropzone" style="margin-bottom: 0.85rem;">
+              <input type="file" id="regression-file-input" class="file-input-hidden" multiple accept=".csv,.txt" />
+              <div class="dropzone-icon">📥</div>
+              <div class="dropzone-text">Drop CSV or Stooq TXT to analyze</div>
+              <div class="dropzone-subtext">Yahoo Finance (.csv) or Stooq (.txt) supported</div>
+            </div>
+
+            <!-- Search & Filter Bar -->
+            <input type="text" id="universe-search-input" class="universe-search-input" placeholder="🔍 Filter funds (e.g. QQQ, PTL)..." />
+
+            <div class="universe-action-row">
+              <span id="universe-filtered-count">Showing all funds</span>
+              <div style="display: flex; gap: 0.6rem;">
+                <button type="button" class="btn-link-action" id="btn-select-all-funds">Select All</button>
+                <button type="button" class="btn-link-action" id="btn-deselect-all-funds">Deselect All</button>
+              </div>
+            </div>
+
             <label style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.35rem; display: block;">
               Pre-bundled Benchmarks:
             </label>
@@ -196,17 +215,11 @@
               <label style="font-size: 0.75rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.35rem; display: block;">
                 💾 Saved Custom Library:
               </label>
-              <div class="chips-container" id="custom-universe-chips">
-                <!-- Populated via JS -->
+              <div class="scrollable-chips" id="custom-chips-scroll-wrap">
+                <div class="chips-container" id="custom-universe-chips">
+                  <!-- Populated via JS -->
+                </div>
               </div>
-            </div>
-
-            <!-- Drag & Drop Upload Zone -->
-            <div class="dropzone" id="regression-dropzone">
-              <input type="file" id="regression-file-input" class="file-input-hidden" multiple accept=".csv,.txt" />
-              <div class="dropzone-icon">📥</div>
-              <div class="dropzone-text">Drop CSV or Stooq TXT to analyze</div>
-              <div class="dropzone-subtext">Yahoo Finance (.csv) or Stooq (.txt) supported</div>
             </div>
           </div>
         </aside>
@@ -234,7 +247,14 @@
               </div>
             </div>
 
-            <div class="canvas-wrapper">
+            <div class="canvas-wrapper" id="canvas-wrapper">
+              <!-- Pan & Zoom Controls -->
+              <div class="chart-zoom-controls">
+                <button type="button" class="btn-zoom" id="btn-zoom-in" title="Zoom In (+)">🔍+</button>
+                <button type="button" class="btn-zoom" id="btn-zoom-out" title="Zoom Out (-)">🔍−</button>
+                <button type="button" class="btn-zoom" id="btn-zoom-reset" title="Reset Zoom (Double-Click)">↺ Reset</button>
+                <span class="zoom-hint">Scroll to zoom • Drag to pan</span>
+              </div>
               <canvas id="regression-chart"></canvas>
             </div>
 
