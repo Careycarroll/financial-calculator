@@ -41,12 +41,39 @@ const state = {
 // Simulation results cache for rendering
 let currentSimulationResults = null;
 
+// Persistent Browser Storage for Uploaded Custom Funds
+const STORAGE_KEY_CUSTOM_FUNDS = 'dca_custom_funds_library';
+let customLibrary = [];
+
+function loadCustomLibrary() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_FUNDS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.warn('Failed to load custom funds library from localStorage:', e);
+    return [];
+  }
+}
+
+function saveCustomLibrary(library) {
+  try {
+    localStorage.setItem(STORAGE_KEY_CUSTOM_FUNDS, JSON.stringify(library));
+  } catch (e) {
+    console.error('Failed to save custom funds library to localStorage:', e);
+    showAlert('Browser storage quota reached. Could not cache custom fund.', 'warning');
+  }
+}
+
 // DOM Elements
 let elements = {};
 
 export function initDCAComparator() {
+  customLibrary = loadCustomLibrary();
   cacheDOMElements();
   renderPresetChips();
+  renderCustomLibraryChips();
   attachEventListeners();
   runComparison();
 }
@@ -56,6 +83,9 @@ function cacheDOMElements() {
     dropzone: document.getElementById('dca-dropzone'),
     fileInput: document.getElementById('dca-file-input'),
     presetChips: document.getElementById('preset-chips'),
+    customFundsSection: document.getElementById('custom-funds-section'),
+    customLibraryChips: document.getElementById('custom-library-chips'),
+    btnClearCustomLibrary: document.getElementById('btn-clear-custom-library'),
     activeFundsList: document.getElementById('active-funds-list'),
     inputInitial: document.getElementById('input-initial-balance'),
     inputMonthly: document.getElementById('input-monthly-deposit'),
@@ -119,9 +149,107 @@ function togglePresetFund(preset) {
   });
 
   renderPresetChips();
+  renderCustomLibraryChips();
   renderActiveFundsList();
   resetDateRangeToMax();
   runComparison();
+}
+
+function renderCustomLibraryChips() {
+  if (!elements.customFundsSection || !elements.customLibraryChips) return;
+
+  if (customLibrary.length === 0) {
+    elements.customFundsSection.style.display = 'none';
+    elements.customLibraryChips.innerHTML = '';
+    return;
+  }
+
+  elements.customFundsSection.style.display = 'block';
+  elements.customLibraryChips.innerHTML = '';
+
+  customLibrary.forEach(fund => {
+    const isActive = state.activeFunds.some(f => f.ticker === fund.ticker);
+    const activeFund = state.activeFunds.find(f => f.ticker === fund.ticker);
+    const dotColor = isActive ? (activeFund?.color || '#38bdf8') : '#94a3b8';
+
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = `custom-chip ${isActive ? 'active' : ''}`;
+    chip.title = `${fund.name} (${fund.data.length} monthly records) - Click to toggle in/out of comparison, × to remove from library`;
+
+    chip.innerHTML = `
+      <span class="preset-dot" style="background-color: ${dotColor}"></span>
+      <span>${fund.ticker}</span>
+      <span class="chip-delete" title="Delete ${fund.ticker} from saved library">×</span>
+    `;
+
+    chip.addEventListener('click', e => {
+      if (e.target.classList.contains('chip-delete')) return;
+      toggleCustomFund(fund);
+    });
+
+    chip.querySelector('.chip-delete').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteCustomFund(fund.ticker);
+    });
+
+    elements.customLibraryChips.appendChild(chip);
+  });
+}
+
+function toggleCustomFund(fund) {
+  const existingIndex = state.activeFunds.findIndex(f => f.ticker === fund.ticker);
+  if (existingIndex !== -1) {
+    if (state.activeFunds.length <= 1) {
+      showAlert('At least 1 fund must remain active for comparison.', 'warning');
+      return;
+    }
+    state.activeFunds.splice(existingIndex, 1);
+  } else {
+    if (state.activeFunds.length >= 3) {
+      // Replace the last one
+      state.activeFunds.pop();
+    }
+    const color = FUND_COLORS[state.activeFunds.length % FUND_COLORS.length];
+    state.activeFunds.push({ ...fund, color });
+  }
+
+  // Re-assign distinct colors
+  state.activeFunds.forEach((f, idx) => {
+    f.color = FUND_COLORS[idx % FUND_COLORS.length];
+  });
+
+  renderPresetChips();
+  renderCustomLibraryChips();
+  renderActiveFundsList();
+  resetDateRangeToMax();
+  runComparison();
+}
+
+function deleteCustomFund(ticker) {
+  const activeIdx = state.activeFunds.findIndex(f => f.ticker === ticker);
+  if (activeIdx !== -1 && state.activeFunds.length <= 1) {
+    showAlert('Cannot delete the only active fund. Please select another fund first.', 'warning');
+    return;
+  }
+
+  if (activeIdx !== -1) {
+    state.activeFunds.splice(activeIdx, 1);
+  }
+
+  customLibrary = customLibrary.filter(f => f.ticker !== ticker);
+  saveCustomLibrary(customLibrary);
+
+  state.activeFunds.forEach((f, idx) => {
+    f.color = FUND_COLORS[idx % FUND_COLORS.length];
+  });
+
+  renderPresetChips();
+  renderCustomLibraryChips();
+  renderActiveFundsList();
+  resetDateRangeToMax();
+  runComparison();
+  showAlert(`Removed ${ticker} from saved library.`, 'info');
 }
 
 function renderActiveFundsList() {
@@ -161,6 +289,7 @@ function renderActiveFundsList() {
         f.color = FUND_COLORS[idx % FUND_COLORS.length];
       });
       renderPresetChips();
+      renderCustomLibraryChips();
       renderActiveFundsList();
       resetDateRangeToMax();
       runComparison();
@@ -259,6 +388,33 @@ function attachEventListeners() {
     }
   });
 
+  // Clear Custom Library button
+  if (elements.btnClearCustomLibrary) {
+    elements.btnClearCustomLibrary.addEventListener('click', () => {
+      if (customLibrary.length === 0) return;
+      if (!confirm('Remove all saved custom funds from your browser library?')) return;
+
+      // Filter out custom funds from active funds, but ensure at least 1 benchmark stays
+      state.activeFunds = state.activeFunds.filter(f => PRESET_BENCHMARKS.some(b => b.ticker === f.ticker));
+      if (state.activeFunds.length === 0) {
+        state.activeFunds = [{ ...PRESET_BENCHMARKS[0], color: FUND_COLORS[0] }];
+      }
+
+      customLibrary = [];
+      saveCustomLibrary([]);
+      state.activeFunds.forEach((f, idx) => {
+        f.color = FUND_COLORS[idx % FUND_COLORS.length];
+      });
+
+      renderPresetChips();
+      renderCustomLibraryChips();
+      renderActiveFundsList();
+      resetDateRangeToMax();
+      runComparison();
+      showAlert('Cleared all saved custom funds from browser storage.', 'info');
+    });
+  }
+
   // Canvas Hover Tooltip & Crosshair
   elements.chartCanvas.addEventListener('mousemove', handleChartMouseMove);
   elements.chartCanvas.addEventListener('mouseleave', handleChartMouseLeave);
@@ -327,10 +483,30 @@ function handleUploadedFiles(files) {
 }
 
 function addUploadedFunds(newFunds) {
-  // Combine with active funds, cap at 3
-  let combined = [...state.activeFunds, ...newFunds];
+  // 1. Persist new funds into browser customLibrary (localStorage)
+  newFunds.forEach(nf => {
+    const existingIdx = customLibrary.findIndex(c => c.ticker === nf.ticker);
+    if (existingIdx !== -1) {
+      customLibrary[existingIdx] = nf;
+    } else {
+      customLibrary.push(nf);
+    }
+  });
+  saveCustomLibrary(customLibrary);
+
+  // 2. Add or update in active funds list (avoiding duplicates)
+  let combined = [...state.activeFunds];
+  newFunds.forEach(nf => {
+    const existingIdx = combined.findIndex(f => f.ticker === nf.ticker);
+    if (existingIdx !== -1) {
+      combined[existingIdx] = nf;
+    } else {
+      combined.push(nf);
+    }
+  });
+
+  // Cap active comparison at 3
   if (combined.length > 3) {
-    // Keep up to 3 most recent
     combined = combined.slice(combined.length - 3);
   }
 
@@ -341,10 +517,11 @@ function addUploadedFunds(newFunds) {
 
   state.activeFunds = combined;
   renderPresetChips();
+  renderCustomLibraryChips();
   renderActiveFundsList();
   resetDateRangeToMax();
   runComparison();
-  showAlert(`Successfully loaded ${newFunds.map(f => f.ticker).join(', ')}!`, 'info');
+  showAlert(`Successfully loaded ${newFunds.map(f => f.ticker).join(', ')}! Saved to browser library.`, 'info');
 }
 
 function resetDateRangeToMax() {

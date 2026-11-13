@@ -68,6 +68,21 @@
               <!-- Populated dynamically via JS -->
             </div>
 
+            <!-- Saved Custom Funds (Cached in Browser) -->
+            <div id="custom-funds-section" style="display: none; margin-bottom: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label style="font-size: 0.78rem; font-weight: 700; color: #38bdf8;">
+                  💾 Saved Custom Funds:
+                </label>
+                <button type="button" id="btn-clear-custom-library" title="Remove all saved funds from browser storage" style="background: none; border: none; font-size: 0.7rem; color: #94a3b8; cursor: pointer; text-decoration: underline;">
+                  Clear All
+                </button>
+              </div>
+              <div class="preset-chips-container" id="custom-library-chips">
+                <!-- Populated dynamically via JS -->
+              </div>
+            </div>
+
             <!-- Drag & Drop Zone -->
             <div class="dropzone" id="dca-dropzone">
               <input type="file" id="dca-file-input" class="file-input-hidden" multiple accept=".csv,.txt" />

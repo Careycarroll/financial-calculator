@@ -157,6 +157,50 @@
   display: inline-block;
 }
 
+/* Custom Uploaded Library Chips */
+.custom-chip {
+  background: #0f172a;
+  border: 1px dashed rgba(56, 189, 248, 0.4);
+  color: var(--text-secondary);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.custom-chip:hover {
+  border-color: #38bdf8;
+  color: var(--text-primary);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.custom-chip.active {
+  border-style: solid;
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+
+.custom-chip .chip-delete {
+  margin-left: 0.25rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #94a3b8;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.custom-chip .chip-delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
 /* Drag & Drop Upload Zone */
 .dropzone {
   border: 2px dashed rgba(148, 163, 184, 0.3);
