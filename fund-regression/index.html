@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fund Regression & Factor Analysis Lab | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="regression.css" />
+  </head>
+  <body class="regression-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link">Calculators</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">DCA Backtest</a>
+          <a href="index.html" class="top-nav-link active">Regression Lab</a>
+          <a href="../pages/fire.html" class="top-nav-link">FIRE Dashboard</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">Drawdown Engine</a>
+          <a href="../pages/market-stress.html" class="top-nav-link">Market Stress</a>
+          <a href="../pages/news.html" class="top-nav-link">News Feed</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="regression-container">
+      <header class="regression-header">
+        <h1>📈 Fund Regression &amp; Factor Analysis Lab</h1>
+        <p class="regression-tagline">
+          Separate true manager edge (Jensen's Alpha) from market risk (Beta).
+          Run Capital Asset Pricing Model (CAPM) Ordinary Least Squares (OLS) regressions, inspect asymmetric Up/Down market capture, and track 36-month rolling beta stability across market cycles.
+        </p>
+      </header>
+
+      <!-- Status Bar -->
+      <section class="regression-status-bar" id="regression-status-bar">
+        <div class="status-pill highlight">
+          <span>Reference Benchmark:</span>
+          <strong id="status-benchmark-name">VOO (S&amp;P 500)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Active Universe:</span>
+          <strong id="status-universe-count">5 Funds</strong>
+        </div>
+        <div class="status-pill bottleneck">
+          <span>Risk-Free Rate:</span>
+          <strong id="status-rf-rate">3.00% (Annual)</strong>
+        </div>
+        <div class="status-pill" style="margin-left: auto;">
+          <span>Engine:</span>
+          <strong style="color: #38bdf8;">100% Client-Side Econometric Solvers</strong>
+        </div>
+      </section>
+
+      <!-- Alerts Container -->
+      <div id="regression-alerts-container"></div>
+
+      <main class="regression-layout">
+        <!-- SIDEBAR CONTROLS -->
+        <aside class="regression-sidebar">
+          <!-- 1. Benchmark & Parameters -->
+          <div class="panel-card">
+            <h2 class="panel-card-title">🎯 Model Benchmark &amp; Risk-Free</h2>
+
+            <div class="form-field">
+              <label for="select-benchmark">Reference Benchmark (MKT)</label>
+              <select id="select-benchmark">
+                <option value="VOO" selected>VOO - Vanguard S&amp;P 500 ETF</option>
+                <option value="SPY">SPY - SPDR S&amp;P 500 ETF</option>
+                <option value="QQQ">QQQ - Invesco Nasdaq 100 ETF</option>
+                <option value="SCHD">SCHD - Schwab U.S. Dividend Equity ETF</option>
+                <option value="BND">BND - Vanguard Total Bond Market ETF</option>
+              </select>
+            </div>
+
+            <div class="form-field" style="margin-top: 0.5rem;">
+              <label for="input-risk-free-rate">Risk-Free Rate ($R_f$) % / Yr</label>
+              <input type="number" id="input-risk-free-rate" min="0" max="15" step="0.25" value="3.00" />
+              <div class="rf-quick-buttons">
+                <button type="button" class="btn-quick-rf" data-rf="0.0">0.0% (Zero)</button>
+                <button type="button" class="btn-quick-rf" data-rf="2.0">2.0% (Avg)</button>
+                <button type="button" class="btn-quick-rf active" data-rf="3.0">3.0%</button>
+                <button type="button" class="btn-quick-rf" data-rf="4.5">4.5% (T-Bills)</button>
+              </div>
+            </div>
+
+            <div style="margin-top: 0.75rem; border-top: 1px solid rgba(148, 163, 184, 0.15); padding-top: 0.75rem;">
+              <label class="checkbox-row" for="check-regression-drip">
+                <input type="checkbox" id="check-regression-drip" checked />
+                <span>Reinvest Dividends (DRIP / Total Return)</span>
+              </label>
+              <span style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-top: 0.2rem; margin-left: 1.5rem;">
+                Uses <code>Adj Close</code>. Uncheck to evaluate price return only.
+              </span>
+            </div>
+          </div>
+
+          <!-- 2. Rolling Window & Options -->
+          <div class="panel-card">
+            <h2 class="panel-card-title">⏳ Rolling Window Setup</h2>
+            <div class="form-field">
+              <label for="select-rolling-window">Rolling Window Duration</label>
+              <select id="select-rolling-window">
+                <option value="24">24 Months (2 Years)</option>
+                <option value="36" selected>36 Months (3 Years - Standard)</option>
+                <option value="60">60 Months (5 Years)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="select-focus-fund">Focus Fund for Rolling Charts</label>
+              <select id="select-focus-fund">
+                <!-- Dynamically populated via JS -->
+              </select>
+            </div>
+          </div>
+
+          <!-- 3. Fund Universe & Upload -->
+          <div class="panel-card">
+            <h2 class="panel-card-title">
+              <span>📁 Fund Universe</span>
+              <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;" id="universe-badge">5 Funds</span>
+            </h2>
+
+            <label style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.35rem; display: block;">
+              Pre-bundled Benchmarks:
+            </label>
+            <div class="chips-container" id="preset-universe-chips">
+              <!-- Populated via JS -->
+            </div>
+
+            <!-- Saved Custom Funds (Synced from localStorage) -->
+            <div id="saved-custom-section" style="display: none; margin-bottom: 0.75rem;">
+              <label style="font-size: 0.75rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.35rem; display: block;">
+                💾 Saved Custom Library:
+              </label>
+              <div class="chips-container" id="custom-universe-chips">
+                <!-- Populated via JS -->
+              </div>
+            </div>
+
+            <!-- Drag & Drop Upload Zone -->
+            <div class="dropzone" id="regression-dropzone">
+              <input type="file" id="regression-file-input" class="file-input-hidden" multiple accept=".csv,.txt" />
+              <div class="dropzone-icon">📥</div>
+              <div class="dropzone-text">Drop CSV or Stooq TXT to analyze</div>
+              <div class="dropzone-subtext">Yahoo Finance (.csv) or Stooq (.txt) supported</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- MAIN RESULTS & VISUALIZATIONS -->
+        <section class="regression-main">
+          <!-- TOP 4 KPI HIGHLIGHT CARDS -->
+          <div class="kpi-cards-grid" id="kpi-highlights-grid">
+            <!-- Populated dynamically via JS -->
+          </div>
+
+          <!-- CHART CARD WITH TABS -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-tabs">
+                <button type="button" class="chart-tab-btn active" data-tab="sml">📐 Security Market Line (SML)</button>
+                <button type="button" class="chart-tab-btn" data-tab="rolling">⏳ Rolling Beta &amp; Alpha</button>
+                <button type="button" class="chart-tab-btn" data-tab="capture">⚖️ Up/Down Capture Ratios</button>
+              </div>
+              <div style="font-size: 0.78rem; color: var(--text-secondary);">
+                Hover over data points for econometric details
+              </div>
+            </div>
+
+            <div class="canvas-wrapper">
+              <canvas id="regression-chart"></canvas>
+            </div>
+
+            <div class="chart-legend" id="regression-chart-legend">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- LEADERBOARD SCORECARD -->
+          <div class="scorecard-card">
+            <div class="scorecard-header">
+              <h3 class="scorecard-title">🏆 Econometric Regression Leaderboard</h3>
+              <button type="button" class="btn-export" id="btn-export-csv">📥 Export CSV</button>
+            </div>
+            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0 0 0.85rem;">
+              Click any column header to sort. Positive <strong>Jensen's Alpha ($\alpha$)</strong> signifies true risk-adjusted outperformance over the benchmark.
+            </p>
+
+            <div class="table-responsive">
+              <table class="scorecard-table">
+                <thead>
+                  <tr>
+                    <th data-sort="ticker">Fund / Ticker</th>
+                    <th data-sort="cagr">Annual Return (CAGR)</th>
+                    <th data-sort="beta">Market Beta ($\beta$)</th>
+                    <th data-sort="alpha">Jensen's Alpha ($\alpha$)</th>
+                    <th data-sort="rSquared">$R^2$ (Fit)</th>
+                    <th data-sort="vol">Annual Volatility ($\sigma$)</th>
+                    <th data-sort="sharpe">Sharpe</th>
+                    <th data-sort="sortino">Sortino</th>
+                    <th data-sort="upCapture">Up Capture</th>
+                    <th data-sort="downCapture">Down Capture</th>
+                    <th data-sort="maxDrawdown">Max Drawdown</th>
+                    <th>Classification</th>
+                  </tr>
+                </thead>
+                <tbody id="scorecard-table-body">
+                  <!-- Populated dynamically via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="regression-ui.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>

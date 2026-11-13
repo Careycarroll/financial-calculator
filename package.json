@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node scripts/test_dca_engine.js",
-    "test:dca": "node scripts/test_dca_engine.js"
+    "test": "node scripts/test_dca_engine.js && node scripts/test_regression_engine.js",
+    "test:dca": "node scripts/test_dca_engine.js",
+    "test:regression": "node scripts/test_regression_engine.js"
   },
   "repository": {
     "type": "git",
