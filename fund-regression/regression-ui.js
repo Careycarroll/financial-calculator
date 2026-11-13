@@ -40,6 +40,7 @@ const state = {
   selectedTickers: new Set(['VOO', 'SPY', 'QQQ', 'SCHD', 'BND']),
   sortColumn: 'alpha',
   sortDirection: 'desc',
+  matrixSubtab: 'capm', // 'capm' | 'risk' | 'all'
   profiles: [],
   mousePos: null,
   // Zoom & Pan
@@ -113,8 +114,9 @@ function cacheDOMElements() {
     simpleScorecardCard: document.getElementById('simple-scorecard-card'),
     simpleScorecardBody: document.getElementById('simple-scorecard-body'),
     quantScorecardCard: document.getElementById('quant-scorecard-card'),
+    quantScorecardHead: document.getElementById('quant-scorecard-head'),
     scorecardBody: document.getElementById('scorecard-table-body'),
-    sortHeaders: document.querySelectorAll('.scorecard-table th[data-sort]'),
+    matrixSubtabs: document.querySelectorAll('.btn-matrix-subtab'),
     btnExportCSV: document.getElementById('btn-export-csv')
   };
 }
@@ -403,19 +405,17 @@ function attachEventListeners() {
     });
   });
 
-  // Table Sorting
-  elements.sortHeaders.forEach(th => {
-    th.addEventListener('click', () => {
-      const col = th.dataset.sort;
-      if (state.sortColumn === col) {
-        state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
-      } else {
-        state.sortColumn = col;
-        state.sortDirection = ['alpha', 'sharpe', 'sortino', 'cagr', 'upCapture'].includes(col) ? 'desc' : 'asc';
-      }
-      renderScorecardTable();
+  // Matrix Subtabs (Factor & CAPM vs Risk Ratios vs All Metrics)
+  if (elements.matrixSubtabs) {
+    elements.matrixSubtabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        elements.matrixSubtabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.matrixSubtab = btn.dataset.subtab;
+        renderScorecardTable();
+      });
     });
-  });
+  }
 
   // Export CSV
   elements.btnExportCSV.addEventListener('click', exportScorecardCSV);
@@ -827,6 +827,13 @@ function renderSimpleScorecard() {
     else if (p.fundRisk.sharpeRatio >= 0.7) sharpeDesc = `<strong>${p.fundRisk.sharpeRatio.toFixed(2)}</strong> (Good)`;
     else sharpeDesc = `${p.fundRisk.sharpeRatio.toFixed(2)} (Moderate)`;
 
+    // Gain-to-Pain
+    const gtpColor = p.fundRisk.gainToPainRatio >= 1.5 ? '#10b981' : (p.fundRisk.gainToPainRatio >= 1.0 ? '#38bdf8' : '#f59e0b');
+
+    // M^2
+    const m2Sign = p.mSquared > 0 ? '+' : '';
+    const m2Color = p.mSquared >= 0 ? '#38bdf8' : '#ef4444';
+
     // Verdict Badge
     let verdict = '';
     if (isBench) {
@@ -851,6 +858,8 @@ function renderSimpleScorecard() {
       <td>${riskDesc}</td>
       <td style="color:${alphaColor}"><strong>${isBench ? '0.00% (Base)' : `${alphaSign}${(p.capm.annualizedAlpha * 100).toFixed(2)}% / yr`}</strong></td>
       <td>${sharpeDesc}</td>
+      <td><strong style="color:${gtpColor}">${p.fundRisk.gainToPainRatio.toFixed(2)}x</strong></td>
+      <td style="color:${m2Color}"><strong>${m2Sign}${(p.mSquared * 100).toFixed(2)}%</strong></td>
       <td>${verdict}</td>
     `;
     frag.appendChild(tr);
@@ -903,7 +912,7 @@ function renderKPIHighlights() {
       </div>
       <div class="kpi-ticker" style="color: ${topSharpe.color}">${topSharpe.ticker}</div>
       <div class="kpi-value purple">${(topSharpe.fundRisk.cagr * 100).toFixed(2)}% CAGR</div>
-      <div class="kpi-subtext">Sortino: ${topSharpe.fundRisk.sortinoRatio} | Vol: ${(topSharpe.fundRisk.annualVolatility * 100).toFixed(1)}%</div>
+      <div class="kpi-subtext">Calmar: ${topSharpe.fundRisk.calmarRatio} | Martin (UPI): ${topSharpe.fundRisk.martinRatio} | Sortino: ${topSharpe.fundRisk.sortinoRatio}</div>
     </div>
 
     <!-- Top Asymmetric -->
@@ -914,7 +923,7 @@ function renderKPIHighlights() {
       </div>
       <div class="kpi-ticker" style="color: ${topCapture.color}">${topCapture.ticker}</div>
       <div class="kpi-value">${topCapture.dualBeta.upCapture.toFixed(0)}% Up / ${topCapture.dualBeta.downCapture.toFixed(0)}% Down</div>
-      <div class="kpi-subtext">Captures more rallies while absorbing fewer crash losses</div>
+      <div class="kpi-subtext">Gain/Pain: ${topCapture.fundRisk.gainToPainRatio}x | Omega: ${topCapture.fundRisk.omegaRatio}</div>
     </div>
 
     <!-- Capital Preserver -->
@@ -925,15 +934,99 @@ function renderKPIHighlights() {
       </div>
       <div class="kpi-ticker" style="color: ${safest.color}">${safest.ticker}</div>
       <div class="kpi-value" style="color: #60a5fa">${(safest.fundRisk.maxDrawdown * 100).toFixed(1)}% Max Drop</div>
-      <div class="kpi-subtext">Market Beta: ${safest.capm.beta} | Vol: ${(safest.fundRisk.annualVolatility * 100).toFixed(1)}%</div>
+      <div class="kpi-subtext">Ulcer Index: ${safest.fundRisk.ulcerIndex}% | Market Beta: ${safest.capm.beta}</div>
     </div>
   `;
 }
 
 // ----------------------------------------------------
-// Scorecard Table
+// Complete Econometric Matrix (CAPM vs Risk Ratios vs All)
 // ----------------------------------------------------
+const MATRIX_COLUMNS = {
+  capm: [
+    { key: 'ticker', label: 'Fund / Ticker' },
+    { key: 'cagr', label: 'Annual Return (CAGR)' },
+    { key: 'beta', label: 'Market Beta (β)' },
+    { key: 'alpha', label: "Jensen's Alpha (α)" },
+    { key: 'rSquared', label: 'R² (Fit)' },
+    { key: 'vol', label: 'Annual Volatility (σ)' },
+    { key: 'sharpe', label: 'Sharpe' },
+    { key: 'sortino', label: 'Sortino' },
+    { key: 'upCapture', label: 'Up Capture' },
+    { key: 'downCapture', label: 'Down Capture' },
+    { key: 'maxDrawdown', label: 'Max Drawdown' },
+    { key: 'badge', label: 'Classification', noSort: true }
+  ],
+  risk: [
+    { key: 'ticker', label: 'Fund / Ticker' },
+    { key: 'cagr', label: 'Annual Return (CAGR)' },
+    { key: 'sharpe', label: 'Sharpe' },
+    { key: 'sortino', label: 'Sortino' },
+    { key: 'calmar', label: 'Calmar Ratio' },
+    { key: 'martin', label: 'Martin (UPI)' },
+    { key: 'ulcer', label: 'Ulcer Index' },
+    { key: 'gainToPain', label: 'Gain-to-Pain' },
+    { key: 'omega', label: 'Omega' },
+    { key: 'treynor', label: 'Treynor' },
+    { key: 'infoRatio', label: 'Information Ratio' },
+    { key: 'mSquared', label: 'M² (Normalized %)' },
+    { key: 'maxDrawdown', label: 'Max Drawdown' }
+  ],
+  all: [
+    { key: 'ticker', label: 'Fund / Ticker' },
+    { key: 'cagr', label: 'CAGR' },
+    { key: 'beta', label: 'Beta (β)' },
+    { key: 'alpha', label: 'Alpha (α)' },
+    { key: 'rSquared', label: 'R²' },
+    { key: 'vol', label: 'Vol (σ)' },
+    { key: 'sharpe', label: 'Sharpe' },
+    { key: 'sortino', label: 'Sortino' },
+    { key: 'calmar', label: 'Calmar' },
+    { key: 'martin', label: 'Martin' },
+    { key: 'ulcer', label: 'Ulcer' },
+    { key: 'gainToPain', label: 'Gain/Pain' },
+    { key: 'omega', label: 'Omega' },
+    { key: 'treynor', label: 'Treynor' },
+    { key: 'infoRatio', label: 'IR' },
+    { key: 'mSquared', label: 'M²' },
+    { key: 'upCapture', label: 'Up Cap' },
+    { key: 'downCapture', label: 'Down Cap' },
+    { key: 'maxDrawdown', label: 'Max DD' },
+    { key: 'badge', label: 'Type', noSort: true }
+  ]
+};
+
 function renderScorecardTable() {
+  const cols = MATRIX_COLUMNS[state.matrixSubtab] || MATRIX_COLUMNS.capm;
+
+  // 1. Render Table Header
+  if (elements.quantScorecardHead) {
+    const headerTr = document.createElement('tr');
+    cols.forEach(col => {
+      const th = document.createElement('th');
+      th.textContent = col.label;
+      if (!col.noSort) {
+        th.dataset.sort = col.key;
+        if (state.sortColumn === col.key) {
+          th.classList.add(state.sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+        th.addEventListener('click', () => {
+          if (state.sortColumn === col.key) {
+            state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+          } else {
+            state.sortColumn = col.key;
+            state.sortDirection = ['alpha', 'sharpe', 'sortino', 'cagr', 'calmar', 'martin', 'gainToPain', 'omega', 'mSquared', 'upCapture'].includes(col.key) ? 'desc' : 'asc';
+          }
+          renderScorecardTable();
+        });
+      }
+      headerTr.appendChild(th);
+    });
+    elements.quantScorecardHead.innerHTML = '';
+    elements.quantScorecardHead.appendChild(headerTr);
+  }
+
+  // 2. Sort Profiles
   const sorted = [...state.profiles].sort((a, b) => {
     let valA, valB;
     switch (state.sortColumn) {
@@ -945,6 +1038,14 @@ function renderScorecardTable() {
       case 'vol': valA = a.fundRisk.annualVolatility; valB = b.fundRisk.annualVolatility; break;
       case 'sharpe': valA = a.fundRisk.sharpeRatio; valB = b.fundRisk.sharpeRatio; break;
       case 'sortino': valA = a.fundRisk.sortinoRatio; valB = b.fundRisk.sortinoRatio; break;
+      case 'calmar': valA = a.fundRisk.calmarRatio; valB = b.fundRisk.calmarRatio; break;
+      case 'martin': valA = a.fundRisk.martinRatio; valB = b.fundRisk.martinRatio; break;
+      case 'ulcer': valA = a.fundRisk.ulcerIndex; valB = b.fundRisk.ulcerIndex; break;
+      case 'gainToPain': valA = a.fundRisk.gainToPainRatio; valB = b.fundRisk.gainToPainRatio; break;
+      case 'omega': valA = a.fundRisk.omegaRatio; valB = b.fundRisk.omegaRatio; break;
+      case 'treynor': valA = a.fundRisk.treynorRatio; valB = b.fundRisk.treynorRatio; break;
+      case 'infoRatio': valA = a.informationRatio; valB = b.informationRatio; break;
+      case 'mSquared': valA = a.mSquared; valB = b.mSquared; break;
       case 'upCapture': valA = a.dualBeta.upCapture; valB = b.dualBeta.upCapture; break;
       case 'downCapture': valA = a.dualBeta.downCapture; valB = b.dualBeta.downCapture; break;
       case 'maxDrawdown': valA = a.fundRisk.maxDrawdown; valB = b.fundRisk.maxDrawdown; break;
@@ -956,16 +1057,10 @@ function renderScorecardTable() {
     return state.sortDirection === 'asc' ? valA - valB : valB - valA;
   });
 
-  // Update table header sorting classes
-  elements.sortHeaders.forEach(th => {
-    th.classList.remove('sort-asc', 'sort-desc');
-    if (th.dataset.sort === state.sortColumn) {
-      th.classList.add(state.sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-    }
-  });
-
+  // 3. Render Rows via DocumentFragment
   elements.scorecardBody.innerHTML = '';
   const frag = document.createDocumentFragment();
+
   sorted.forEach(p => {
     const isBench = p.ticker === state.benchmarkTicker;
     const alphaSign = p.capm.annualizedAlpha > 0 ? '+' : '';
@@ -985,25 +1080,77 @@ function renderScorecardTable() {
     }
 
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>
-        <strong style="color:${p.color}">${p.ticker}</strong>
-        <div style="font-size:0.72rem; color:#94a3b8;">${p.name}</div>
-      </td>
-      <td><strong>${(p.fundRisk.cagr * 100).toFixed(2)}%</strong></td>
-      <td>${p.capm.beta.toFixed(2)}</td>
-      <td class="${alphaClass}"><strong>${alphaSign}${(p.capm.annualizedAlpha * 100).toFixed(2)}%</strong></td>
-      <td>${(p.capm.rSquared * 100).toFixed(1)}%</td>
-      <td>${(p.fundRisk.annualVolatility * 100).toFixed(1)}%</td>
-      <td><strong>${p.fundRisk.sharpeRatio.toFixed(2)}</strong></td>
-      <td>${p.fundRisk.sortinoRatio.toFixed(2)}</td>
-      <td style="color:#10b981">${p.dualBeta.upCapture.toFixed(0)}%</td>
-      <td style="color:#f43f5e">${p.dualBeta.downCapture.toFixed(0)}%</td>
-      <td style="color:#f59e0b">${(p.fundRisk.maxDrawdown * 100).toFixed(1)}%</td>
-      <td>${badge}</td>
-    `;
+    let cellsHtml = '';
+
+    cols.forEach(col => {
+      switch (col.key) {
+        case 'ticker':
+          cellsHtml += `<td><strong style="color:${p.color}">${p.ticker}</strong><div style="font-size:0.72rem; color:#94a3b8;">${p.name}</div></td>`;
+          break;
+        case 'cagr':
+          cellsHtml += `<td><strong>${(p.fundRisk.cagr * 100).toFixed(2)}%</strong></td>`;
+          break;
+        case 'beta':
+          cellsHtml += `<td>${p.capm.beta.toFixed(2)}</td>`;
+          break;
+        case 'alpha':
+          cellsHtml += `<td class="${alphaClass}"><strong>${alphaSign}${(p.capm.annualizedAlpha * 100).toFixed(2)}%</strong></td>`;
+          break;
+        case 'rSquared':
+          cellsHtml += `<td>${(p.capm.rSquared * 100).toFixed(1)}%</td>`;
+          break;
+        case 'vol':
+          cellsHtml += `<td>${(p.fundRisk.annualVolatility * 100).toFixed(1)}%</td>`;
+          break;
+        case 'sharpe':
+          cellsHtml += `<td><strong>${p.fundRisk.sharpeRatio.toFixed(2)}</strong></td>`;
+          break;
+        case 'sortino':
+          cellsHtml += `<td>${p.fundRisk.sortinoRatio.toFixed(2)}</td>`;
+          break;
+        case 'calmar':
+          cellsHtml += `<td><strong style="color:${p.fundRisk.calmarRatio >= 0.5 ? '#10b981' : (p.fundRisk.calmarRatio >= 0 ? '#38bdf8' : '#ef4444')}">${p.fundRisk.calmarRatio.toFixed(2)}</strong></td>`;
+          break;
+        case 'martin':
+          cellsHtml += `<td>${p.fundRisk.martinRatio.toFixed(2)}</td>`;
+          break;
+        case 'ulcer':
+          cellsHtml += `<td>${p.fundRisk.ulcerIndex.toFixed(1)}%</td>`;
+          break;
+        case 'gainToPain':
+          cellsHtml += `<td><strong style="color:${p.fundRisk.gainToPainRatio >= 1.5 ? '#10b981' : '#e2e8f0'}">${p.fundRisk.gainToPainRatio.toFixed(2)}x</strong></td>`;
+          break;
+        case 'omega':
+          cellsHtml += `<td>${p.fundRisk.omegaRatio.toFixed(2)}</td>`;
+          break;
+        case 'treynor':
+          cellsHtml += `<td>${p.fundRisk.treynorRatio.toFixed(3)}</td>`;
+          break;
+        case 'infoRatio':
+          cellsHtml += `<td>${p.informationRatio.toFixed(2)}</td>`;
+          break;
+        case 'mSquared':
+          cellsHtml += `<td><strong style="color:${p.mSquared >= 0 ? '#38bdf8' : '#ef4444'}">${(p.mSquared * 100).toFixed(2)}%</strong></td>`;
+          break;
+        case 'upCapture':
+          cellsHtml += `<td style="color:#10b981">${p.dualBeta.upCapture.toFixed(0)}%</td>`;
+          break;
+        case 'downCapture':
+          cellsHtml += `<td style="color:#f43f5e">${p.dualBeta.downCapture.toFixed(0)}%</td>`;
+          break;
+        case 'maxDrawdown':
+          cellsHtml += `<td style="color:#f59e0b">${(p.fundRisk.maxDrawdown * 100).toFixed(1)}%</td>`;
+          break;
+        case 'badge':
+          cellsHtml += `<td>${badge}</td>`;
+          break;
+      }
+    });
+
+    tr.innerHTML = cellsHtml;
     frag.appendChild(tr);
   });
+
   elements.scorecardBody.appendChild(frag);
 }
 
@@ -1012,7 +1159,9 @@ function exportScorecardCSV() {
 
   const headers = [
     'Ticker', 'Name', 'CAGR_Pct', 'Beta', 'Alpha_Annual_Pct', 'R_Squared_Pct',
-    'Annual_Volatility_Pct', 'Sharpe_Ratio', 'Sortino_Ratio', 'Up_Capture_Pct',
+    'Annual_Volatility_Pct', 'Sharpe_Ratio', 'Sortino_Ratio', 'Calmar_Ratio',
+    'Ulcer_Index_Pct', 'Martin_UPI_Ratio', 'Gain_To_Pain_Ratio', 'Omega_Ratio',
+    'Treynor_Ratio', 'Information_Ratio', 'M_Squared_Pct', 'Up_Capture_Pct',
     'Down_Capture_Pct', 'Max_Drawdown_Pct', 'Months_Analyzed'
   ];
 
@@ -1026,6 +1175,14 @@ function exportScorecardCSV() {
     (p.fundRisk.annualVolatility * 100).toFixed(2),
     p.fundRisk.sharpeRatio.toFixed(2),
     p.fundRisk.sortinoRatio.toFixed(2),
+    p.fundRisk.calmarRatio.toFixed(2),
+    p.fundRisk.ulcerIndex.toFixed(2),
+    p.fundRisk.martinRatio.toFixed(2),
+    p.fundRisk.gainToPainRatio.toFixed(2),
+    p.fundRisk.omegaRatio.toFixed(2),
+    p.fundRisk.treynorRatio.toFixed(4),
+    p.informationRatio.toFixed(2),
+    (p.mSquared * 100).toFixed(2),
     p.dualBeta.upCapture.toFixed(2),
     p.dualBeta.downCapture.toFixed(2),
     (p.fundRisk.maxDrawdown * 100).toFixed(2),

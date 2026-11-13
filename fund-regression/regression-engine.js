@@ -228,10 +228,11 @@ export function computeRiskMetrics(returns, annualRf = 0, beta = 1) {
   // 5. Treynor Ratio: Excess Return / Beta
   const treynorRatio = Math.abs(beta) > 1e-4 ? excessReturn / beta : 0;
 
-  // 6. Max Drawdown across monthly compounding trajectory
+  // 6. Max Drawdown & Ulcer Index across monthly compounding trajectory
   let peak = 1;
   let currentVal = 1;
   let maxDrawdown = 0;
+  let sumSqDDPct = 0;
 
   for (let i = 0; i < n; i++) {
     currentVal *= (1 + returns[i]);
@@ -242,7 +243,35 @@ export function computeRiskMetrics(returns, annualRf = 0, beta = 1) {
     if (dd < maxDrawdown) {
       maxDrawdown = dd;
     }
+    const ddPct = dd * 100;
+    sumSqDDPct += ddPct * ddPct;
   }
+
+  // 7. Calmar Ratio: Excess Return / |Max Drawdown|
+  const calmarRatio = Math.abs(maxDrawdown) > 1e-4 ? excessReturn / Math.abs(maxDrawdown) : 0;
+
+  // 8. Ulcer Index & Martin Ratio (UPI): Depth & duration break-even fatigue
+  const ulcerIndex = Math.sqrt(sumSqDDPct / n);
+  const martinRatio = ulcerIndex > 1e-4 ? (excessReturn * 100) / ulcerIndex : 0;
+
+  // 9. Gain-to-Pain Ratio (Schwager): Cumulative gains per $1 of cumulative loss
+  let sumGains = 0;
+  let sumLosses = 0;
+  for (let i = 0; i < n; i++) {
+    if (returns[i] > 0) sumGains += returns[i];
+    else if (returns[i] < 0) sumLosses += Math.abs(returns[i]);
+  }
+  const gainToPainRatio = sumLosses > 1e-6 ? sumGains / sumLosses : (sumGains > 0 ? 99.99 : 0);
+
+  // 10. Omega Ratio (Keating & Shadwick): Full return distribution probability mass
+  let omegaUpside = 0;
+  let omegaDownside = 0;
+  for (let i = 0; i < n; i++) {
+    const diff = returns[i] - monthlyRf;
+    if (diff > 0) omegaUpside += diff;
+    else omegaDownside += Math.abs(diff);
+  }
+  const omegaRatio = omegaDownside > 1e-6 ? omegaUpside / omegaDownside : (omegaUpside > 0 ? 99.99 : 1.0);
 
   return {
     cagr: Number(cagr.toFixed(4)),
@@ -250,6 +279,11 @@ export function computeRiskMetrics(returns, annualRf = 0, beta = 1) {
     sharpeRatio: Number(sharpeRatio.toFixed(2)),
     sortinoRatio: Number(sortinoRatio.toFixed(2)),
     treynorRatio: Number(treynorRatio.toFixed(4)),
+    calmarRatio: Number(calmarRatio.toFixed(2)),
+    ulcerIndex: Number(ulcerIndex.toFixed(2)),
+    martinRatio: Number(martinRatio.toFixed(2)),
+    gainToPainRatio: Number(gainToPainRatio.toFixed(2)),
+    omegaRatio: Number(omegaRatio.toFixed(2)),
     maxDrawdown: Number(maxDrawdown.toFixed(4))
   };
 }
@@ -375,6 +409,9 @@ export function analyzeFundRegression(fund, benchmark, options = {}) {
     ? Number((excessOverBench / capm.trackingError).toFixed(2))
     : 0;
 
+  // Modigliani–Modigliani Measure (M^2): Normalized return matching benchmark volatility
+  const mSquared = Number((annualRf + fundRisk.sharpeRatio * benchRisk.annualVolatility).toFixed(4));
+
   // 4. Dual-Beta & Capture
   const dualBeta = computeDualBetaAndCapture(aligned, annualRf);
 
@@ -392,6 +429,7 @@ export function analyzeFundRegression(fund, benchmark, options = {}) {
     fundRisk,
     benchRisk,
     informationRatio,
+    mSquared,
     dualBeta,
     rolling
   };
