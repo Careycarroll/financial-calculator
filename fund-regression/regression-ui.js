@@ -433,7 +433,7 @@ function renderKPIHighlights() {
       </div>
       <div class="kpi-ticker" style="color: ${topAlpha.color}">${topAlpha.ticker}</div>
       <div class="kpi-value green">+${(topAlpha.capm.annualizedAlpha * 100).toFixed(2)}% / Yr</div>
-      <div class="kpi-subtext">True excess return above market expectations ($\beta = ${topAlpha.capm.beta}$)</div>
+      <div class="kpi-subtext">True excess return above market expectations (&beta; = ${topAlpha.capm.beta})</div>
     </div>
 
     <!-- Best Sharpe Ratio -->
@@ -614,7 +614,7 @@ function renderSMLChart() {
 
   ctx.clearRect(0, 0, w, h);
 
-  const pad = { top: 30, right: 40, bottom: 50, left: 65 };
+  const pad = { top: 30, right: 75, bottom: 50, left: 65 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
@@ -628,8 +628,8 @@ function renderSMLChart() {
   const betas = state.profiles.map(p => p.capm.beta);
   const returns = state.profiles.map(p => p.fundRisk.cagr);
 
-  const minBeta = Math.min(0, ...betas);
-  const maxBeta = Math.max(1.8, Math.max(...betas) * 1.15);
+  const minBeta = Math.min(-0.2, ...betas);
+  const maxBeta = Math.max(1.6, Math.max(...betas) * 1.25);
 
   const minRet = Math.min(-0.05, Math.min(...returns) * 1.2, rf - 0.02);
   const maxRet = Math.max(0.25, Math.max(...returns) * 1.2);
