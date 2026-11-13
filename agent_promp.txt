@@ -168,6 +168,38 @@ Note: For arrow functions or class methods, use `grep -n` to locate the line fir
 - When a fix touches a function signature or return value, **identify all call sites** in the audited code and flag any that need updating.
 - Do not combine fixes across different checklist items in a single command sequence unless I explicitly ask for it.
 
+### Branch, Issue & Pull Request Workflow
+
+All future code modifications, features, optimizations, and bug fixes must follow a disciplined GitHub Issue, feature branch, and Pull Request (PR) workflow:
+
+1. **Issue Creation First**:
+   - Before modifying code, verify an existing issue exists or create one via `gh issue create` linked to the active Milestone.
+   - Describe the user problem, root cause/feature goal, and acceptance criteria.
+2. **Dedicated Feature / Fix Branch**:
+   - Never commit changes directly to `main`.
+   - Always branch off fresh `main`:
+     ```bash
+     git checkout main && git pull origin main
+     git checkout -b feat/<issue-number>-<short-description>   # New features / enhancements
+     # or:
+     git checkout -b fix/<issue-number>-<short-description>    # Bug fixes / calibrations
+     # or:
+     git checkout -b docs/<issue-number>-<short-description>   # Documentation / prompt updates
+     ```
+3. **Automated Verification**:
+   - Run the automated test suite (`npm test`) on the feature branch.
+   - All unit, financial math, and econometric regression tests must pass cleanly (0 errors).
+4. **Pull Request & Linking**:
+   - Push the branch: `git push -u origin <branch-name>`.
+   - Open a PR targeting `main` via `gh pr create`:
+     ```bash
+     gh pr create --title "<type>: <concise description>" --body "Closes #<issue-number>. <Summary of changes>."
+     ```
+   - PR descriptions must include `Closes #<issue-number>` or `Resolves #<issue-number>` to link and close the issue upon merge.
+5. **Merge & Clean Up**:
+   - Merge the PR cleanly via `gh pr merge --merge --delete-branch`.
+   - Checkout `main` and pull latest: `git checkout main && git pull origin main`.
+
 ### Completion Criteria
 A checklist item is complete when:
 1. The fix has been implemented and the code has been re-extracted for verification.
@@ -186,6 +218,9 @@ Phase 1-5: Core remediation -- Completed. Bug fixes, input safety, performance, 
 Phase 6: Stock Evaluator cache -- Completed. IndexedDB 24h TTL for API responses, formatRatio import fix.
 Phase 7: Economics expansion -- Completed April 2026. Consumer Theory page (price elasticity 4 modes, cross-price, expected utility, risk premium); font scale toggle with canvas font scaling via window.CHART_FONTS across all chart files.
 Phase 8: Consumer Theory expansion -- Completed April 2026. Arbitrary linear equation parser (scalar, shift variables, own-price detection, parse confirmation display, inline shift fields); Shift Analysis panel (Scenario 2 live comparison, D2/S2 dashed overlay, E1/E2 dots, axis directional arrows, scalar support, plain-language interpretation); elasticity reference panel (classification table with active row highlight, formulas, intuitions); stacked demand/supply result cards; market power explainer added to How Price Elasticity Works.
+Phase 9: DCA Comparator & Multi-Asset Backtest -- Completed November 2026. Multi-file CSV/Stooq parsers, monthly resampling, common/elapsed date alignment, DRIP toggle, timeline scrubber.
+Phase 10: Fund Regression & Factor Analysis Lab -- Completed November 2026. CAPM OLS solver (Alpha, Beta, R², Tracking Error), Dual-Beta (Up/Down Capture), 36M/60M rolling regressions, interactive SML chart with pan/zoom.
+Phase 10.1: Scale Optimization & UX Polish -- Completed November 2026. Batch async chunk ingestion for 900+ fund files, spatial collision culling, granular zoom step ladder, and responsive viewport containment.
 
 ## Prompt Maintenance
 
