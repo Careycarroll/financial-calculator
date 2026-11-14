@@ -13,6 +13,7 @@ import {
   resetSessionToDefault,
   subscribeSessionFunds
 } from '../js/session-funds.js';
+import { openAssetModal } from '../js/asset-modal.js';
 
 const STORAGE_KEY_CUSTOM_FUNDS = 'dca_custom_funds_library';
 
@@ -68,7 +69,7 @@ async function init() {
   await initSessionFunds();
   loadCustomLibraryIntoUniverse();
   renderUniverseChips();
-  populateDropdowns();
+  updatePickerButtons();
   attachEventListeners();
   setMode('simple');
   runAnalysis();
@@ -76,7 +77,7 @@ async function init() {
   subscribeSessionFunds(() => {
     loadCustomLibraryIntoUniverse();
     renderUniverseChips();
-    populateDropdowns();
+    updatePickerButtons();
     runAnalysis();
   });
 }
@@ -99,12 +100,15 @@ function cacheDOMElements() {
     panelAdvancedParams: document.getElementById('panel-advanced-params'),
     panelRollingSetup: document.getElementById('panel-rolling-setup'),
     panelFundUniverse: document.getElementById('panel-fund-universe'),
-    selectBenchmark: document.getElementById('select-benchmark'),
+    btnPickerBenchmark: document.getElementById('btn-picker-benchmark'),
+    dotBenchmark: document.getElementById('dot-benchmark'),
+    displayBenchmarkTicker: document.getElementById('display-benchmark-ticker'),
+    displayBenchmarkName: document.getElementById('display-benchmark-name'),
+    btnPickerFocus: document.getElementById('btn-picker-focus'),
+    dotFocus: document.getElementById('dot-focus'),
+    displayFocusTicker: document.getElementById('display-focus-ticker'),
+    displayFocusName: document.getElementById('display-focus-name'),
     inputRf: document.getElementById('input-risk-free-rate'),
-    quickRfButtons: document.querySelectorAll('.btn-quick-rf'),
-    checkDRIP: document.getElementById('check-regression-drip'),
-    selectRollingWindow: document.getElementById('select-rolling-window'),
-    selectFocusFund: document.getElementById('select-focus-fund'),
     universeBadge: document.getElementById('universe-badge'),
     inputUniverseSearch: document.getElementById('universe-search-input'),
     universeFilteredCount: document.getElementById('universe-filtered-count'),
@@ -194,30 +198,18 @@ function loadCustomLibraryIntoUniverse() {
   });
 }
 
-function populateDropdowns() {
-  // Benchmark selector
-  elements.selectBenchmark.innerHTML = '';
-  const benchFrag = document.createDocumentFragment();
-  allFunds.forEach(f => {
-    const opt = document.createElement('option');
-    opt.value = f.ticker;
-    opt.textContent = `${f.ticker} - ${f.name}`;
-    if (f.ticker === state.benchmarkTicker) opt.selected = true;
-    benchFrag.appendChild(opt);
-  });
-  elements.selectBenchmark.appendChild(benchFrag);
+function updatePickerButtons() {
+  const all = getAllFundsSync();
+  const bench = all.find(f => f.ticker === state.benchmarkTicker) || PRESET_BENCHMARKS.find(b => b.ticker === state.benchmarkTicker) || { ticker: state.benchmarkTicker, name: state.benchmarkTicker, color: '#a855f7' };
+  const focus = all.find(f => f.ticker === state.focusFundTicker) || PRESET_BENCHMARKS.find(b => b.ticker === state.focusFundTicker) || { ticker: state.focusFundTicker, name: state.focusFundTicker, color: '#38bdf8' };
 
-  // Focus fund selector
-  elements.selectFocusFund.innerHTML = '';
-  const focusFrag = document.createDocumentFragment();
-  allFunds.forEach(f => {
-    const opt = document.createElement('option');
-    opt.value = f.ticker;
-    opt.textContent = `${f.ticker} - ${f.name}`;
-    if (f.ticker === state.focusFundTicker) opt.selected = true;
-    focusFrag.appendChild(opt);
-  });
-  elements.selectFocusFund.appendChild(focusFrag);
+  if (elements.displayBenchmarkTicker) elements.displayBenchmarkTicker.textContent = bench.ticker;
+  if (elements.displayBenchmarkName) elements.displayBenchmarkName.textContent = bench.name;
+  if (elements.dotBenchmark) elements.dotBenchmark.style.background = bench.color || '#a855f7';
+
+  if (elements.displayFocusTicker) elements.displayFocusTicker.textContent = focus.ticker;
+  if (elements.displayFocusName) elements.displayFocusName.textContent = focus.name;
+  if (elements.dotFocus) elements.dotFocus.style.background = focus.color || '#38bdf8';
 }
 
 function renderUniverseChips() {
@@ -362,13 +354,24 @@ function attachEventListeners() {
     elements.cheatSheetArrow.classList.toggle('open', isClosed);
   });
 
-  // Benchmark Change
-  elements.selectBenchmark.addEventListener('change', e => {
-    state.benchmarkTicker = e.target.value;
-    state.selectedTickers.add(state.benchmarkTicker);
-    renderUniverseChips();
-    runAnalysis();
-  });
+  // Benchmark Picker Trigger
+  if (elements.btnPickerBenchmark) {
+    elements.btnPickerBenchmark.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Model Benchmark (MKT)',
+        badgeText: 'Benchmark',
+        badgeColor: '#a855f7',
+        activeTicker: state.benchmarkTicker,
+        onSelect: (ticker) => {
+          state.benchmarkTicker = ticker;
+          state.selectedTickers.add(ticker);
+          updatePickerButtons();
+          renderUniverseChips();
+          runAnalysis();
+        }
+      });
+    });
+  }
 
   // Risk Free Rate Input
   elements.inputRf.addEventListener('input', e => {
@@ -406,11 +409,24 @@ function attachEventListeners() {
     runAnalysis();
   });
 
-  // Focus Fund for Rolling Chart
-  elements.selectFocusFund.addEventListener('change', e => {
-    state.focusFundTicker = e.target.value;
-    renderCurrentChart();
-  });
+  // Focus Fund for Rolling Chart Picker
+  if (elements.btnPickerFocus) {
+    elements.btnPickerFocus.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Focus Fund (Rolling Charts)',
+        badgeText: 'Focus Fund',
+        badgeColor: '#38bdf8',
+        activeTicker: state.focusFundTicker,
+        onSelect: (ticker) => {
+          state.focusFundTicker = ticker;
+          state.selectedTickers.add(ticker);
+          updatePickerButtons();
+          renderUniverseChips();
+          renderCurrentChart();
+        }
+      });
+    });
+  }
 
   // Chart Tabs
   elements.chartTabButtons.forEach(btn => {
@@ -669,28 +685,12 @@ async function handleFiles(files) {
   }
 
   loadCustomLibraryIntoUniverse();
-  populateDropdowns();
+  updatePickerButtons();
   renderUniverseChips();
   runAnalysis();
 
   if (result.errors && result.errors.length > 0) {
     showAlert(`${result.errors.length} files were skipped due to formatting or insufficient history.`, 'warning');
-  }
-}
-
-  const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
-  if (total === 1) {
-    showAlert(`Successfully loaded ${newFunds[0].ticker} into regression universe!`, 'info');
-  } else {
-    showAlert(`⚡ Successfully imported ${newFunds.length} funds in ${elapsedSec}s!`, 'info');
-  }
-
-  if (errors.length > 0) {
-    if (errors.length <= 3) {
-      errors.forEach(e => showAlert(e, 'warning'));
-    } else {
-      showAlert(`${errors.length} files were skipped due to formatting or insufficient history (<12 months).`, 'warning');
-    }
   }
 }
 

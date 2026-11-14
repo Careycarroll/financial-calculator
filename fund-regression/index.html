@@ -6,6 +6,7 @@
     <title>Fund Regression & Factor Analysis Lab | Financial Calculator</title>
     <link rel="stylesheet" href="../css/base.css" />
     <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
     <link rel="stylesheet" href="regression.css" />
   </head>
   <body class="regression-page">
@@ -130,14 +131,13 @@
             <h2 class="panel-card-title">🎯 Model Benchmark</h2>
 
             <div class="form-field">
-              <label for="select-benchmark">Reference Benchmark (MKT)</label>
-              <select id="select-benchmark">
-                <option value="VOO" selected>VOO - Vanguard S&amp;P 500 ETF</option>
-                <option value="SPY">SPY - SPDR S&amp;P 500 ETF</option>
-                <option value="QQQ">QQQ - Invesco Nasdaq 100 ETF</option>
-                <option value="SCHD">SCHD - Schwab U.S. Dividend Equity ETF</option>
-                <option value="BND">BND - Vanguard Total Bond Market ETF</option>
-              </select>
+              <label>Reference Benchmark (MKT)</label>
+              <button type="button" class="asset-picker-btn" id="btn-picker-benchmark" style="width: 100%;">
+                <span class="picker-dot" id="dot-benchmark" style="background: #a855f7;"></span>
+                <span class="picker-ticker" id="display-benchmark-ticker">VOO</span>
+                <span class="picker-name" id="display-benchmark-name">Vanguard S&amp;P 500 ETF</span>
+                <span class="picker-arrow">🔍 Change</span>
+              </button>
             </div>
           </div>
 
@@ -178,10 +178,13 @@
               </select>
             </div>
             <div class="form-field">
-              <label for="select-focus-fund">Focus Fund for Rolling Charts</label>
-              <select id="select-focus-fund">
-                <!-- Dynamically populated via JS -->
-              </select>
+              <label>Focus Fund for Rolling Charts</label>
+              <button type="button" class="asset-picker-btn" id="btn-picker-focus" style="width: 100%;">
+                <span class="picker-dot" id="dot-focus" style="background: #38bdf8;"></span>
+                <span class="picker-ticker" id="display-focus-ticker">QQQ</span>
+                <span class="picker-name" id="display-focus-name">Invesco QQQ Trust</span>
+                <span class="picker-arrow">🔍 Change</span>
+              </button>
             </div>
           </div>
 

@@ -19,6 +19,7 @@ import {
   deleteSessionFund,
   subscribeSessionFunds
 } from '../js/session-funds.js';
+import { openAssetModal } from '../js/asset-modal.js';
 
 // Vibrant neon-accessible color palette for funds
 const FUND_COLORS = [
@@ -82,6 +83,7 @@ export async function initDCAComparator() {
 
 function cacheDOMElements() {
   elements = {
+    btnDcaOpenModal: document.getElementById('btn-dca-open-modal'),
     dropzone: document.getElementById('dca-dropzone'),
     fileInput: document.getElementById('dca-file-input'),
     presetChips: document.getElementById('preset-chips'),
@@ -275,6 +277,61 @@ async function deleteCustomFund(ticker) {
   showAlert(`Removed ${ticker} from session library.`, 'info');
 }
 
+function addFundToDCA(fund) {
+  if (!fund || !fund.data || fund.data.length < 2) {
+    showAlert(`Fund ${fund?.ticker || 'selected'} has insufficient history.`, 'warning');
+    return;
+  }
+
+  const existingIndex = state.activeFunds.findIndex(f => f.ticker === fund.ticker);
+  if (existingIndex !== -1) {
+    showAlert(`${fund.ticker} is already in the comparison.`, 'info');
+    return;
+  }
+
+  if (state.activeFunds.length >= 3) {
+    state.activeFunds.pop();
+  }
+
+  const color = FUND_COLORS[state.activeFunds.length % FUND_COLORS.length];
+  state.activeFunds.push({ ...fund, color });
+
+  state.activeFunds.forEach((f, idx) => {
+    f.color = FUND_COLORS[idx % FUND_COLORS.length];
+  });
+
+  renderPresetChips();
+  renderCustomLibraryChips();
+  renderActiveFundsList();
+  resetDateRangeToMax();
+  runComparison();
+  showAlert(`Added ${fund.ticker} to comparison!`, 'info');
+}
+
+function swapDcaFund(index, fund) {
+  if (index < 0 || index >= state.activeFunds.length) return;
+  if (!fund || !fund.data || fund.data.length < 2) {
+    showAlert(`Fund ${fund?.ticker || 'selected'} has insufficient history.`, 'warning');
+    return;
+  }
+
+  const existingIndex = state.activeFunds.findIndex(f => f.ticker === fund.ticker);
+  if (existingIndex !== -1 && existingIndex !== index) {
+    showAlert(`${fund.ticker} is already active in another slot.`, 'info');
+    return;
+  }
+
+  const color = state.activeFunds[index].color;
+  state.activeFunds[index] = { ...fund, color };
+
+  renderPresetChips();
+  renderCustomLibraryChips();
+  renderActiveFundsList();
+  resetDateRangeToMax();
+  runComparison();
+  showAlert(`Changed slot ${index + 1} to ${fund.ticker}!`, 'info');
+}
+
 function renderActiveFundsList() {
   if (!elements.activeFundsList) return;
   elements.activeFundsList.innerHTML = '';
@@ -299,8 +356,23 @@ function renderActiveFundsList() {
           ${start} → ${end} (${pts} monthly records)
         </div>
       </div>
-      <button type="button" class="btn-remove-fund" title="Remove ${fund.ticker}">×</button>
+      <div style="display:flex; align-items:center; gap:0.25rem;">
+        <button type="button" class="btn-swap-fund" title="Change ${fund.ticker}" style="background:transparent; border:none; color:#38bdf8; cursor:pointer; font-size:0.85rem; padding:0.2rem 0.4rem; border-radius:4px; opacity:0.85;">🔍</button>
+        <button type="button" class="btn-remove-fund" title="Remove ${fund.ticker}">×</button>
+      </div>
     `;
+
+    item.querySelector('.btn-swap-fund').addEventListener('click', () => {
+      openAssetModal({
+        title: `Change Fund in Slot ${index + 1}`,
+        badgeText: 'Change Asset',
+        badgeColor: fund.color || '#38bdf8',
+        activeTicker: fund.ticker,
+        onSelect: (ticker, newFund) => {
+          swapDcaFund(index, newFund);
+        }
+      });
+    });
 
     item.querySelector('.btn-remove-fund').addEventListener('click', () => {
       if (state.activeFunds.length <= 1) {
@@ -323,6 +395,20 @@ function renderActiveFundsList() {
 }
 
 function attachEventListeners() {
+  // Search Universe Modal Trigger
+  if (elements.btnDcaOpenModal) {
+    elements.btnDcaOpenModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Add Fund to DCA Comparison',
+        badgeText: 'DCA Universe',
+        badgeColor: '#38bdf8',
+        onSelect: (ticker, fund) => {
+          addFundToDCA(fund);
+        }
+      });
+    });
+  }
+
   // Input fields
   elements.inputInitial.addEventListener('input', e => {
     state.initialBalance = Math.max(0, parseFloat(e.target.value) || 0);
