@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfolio Backtest Studio | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="portfolio.css" />
+  </head>
+  <body class="portfolio-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="index.html" class="top-nav-link active">💼 Portfolio Studio</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container portfolio-container">
+      <header class="studio-header">
+        <h1>💼 Portfolio Backtest Studio</h1>
+        <p class="studio-tagline">
+          Construct and backtest multi-asset portfolio models. Simulate periodic calendar rebalancing, ongoing cashflows,
+          and compare up to 3 custom portfolio allocation models side-by-side against a benchmark index.
+        </p>
+      </header>
+
+      <!-- Dynamic Status & Control Bar -->
+      <section class="status-summary-bar" aria-label="Portfolio Timeline and Status">
+        <div class="status-pill highlight">
+          <span>Active Timeline:</span>
+          <strong id="status-timeline-range">-- to --</strong>
+          <span class="status-sub" id="status-total-months">(0 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Limiting Asset:</span>
+          <strong id="status-limiting-asset">--</strong>
+        </div>
+        <div class="status-pill">
+          <span>Rebalancing:</span>
+          <strong id="status-rebalance-freq">Annual (Dec)</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Model Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Alerts Container -->
+      <div id="portfolio-alerts-container" class="portfolio-alerts-wrap"></div>
+
+      <!-- PORTFOLIO MODEL CONFIGURATION PANEL -->
+      <section class="config-card" id="config-panel" aria-label="Portfolio Model Configuration">
+        <div class="config-tabs-nav">
+          <button type="button" class="cfg-tab active" data-cfg-tab="assets" id="tab-btn-cfg-assets">
+            <span>📊 Portfolio Assets &amp; Allocations</span>
+          </button>
+          <button type="button" class="cfg-tab" data-cfg-tab="settings" id="tab-btn-cfg-settings">
+            <span>⚙️ Rebalancing &amp; Cashflow Settings</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: ASSETS & ALLOCATIONS -->
+        <div class="cfg-pane" id="cfg-pane-assets">
+          <!-- Preset Allocation Bar -->
+          <div class="presets-row">
+            <span class="presets-label">⚡ Model Presets:</span>
+            <div class="presets-buttons-wrap">
+              <button type="button" class="btn-preset-chip" data-preset="sixty-forty">Classic 60/40 (VOO/BND)</button>
+              <button type="button" class="btn-preset-chip" data-preset="aggressive-growth">Aggressive 80/20 (VOO/QQQ/BND)</button>
+              <button type="button" class="btn-preset-chip" data-preset="three-fund">Three-Fund (VOO/SCHD/BND)</button>
+              <button type="button" class="btn-preset-chip" data-preset="barbell">Tech &amp; Dividend Barbell (QQQ/SCHD)</button>
+              <button type="button" class="btn-preset-chip" data-preset="all-weather">All-Weather (VOO/SCHD/BND)</button>
+            </div>
+          </div>
+
+          <!-- Benchmark Selector Row -->
+          <div class="benchmark-config-row">
+            <div class="bench-label-group">
+              <label for="btn-select-benchmark" class="control-label-bold">Benchmark Comparison:</label>
+              <span class="control-hint">Asset used as standard 100% market index reference</span>
+            </div>
+            <button type="button" class="asset-picker-btn" id="btn-select-benchmark">
+              <span class="picker-dot" style="background: #94a3b8;"></span>
+              <span class="picker-ticker" id="bench-ticker-label">VOO</span>
+              <span class="picker-name" id="bench-name-label">Vanguard S&amp;P 500 ETF</span>
+              <span class="picker-arrow">🔍 Change</span>
+            </button>
+          </div>
+
+          <!-- Assets & Multi-Portfolio Allocation Table -->
+          <div class="allocations-table-wrapper">
+            <table class="allocations-table" id="allocations-table">
+              <thead>
+                <tr>
+                  <th style="width: 32%;">Asset / Fund</th>
+                  <th style="width: 20%;" class="th-p1">
+                    <div class="model-th-title">
+                      <span class="model-color-dot" style="background: #38bdf8;"></span>
+                      <input type="text" class="model-name-input" id="input-p1-name" value="Portfolio #1" />
+                    </div>
+                  </th>
+                  <th style="width: 20%;" class="th-p2">
+                    <div class="model-th-title">
+                      <span class="model-color-dot" style="background: #34d399;"></span>
+                      <input type="text" class="model-name-input" id="input-p2-name" value="Portfolio #2" />
+                    </div>
+                  </th>
+                  <th style="width: 20%;" class="th-p3">
+                    <div class="model-th-title">
+                      <span class="model-color-dot" style="background: #fbbf24;"></span>
+                      <input type="text" class="model-name-input" id="input-p3-name" value="Portfolio #3" />
+                    </div>
+                  </th>
+                  <th style="width: 8%; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="allocations-tbody">
+                <!-- Dynamically populated rows via JS -->
+              </tbody>
+              <tfoot>
+                <tr class="totals-row">
+                  <td><strong>Total Allocation:</strong></td>
+                  <td class="total-col" id="col-total-p1">
+                    <span class="total-val" id="total-val-p1">100.0%</span>
+                    <span class="total-status" id="total-status-p1">✓ Valid</span>
+                  </td>
+                  <td class="total-col" id="col-total-p2">
+                    <span class="total-val" id="total-val-p2">0.0%</span>
+                    <span class="total-status" id="total-status-p2">(Inactive)</span>
+                  </td>
+                  <td class="total-col" id="col-total-p3">
+                    <span class="total-val" id="total-val-p3">0.0%</span>
+                    <span class="total-status" id="total-status-p3">(Inactive)</span>
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="alloc-table-actions">
+            <button type="button" class="btn-tool-secondary" id="btn-add-asset-row">➕ Add Asset</button>
+            <button type="button" class="btn-tool-secondary" id="btn-clear-allocations">🗑️ Reset Table</button>
+          </div>
+        </div>
+
+        <!-- TAB 2: SETTINGS (Rebalancing, Cashflows, Timeline) -->
+        <div class="cfg-pane hidden" id="cfg-pane-settings">
+          <div class="settings-grid">
+            <div class="setting-item">
+              <label for="select-rebalance-freq">Rebalancing Frequency <span class="info-tip tip-right" data-tooltip="Determines how often the portfolio trades to re-align asset balances back to target percentages.">ℹ️</span></label>
+              <select id="select-rebalance-freq" class="control-select">
+                <option value="annual" selected>Rebalance Annually (December)</option>
+                <option value="semi-annual">Rebalance Semi-Annually (June &amp; Dec)</option>
+                <option value="quarterly">Rebalance Quarterly (Mar, Jun, Sep, Dec)</option>
+                <option value="monthly">Rebalance Monthly</option>
+                <option value="none">No Rebalancing (Buy &amp; Hold / Drift)</option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <label for="input-initial-capital">Initial Capital ($) <span class="info-tip tip-right" data-tooltip="Starting portfolio amount deposited at T=0.">ℹ️</span></label>
+              <input type="number" id="input-initial-capital" class="control-input" value="10000" min="100" step="500" />
+            </div>
+
+            <div class="setting-item">
+              <label for="select-drip">Dividend Handling (DRIP) <span class="info-tip tip-right" data-tooltip="Total Return reinvests dividends into additional fractional shares on payment dates. Price return ignores dividend reinvestment.">ℹ️</span></label>
+              <select id="select-drip" class="control-select">
+                <option value="true" selected>Total Return (DRIP Reinvested)</option>
+                <option value="false">Price Return (No Dividend Reinvestment)</option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <label for="select-cashflow-type">Ongoing Cashflows <span class="info-tip tip-left" data-tooltip="Simulate systematic monthly or annual contributions (DCA) or retirement drawdown withdrawals.">ℹ️</span></label>
+              <select id="select-cashflow-type" class="control-select">
+                <option value="none" selected>None (Lump Sum Only)</option>
+                <option value="contribute">Contribute Fixed Amount</option>
+                <option value="withdraw">Withdraw Fixed Amount</option>
+              </select>
+            </div>
+
+            <div class="setting-item" id="setting-cashflow-amount-wrap">
+              <label for="input-cashflow-amount">Cashflow Amount ($)</label>
+              <input type="number" id="input-cashflow-amount" class="control-input" value="500" min="0" step="50" />
+            </div>
+
+            <div class="setting-item" id="setting-cashflow-freq-wrap">
+              <label for="select-cashflow-freq">Cashflow Frequency</label>
+              <select id="select-cashflow-freq" class="control-select">
+                <option value="monthly" selected>Monthly</option>
+                <option value="annual">Annually (December)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration Submit Footer -->
+        <div class="config-footer">
+          <div class="config-footer-left">
+            <span class="config-note">Simulations run 100% locally in your browser with zero latency.</span>
+          </div>
+          <div class="config-footer-right">
+            <button type="button" class="btn-tool-primary" id="btn-run-backtest">
+              <span>🚀 Run Portfolio Backtest</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTS SECTION -->
+      <div id="portfolio-results-area" class="results-area">
+        
+        <!-- SECTION 1: ALLOCATION DONUT CARDS -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🍩 Target Asset Allocations</h2>
+              <p class="module-desc">Visual breakdown of target asset weights across active portfolio models.</p>
+            </div>
+          </div>
+          <div class="donuts-grid" id="donuts-container">
+            <!-- Dynamically populated donut cards for Portfolio 1, 2, 3 -->
+          </div>
+        </section>
+
+        <!-- SECTION 2: EXECUTIVE PERFORMANCE SCORECARD -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📋 Performance &amp; Risk Scorecard</h2>
+              <p class="module-desc">Comprehensive side-by-side risk and return comparison across models and market benchmark.</p>
+            </div>
+            <div class="module-actions">
+              <button type="button" class="btn-tool-secondary" id="btn-export-csv">📥 Export CSV</button>
+            </div>
+          </div>
+          <div class="table-card" style="padding:0; overflow-x: auto;">
+            <table class="scorecard-table" id="scorecard-table">
+              <thead id="scorecard-thead">
+                <!-- Dynamically populated columns -->
+              </thead>
+              <tbody id="scorecard-tbody">
+                <!-- Dynamically populated metrics -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- SECTION 3: CUMULATIVE PORTFOLIO GROWTH CHART -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📈 Cumulative Portfolio Growth ($10,000)</h2>
+              <p class="module-desc">Total wealth accumulation over time with periodic rebalancing and compounding.</p>
+            </div>
+            <div class="module-actions">
+              <div class="action-btn-group">
+                <button type="button" class="action-btn active" id="btn-scale-linear">Linear</button>
+                <button type="button" class="action-btn" id="btn-scale-log">Logarithmic</button>
+              </div>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="growth-canvas" width="1200" height="420"></canvas>
+            <div class="canvas-tooltip hidden" id="growth-tooltip"></div>
+          </div>
+          <div class="chart-legend-bar" id="growth-legend-bar"></div>
+        </section>
+
+        <!-- SECTION 4: ANNUAL CALENDAR RETURNS BAR CHART -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📊 Annual Calendar Returns</h2>
+              <p class="module-desc">Year-by-year compounded return comparison across portfolio models.</p>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="annual-canvas" width="1200" height="380"></canvas>
+            <div class="canvas-tooltip hidden" id="annual-tooltip"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 5: DRAWDOWN & CRASH RECOVERY ANALYSIS -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🛡️ Drawdown &amp; Crash Recovery (Underwater Plot)</h2>
+              <p class="module-desc">Percentage decline below all-time peak across historical market cycles.</p>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="drawdown-canvas" width="1200" height="340"></canvas>
+            <div class="canvas-tooltip hidden" id="drawdown-tooltip"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 6: HISTORICAL ALLOCATION WEIGHT DRIFT -->
+        <section class="chart-module" id="module-drift">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🌊 Historical Asset Allocation Drift</h2>
+              <p class="module-desc">Inspect how actual asset weights fluctuated between rebalancing intervals over time.</p>
+            </div>
+            <div class="module-actions">
+              <select id="select-drift-portfolio" class="control-select">
+                <option value="p1" selected>Portfolio #1</option>
+                <option value="p2">Portfolio #2</option>
+                <option value="p3">Portfolio #3</option>
+              </select>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="drift-canvas" width="1200" height="340"></canvas>
+            <div class="canvas-tooltip hidden" id="drift-tooltip"></div>
+          </div>
+          <div class="chart-legend-bar" id="drift-legend-bar"></div>
+        </section>
+
+      </div>
+
+      <footer class="app-footer">
+        <p>
+          Financial Calculator • Portfolio Backtest Studio • Client-side simulation running on pure ES modules.
+          Historical results do not guarantee future performance.
+        </p>
+      </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script type="module" src="portfolio-ui.js"></script>
+  </body>
+</html>
