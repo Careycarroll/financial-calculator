@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Asset Analytics Studio | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="analytics.css" />
+  </head>
+  <body class="analytics-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="index.html" class="top-nav-link active">📊 Asset Analytics</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="analytics-container">
+      <!-- Studio Header -->
+      <header class="studio-header">
+        <h1>📊 Asset Analytics Studio</h1>
+        <p class="studio-tagline">
+          Institutional-grade fund performance deep-dive, cumulative compounding, underwater crash recovery,
+          monthly return heatmaps, and rolling multi-year risk bands.
+        </p>
+      </header>
+
+      <!-- In-Page Workflow Jump Bar -->
+      <div class="workflow-jump-bar">
+        <span class="workflow-jump-label">Fund Suite:</span>
+        <a href="../fund-regression/index.html" class="workflow-jump-pill">📈 Fund Regression Lab</a>
+        <a href="../dca-comparator/index.html" class="workflow-jump-pill">📊 Historical DCA Backtester</a>
+        <a href="../pages/options.html" class="workflow-jump-pill">🎯 Options Strategy Lab</a>
+        <span class="workflow-jump-divider">|</span>
+        <span class="workflow-jump-label">Stress Analysis:</span>
+        <a href="../pages/market-stress.html" class="workflow-jump-pill bridge-pill">⚡ Market Stress Simulator</a>
+      </div>
+
+      <!-- Studio Sub-Navigation Tabs -->
+      <nav class="studio-tabs" aria-label="Asset Analytics Sub-Navigation">
+        <button type="button" class="studio-tab active" data-tab="performance">📊 Fund Performance</button>
+        <button type="button" class="studio-tab disabled" data-tab="screener" title="Phase 2: Multi-Factor Universe Screener">🔍 Fund Screener <span class="studio-tab-badge">Phase 2</span></button>
+        <button type="button" class="studio-tab disabled" data-tab="rankings" title="Phase 2: Multi-Metric Weighted Leaderboards">🏆 Fund Rankings <span class="studio-tab-badge">Phase 2</span></button>
+        <button type="button" class="studio-tab disabled" data-tab="correlations" title="Phase 3: Pairwise Correlation Matrix">🔗 Asset Correlations <span class="studio-tab-badge">Phase 3</span></button>
+      </nav>
+
+      <!-- Global Controls Bar -->
+      <section class="analytics-controls-bar" aria-label="Analysis Controls">
+        <div class="controls-left">
+          <!-- Fund Ticker Selector -->
+          <div class="control-item">
+            <label for="fund-select">Target Asset / Fund</label>
+            <select id="fund-select" class="control-select">
+              <!-- Populated via JS (Presets + Uploaded) -->
+            </select>
+          </div>
+
+          <!-- Benchmark Selector -->
+          <div class="control-item">
+            <label for="benchmark-select">Benchmark Reference</label>
+            <select id="benchmark-select" class="control-select">
+              <option value="SPY">SPY — SPDR S&P 500 Trust</option>
+              <option value="VOO" selected>VOO — Vanguard S&P 500 ETF</option>
+              <option value="QQQ">QQQ — Invesco Nasdaq-100</option>
+              <option value="SCHD">SCHD — US Dividend Equity</option>
+              <option value="BND">BND — Total Bond Market</option>
+            </select>
+          </div>
+
+          <!-- Date Range Horizon -->
+          <div class="control-item">
+            <label for="range-select">Time Horizon</label>
+            <select id="range-select" class="control-select">
+              <option value="all" selected>All Available History</option>
+              <option value="10y">Last 10 Years</option>
+              <option value="5y">Last 5 Years</option>
+              <option value="3y">Last 3 Years</option>
+              <option value="1y">Last 1 Year</option>
+            </select>
+          </div>
+
+          <!-- DRIP Reinvestment Toggle -->
+          <div class="control-item">
+            <label for="drip-toggle">Dividend Handling</label>
+            <select id="drip-toggle" class="control-select">
+              <option value="true" selected>Total Return (DRIP Reinvested)</option>
+              <option value="false">Price Return Only (No Dividends)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="controls-right">
+          <!-- View Mode Selector -->
+          <div class="control-item">
+            <label>Interface Depth</label>
+            <div class="mode-segmented-control">
+              <button type="button" class="mode-btn active" id="btn-mode-simple" title="Learner-friendly executive takeaways">🟢 Simple</button>
+              <button type="button" class="mode-btn" id="btn-mode-quant" title="Institutional 20-metric quantitative depth">🔬 Quant</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB CONTENT: FUND PERFORMANCE -->
+      <main id="tab-performance">
+        <!-- Executive Diagnostic Verdict (Simple Mode) -->
+        <section class="diagnostic-verdict-card" id="diagnostic-verdict-container">
+          <div class="verdict-header">
+            <div class="verdict-title-row">
+              <span class="verdict-icon">💡</span>
+              <span>Executive Diagnostic Verdict</span>
+            </div>
+            <span class="verdict-badge" id="verdict-badge">Balanced</span>
+          </div>
+          <div class="verdict-body" id="verdict-summary">
+            <!-- Dynamically populated -->
+          </div>
+          <div class="verdict-grid">
+            <div class="verdict-stat" id="verdict-risk"></div>
+            <div class="verdict-stat" id="verdict-winrate"></div>
+          </div>
+        </section>
+
+        <!-- KPI Scorecard Summary (Quant Mode) -->
+        <section class="kpi-scorecard-grid" id="kpi-scorecard-grid">
+          <div class="kpi-card">
+            <span class="kpi-label">Final $10k Value</span>
+            <span class="kpi-value" id="kpi-final-val">$0</span>
+            <span class="kpi-sub" id="kpi-final-sub">vs $0 benchmark</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">CAGR (Annualized Return)</span>
+            <span class="kpi-value" id="kpi-cagr">0.0%</span>
+            <span class="kpi-sub" id="kpi-cagr-sub">vs 0.0% benchmark</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Annual Volatility</span>
+            <span class="kpi-value" id="kpi-vol">0.0%</span>
+            <span class="kpi-sub" id="kpi-vol-sub">StDev (Annualized)</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Maximum Crash (Drawdown)</span>
+            <span class="kpi-value" id="kpi-maxdd">0.0%</span>
+            <span class="kpi-sub negative" id="kpi-maxdd-sub">Historical peak to trough</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Sharpe Ratio</span>
+            <span class="kpi-value" id="kpi-sharpe">0.00</span>
+            <span class="kpi-sub" id="kpi-sharpe-sub">Risk-adjusted excess return</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Sortino Ratio</span>
+            <span class="kpi-value" id="kpi-sortino">0.00</span>
+            <span class="kpi-sub" id="kpi-sortino-sub">Downside risk penalty only</span>
+          </div>
+        </section>
+
+        <!-- MODULE 1: Cumulative Growth of $10,000 Chart -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📈 Cumulative Growth of $10,000</h2>
+              <p class="module-desc">Compares total wealth accumulation over time assuming a $10,000 initial investment.</p>
+            </div>
+            <div class="module-actions">
+              <div class="action-btn-group">
+                <button type="button" class="action-btn active" id="btn-scale-linear">Linear</button>
+                <button type="button" class="action-btn" id="btn-scale-log">Logarithmic</button>
+              </div>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="growth-canvas" width="1200" height="400"></canvas>
+            <div class="canvas-tooltip" id="growth-tooltip"></div>
+          </div>
+        </section>
+
+        <!-- MODULE 2: Annual Calendar Returns Bar Chart -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📊 Annual Calendar Returns</h2>
+              <p class="module-desc">Year-by-year compounded performance comparing Target Fund against Benchmark.</p>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="annual-canvas" width="1200" height="400"></canvas>
+            <div class="canvas-tooltip" id="annual-tooltip"></div>
+          </div>
+        </section>
+
+        <!-- MODULE 3: Underwater Drawdown Analysis -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🛡️ Drawdown &amp; Crash Recovery Analysis</h2>
+              <p class="module-desc">Inspect percentage declines below peak and exact duration required to recover capital.</p>
+            </div>
+          </div>
+          <div class="drawdown-grid">
+            <!-- Left: Underwater Area Chart -->
+            <div class="canvas-wrapper">
+              <canvas id="drawdown-canvas" width="600" height="400"></canvas>
+              <div class="canvas-tooltip" id="drawdown-tooltip"></div>
+            </div>
+
+            <!-- Right: Top Crashes Recovery Table -->
+            <div class="crash-table-wrapper">
+              <table class="crash-table" id="crash-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Peak</th>
+                    <th>Trough</th>
+                    <th>Depth</th>
+                    <th>Recovery</th>
+                    <th>Total Mos</th>
+                  </tr>
+                </thead>
+                <tbody id="crash-table-body">
+                  <!-- Populated dynamically via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODULE 4: Monthly Calendar Returns Heatmap -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🗓️ Monthly Returns Calendar Heatmap</h2>
+              <p class="module-desc">Month-by-month return matrix (Jan–Dec) with dynamic conditional green/red color grading.</p>
+            </div>
+          </div>
+          <div class="heatmap-table-wrapper">
+            <table class="heatmap-table" id="heatmap-table">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Jan</th>
+                  <th>Feb</th>
+                  <th>Mar</th>
+                  <th>Apr</th>
+                  <th>May</th>
+                  <th>Jun</th>
+                  <th>Jul</th>
+                  <th>Aug</th>
+                  <th>Sep</th>
+                  <th>Oct</th>
+                  <th>Nov</th>
+                  <th>Dec</th>
+                  <th>Full Year</th>
+                </tr>
+              </thead>
+              <tbody id="heatmap-table-body">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- MODULE 5: Rolling Period Analysis -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🌊 Rolling Period Analysis</h2>
+              <p class="module-desc">Evaluates holding period consistency and benchmark outperformance probability across market cycles.</p>
+            </div>
+            <div class="module-actions">
+              <div class="action-btn-group">
+                <button type="button" class="action-btn" data-window="12">12M (1-Yr)</button>
+                <button type="button" class="action-btn active" data-window="36">36M (3-Yr)</button>
+                <button type="button" class="action-btn" data-window="60">60M (5-Yr)</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="rolling-stats-banner" id="rolling-stats-banner">
+            <div>
+              <span>Benchmark Outperformance Win Rate:</span>
+              <span class="win-rate-pill" id="rolling-winrate-pill">0.0%</span>
+            </div>
+            <div id="rolling-comparisons-text">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="rolling-canvas" width="1200" height="400"></canvas>
+            <div class="canvas-tooltip" id="rolling-tooltip"></div>
+          </div>
+        </section>
+
+        <!-- MODULE 6: Comprehensive 20-Metric Institutional Matrix -->
+        <section class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>🔬 Comprehensive Risk &amp; Return Metrics Matrix</h2>
+              <p class="module-desc">Multi-dimensional econometric scorecard spanning returns, volatility, tail risk, and CAPM attribution.</p>
+            </div>
+          </div>
+
+          <div class="metrics-quad-grid">
+            <!-- Quad 1: Return & Compounding -->
+            <div class="metric-quad-card">
+              <div class="quad-header">📈 Return &amp; Compounding</div>
+              <div class="metric-rows-list">
+                <div class="metric-row">
+                  <span class="metric-row-label">Compound Annual Return (CAGR)</span>
+                  <span class="metric-row-val" id="m-cagr">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Benchmark CAGR</span>
+                  <span class="metric-row-val" id="m-bench-cagr">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Arithmetic Mean (Annualized)</span>
+                  <span class="metric-row-val" id="m-arith-mean">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Best Calendar Year</span>
+                  <span class="metric-row-val" id="m-best-year">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Worst Calendar Year</span>
+                  <span class="metric-row-val" id="m-worst-year">0.0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quad 2: Risk & Volatility -->
+            <div class="metric-quad-card">
+              <div class="quad-header">🛡️ Risk &amp; Volatility</div>
+              <div class="metric-rows-list">
+                <div class="metric-row">
+                  <span class="metric-row-label">Annualized Volatility (StDev)</span>
+                  <span class="metric-row-val" id="m-vol">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Downside Deviation (Semi-StDev)</span>
+                  <span class="metric-row-val" id="m-downside-dev">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Maximum Historical Crash</span>
+                  <span class="metric-row-val" id="m-maxdd">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Ulcer Index (Depth + Duration)</span>
+                  <span class="metric-row-val" id="m-ulcer">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Monthly 95% Value at Risk (VaR)</span>
+                  <span class="metric-row-val" id="m-var">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Expected Shortfall (CVaR)</span>
+                  <span class="metric-row-val" id="m-cvar">0.0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quad 3: Risk-Adjusted Efficiency -->
+            <div class="metric-quad-card">
+              <div class="quad-header">⚡ Risk-Adjusted Efficiency</div>
+              <div class="metric-rows-list">
+                <div class="metric-row">
+                  <span class="metric-row-label">Sharpe Ratio (Rf = 3%)</span>
+                  <span class="metric-row-val" id="m-sharpe">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Sortino Ratio</span>
+                  <span class="metric-row-val" id="m-sortino">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Treynor Ratio (Return / Beta)</span>
+                  <span class="metric-row-val" id="m-treynor">0.0000</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Calmar Ratio (CAGR / MaxDD)</span>
+                  <span class="metric-row-val" id="m-calmar">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Martin Ratio (UPI: Return / Ulcer)</span>
+                  <span class="metric-row-val" id="m-martin">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Omega Ratio (Gains / Losses)</span>
+                  <span class="metric-row-val" id="m-omega">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Gain-to-Pain Ratio</span>
+                  <span class="metric-row-val" id="m-gain-pain">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Modigliani–Modigliani (M²)</span>
+                  <span class="metric-row-val" id="m-msquared">0.0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quad 4: Benchmark Relative (CAPM) -->
+            <div class="metric-quad-card">
+              <div class="quad-header">🎯 Benchmark Relative (CAPM)</div>
+              <div class="metric-rows-list">
+                <div class="metric-row">
+                  <span class="metric-row-label">Jensen's Alpha (Excess Return)</span>
+                  <span class="metric-row-val" id="m-alpha">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Market Beta (Sensitivity)</span>
+                  <span class="metric-row-val" id="m-beta">1.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">R-Squared (Fit to Benchmark)</span>
+                  <span class="metric-row-val" id="m-rsquared">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Tracking Error</span>
+                  <span class="metric-row-val" id="m-tracking-error">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Information Ratio</span>
+                  <span class="metric-row-val" id="m-info-ratio">0.00</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Upside Market Capture</span>
+                  <span class="metric-row-val" id="m-up-capture">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Downside Market Capture</span>
+                  <span class="metric-row-val" id="m-down-capture">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Capture Ratio (Up / Down)</span>
+                  <span class="metric-row-val" id="m-capture-ratio">0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-download-bar">
+            <button type="button" class="btn-download-csv" id="btn-export-report-csv">
+              <span>📥</span>
+              <span>Download Performance Report (CSV)</span>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2026 Financial Calculator &bull; Asset Analytics Studio</p>
+      </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script type="module" src="analytics-ui.js"></script>
+  </body>
+</html>
