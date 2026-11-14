@@ -273,6 +273,18 @@ export const TOOLS_CATALOG = [
     keywords: ["regression", "capm", "factor", "alpha", "beta", "dual-beta", "up capture", "down capture", "sharpe", "sortino", "jensen", "r-squared", "econometrics"]
   },
   {
+    id: "manager-performance",
+    title: "Manager Performance Analysis Studio",
+    shortTitle: "Manager Performance",
+    path: "fund-regression/manager-performance.html",
+    icon: "🏆",
+    badge: "STUDIO",
+    desc: "Evaluate active manager edge against a benchmark: tracking error, Information Ratio, rolling excess return, trailing horizons, and statistical skill confidence.",
+    suiteId: "quant",
+    workflowId: "quant-risk",
+    keywords: ["manager performance", "tracking error", "information ratio", "excess return", "active risk", "relative drawdown", "skill", "t-test", "benchmark", "alpha", "up capture"]
+  },
+  {
     id: "options",
     title: "Options Strategy Lab",
     shortTitle: "Options Lab",
