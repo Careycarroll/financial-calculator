@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node scripts/test_dca_engine.js && node scripts/test_regression_engine.js && node scripts/test_analytics_engine.js && node scripts/test_session_funds.js",
+    "test": "node scripts/test_dca_engine.js && node scripts/test_regression_engine.js && node scripts/test_analytics_engine.js && node scripts/test_session_funds.js && node scripts/test_screener_engine.js",
     "test:dca": "node scripts/test_dca_engine.js",
     "test:regression": "node scripts/test_regression_engine.js",
     "test:analytics": "node scripts/test_analytics_engine.js",
-    "test:session": "node scripts/test_session_funds.js"
+    "test:session": "node scripts/test_session_funds.js",
+    "test:screener": "node scripts/test_screener_engine.js"
   },
   "repository": {
     "type": "git",
