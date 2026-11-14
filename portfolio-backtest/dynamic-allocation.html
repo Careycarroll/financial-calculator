@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backtest Dynamic Allocation Studio | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="portfolio.css" />
+    <style>
+      /* Dynamic Stage Cards */
+      .stage-card {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+      .stage-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        flex-wrap: wrap;
+      }
+      .stage-title-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+        min-width: 240px;
+      }
+      .stage-label-input {
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #f8fafc;
+        padding: 0.4rem 0.75rem;
+        font-weight: 700;
+        font-size: 0.95rem;
+        flex: 1;
+      }
+      .stage-date-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .stage-badge {
+        background: rgba(56, 189, 248, 0.12);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        text-transform: uppercase;
+      }
+      .btn-delete-stage {
+        background: rgba(244, 63, 94, 0.15);
+        border: 1px solid rgba(244, 63, 94, 0.3);
+        color: #f43f5e;
+        border-radius: 6px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .btn-delete-stage:hover:not(:disabled) {
+        background: rgba(244, 63, 94, 0.3);
+        color: #fff;
+      }
+      .btn-delete-stage:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-add-stage {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px dashed rgba(56, 189, 248, 0.4);
+        color: #38bdf8;
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.5rem;
+      }
+      .btn-add-stage:hover {
+        background: rgba(56, 189, 248, 0.2);
+        border-style: solid;
+      }
+      .transition-mode-bar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+      }
+      .radio-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        cursor: pointer;
+      }
+      .radio-label input[type="radio"] {
+        accent-color: #38bdf8;
+      }
+      .view-mode-pill-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 1.25rem;
+        width: fit-content;
+      }
+      .view-mode-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #94a3b8;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .view-mode-pill:hover {
+        color: #f1f5f9;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .view-mode-pill.active {
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.15);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+      }
+      .explainer-box {
+        background: #0f172a;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-top: 1rem;
+      }
+      .explainer-title {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #38bdf8;
+        margin-bottom: 0.35rem;
+      }
+      .explainer-text {
+        font-size: 0.82rem;
+        color: #94a3b8;
+        line-height: 1.45;
+      }
+      .event-tag {
+        display: inline-block;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .event-tag-sell {
+        background: rgba(244, 63, 94, 0.15);
+        color: #f43f5e;
+        border: 1px solid rgba(244, 63, 94, 0.3);
+      }
+      .event-tag-buy {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+      }
+      .event-tag-rotate {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+      }
+    </style>
+  </head>
+  <body class="portfolio-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="index.html" class="top-nav-link active">💼 Portfolio Studio</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container portfolio-container">
+      <header class="studio-header">
+        <h1>🔄 Backtest Dynamic Allocation Studio</h1>
+        <p class="studio-tagline">
+          Backtest portfolios with evolving target weights over time. Simulate career lifecycle glide paths (target-date retirement models)
+          and test tactical trend-following signals (10-Month SMA &amp; Dual Momentum) that automatically rotate to cash to dodge structural market crashes.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Portfolio Backtest Suite Pages">
+        <a href="index.html" class="suite-subnav-link">💼 Portfolio Backtest (Tickers)</a>
+        <a href="asset-class-allocation.html" class="suite-subnav-link">🏛️ Asset Class Allocation (1972–Present)</a>
+        <a href="dynamic-allocation.html" class="suite-subnav-link active">🔄 Dynamic Allocation Studio</a>
+      </nav>
+
+      <!-- Studio Mode Selector (Simple Lifecycle vs Tactical Quant) -->
+      <div class="view-mode-pill-bar" role="tablist" aria-label="Studio Mode Selector">
+        <button type="button" class="view-mode-pill active" id="btn-mode-simple" role="tab" aria-selected="true">
+          <span>📅 Simple: Lifecycle Glide Path</span>
+        </button>
+        <button type="button" class="view-mode-pill" id="btn-mode-advanced" role="tab" aria-selected="false">
+          <span>⚡ Advanced: Tactical Trend Protection</span>
+        </button>
+      </div>
+
+      <!-- Dynamic Status & Control Bar -->
+      <section class="status-summary-bar" aria-label="Dynamic Timeline and Status">
+        <div class="status-pill highlight">
+          <span>Active Timeline:</span>
+          <strong id="status-timeline-range">1972-01 to 2026-08</strong>
+          <span class="status-sub" id="status-total-months">(656 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Transition Style:</span>
+          <strong id="status-transition-mode">Smooth Monthly Glide Path</strong>
+        </div>
+        <div class="status-pill">
+          <span>Tactical Defense:</span>
+          <strong id="status-tactical-rule">None (Pure Glidepath)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Initial Capital:</span>
+          <strong id="status-initial-amount">$10,000</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Model Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Alerts Container -->
+      <div id="portfolio-alerts-container" class="portfolio-alerts-wrap"></div>
+
+      <!-- CONFIGURATION PANEL -->
+      <section class="config-card" id="config-panel" aria-label="Dynamic Model Configuration">
+        <div class="config-tabs-nav">
+          <button type="button" class="cfg-tab active" data-cfg-tab="stages" id="tab-btn-cfg-stages">
+            <span>🎯 Dynamic Stages &amp; Milestones</span>
+          </button>
+          <button type="button" class="cfg-tab" data-cfg-tab="tactical" id="tab-btn-cfg-tactical">
+            <span>⚡ Tactical Protection &amp; Signals</span>
+          </button>
+          <button type="button" class="cfg-tab" data-cfg-tab="settings" id="tab-btn-cfg-settings">
+            <span>⚙️ Rebalancing &amp; Cashflows</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: STAGES & ALLOCATIONS -->
+        <div class="cfg-pane" id="cfg-pane-stages">
+          <!-- Presets -->
+          <div class="presets-row">
+            <span class="presets-label">⚡ Model Presets:</span>
+            <div class="presets-buttons-wrap">
+              <button type="button" class="btn-preset-chip" data-preset="lifecycle-target-date">🚀 Vanguard Target Retirement Glidepath</button>
+              <button type="button" class="btn-preset-chip" data-preset="two-stage-career">👔 Two-Stage Career Pivot (80/20 $\rightarrow$ 40/40)</button>
+              <button type="button" class="btn-preset-chip" data-preset="trend-following-defense">🛡️ 10M Trend Defense (Meb Faber 60/40)</button>
+              <button type="button" class="btn-preset-chip" data-preset="dual-momentum-gem">🏆 Dual Momentum (Antonacci GEM)</button>
+            </div>
+          </div>
+
+          <!-- Transition Mode Selection -->
+          <div class="transition-mode-bar">
+            <span class="presets-label">🔄 Target Transition Mode:</span>
+            <label class="radio-label">
+              <input type="radio" name="transition-mode" value="glidepath" checked id="radio-mode-glidepath" />
+              <span><strong>Smooth Monthly Glide Path</strong> (Gradually interpolates target weights month-by-month)</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="transition-mode" value="step" id="radio-mode-step" />
+              <span><strong>Step Jump</strong> (Instant model shift on exact boundary date)</span>
+            </label>
+          </div>
+
+          <!-- Dynamic Stages Container -->
+          <div id="stages-container">
+            <!-- Populated dynamically with stage cards -->
+          </div>
+
+          <!-- Add Stage Button -->
+          <button type="button" class="btn-add-stage" id="btn-add-new-stage">
+            <span>➕ Add Timeline Milestone Stage</span>
+          </button>
+        </div>
+
+        <!-- TAB 2: TACTICAL RULES & CRASH PROTECTION -->
+        <div class="cfg-pane" id="cfg-pane-tactical" style="display: none;">
+          <div class="settings-grid">
+            <div class="setting-group-card">
+              <h3>⚡ Automated Downside Defense</h3>
+              <p class="setting-subtext">Automatically rotate out of falling assets to preserve capital during severe bear markets.</p>
+
+              <div class="setting-row">
+                <label for="select-tactical-rule">Tactical Rule:</label>
+                <select id="select-tactical-rule" class="form-select">
+                  <option value="none" selected>None (Pure Lifecycle / Buy &amp; Hold)</option>
+                  <option value="10m_sma">10-Month Simple Moving Average (Meb Faber Trend Filter)</option>
+                  <option value="dual_momentum">12-Month Dual Momentum Relative Strength (Gary Antonacci GEM)</option>
+                </select>
+              </div>
+
+              <div class="setting-row" id="row-defensive-asset">
+                <label for="select-defensive-asset">Defensive Reserve Asset:</label>
+                <select id="select-defensive-asset" class="form-select">
+                  <option value="Cash" selected>Cash / Treasury Bills (30-Day T-Bills)</option>
+                  <option value="ShortTreasury">Short-Term Treasury (1-3 Year)</option>
+                  <option value="IntermediateTreasury">Intermediate-Term Treasury (10-Year)</option>
+                  <option value="TotalBond">Total US Bond Market (Bloomberg Agg)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-group-card">
+              <h3>ℹ️ How the Safety Switch Works</h3>
+              <div class="explainer-box">
+                <div class="explainer-title" id="rule-explainer-title">10-Month Trend Following Defense</div>
+                <div class="explainer-text" id="rule-explainer-text">
+                  At the end of each month, the model checks whether the asset price is above or below its 10-month moving average.
+                  If the asset is in an established downtrend (below SMA), its target allocation is automatically shifted into your chosen 
+                  <strong>Defensive Reserve Asset (Cash/Treasuries)</strong>. When the asset crosses back above its 10-month average, full exposure is restored.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: REBALANCING & CASHFLOW SETTINGS -->
+        <div class="cfg-pane" id="cfg-pane-settings" style="display: none;">
+          <div class="settings-grid">
+            <!-- Timeline Limits -->
+            <div class="setting-group-card">
+              <h3>📅 Historical Time Horizon</h3>
+              <p class="setting-subtext">Choose start and end dates within the 1972–2026 dataset.</p>
+              
+              <div class="setting-row">
+                <label for="select-start-year">Start Date:</label>
+                <div class="date-selector-pair">
+                  <select id="select-start-month" class="form-select date-sub-select"></select>
+                  <select id="select-start-year" class="form-select date-sub-select"></select>
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <label for="select-end-year">End Date:</label>
+                <div class="date-selector-pair">
+                  <select id="select-end-month" class="form-select date-sub-select"></select>
+                  <select id="select-end-year" class="form-select date-sub-select"></select>
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <label for="input-initial-amount">Initial Capital ($):</label>
+                <input type="number" id="input-initial-amount" class="form-input" value="10000" min="100" step="1000" />
+              </div>
+            </div>
+
+            <!-- Rebalancing Frequency -->
+            <div class="setting-group-card">
+              <h3>🔄 Rebalancing Frequency</h3>
+              <p class="setting-subtext">When to rebalance actual portfolio weights back to the active dynamic targets.</p>
+
+              <div class="setting-row">
+                <label for="select-rebalancing-freq">Frequency:</label>
+                <select id="select-rebalancing-freq" class="form-select">
+                  <option value="annual" selected>Annually (December)</option>
+                  <option value="semi-annual">Semi-Annually (June &amp; December)</option>
+                  <option value="quarterly">Quarterly (End of Quarter)</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="none">No Rebalancing (Rebalance on Transition / Signal Only)</option>
+                </select>
+              </div>
+
+              <div class="setting-row">
+                <label for="input-rf-rate">Risk-Free Rate (%):</label>
+                <input type="number" id="input-rf-rate" class="form-input" value="3.0" min="0" max="15" step="0.1" />
+              </div>
+            </div>
+
+            <!-- Cashflows -->
+            <div class="setting-group-card">
+              <h3>💵 Periodic Cash Flows</h3>
+              <p class="setting-subtext">Model accumulation savings or decumulation retirement living expenses.</p>
+
+              <div class="setting-row">
+                <label for="select-cashflow-type">Cash Flow Type:</label>
+                <select id="select-cashflow-type" class="form-select">
+                  <option value="none" selected>None (Lump Sum Only)</option>
+                  <option value="contribute">Contribute Cash (+)</option>
+                  <option value="withdraw">Withdraw Cash (-)</option>
+                </select>
+              </div>
+
+              <div class="setting-row" id="row-cashflow-amount" style="display: none;">
+                <label for="input-cashflow-amount">Amount ($):</label>
+                <input type="number" id="input-cashflow-amount" class="form-input" value="500" min="0" step="50" />
+              </div>
+
+              <div class="setting-row" id="row-cashflow-freq" style="display: none;">
+                <label for="select-cashflow-freq">Cashflow Frequency:</label>
+                <select id="select-cashflow-freq" class="form-select">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="annual">Annually</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Row -->
+        <div class="config-actions-row">
+          <button type="button" class="btn-calculate-primary" id="btn-run-simulation">
+            <span>🚀 Run Dynamic Simulation</span>
+          </button>
+          <button type="button" class="btn-reset-secondary" id="btn-reset-defaults">
+            <span>↺ Reset to Target Date Preset</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- RESULTS SECTION -->
+      <section class="portfolio-results-section" id="portfolio-results" aria-label="Dynamic Simulation Results">
+        <!-- Highlight Scorecards -->
+        <div class="scorecard-grid">
+          <div class="scorecard-metric-card" id="card-dynamic-wealth">
+            <span class="scorecard-metric-title">Dynamic Ending Wealth</span>
+            <span class="scorecard-metric-value" id="sc-dynamic-wealth-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-dynamic-wealth-sub">--</span>
+          </div>
+          <div class="scorecard-metric-card" id="card-dynamic-cagr">
+            <span class="scorecard-metric-title">Compound Growth (CAGR)</span>
+            <span class="scorecard-metric-value" id="sc-dynamic-cagr-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-dynamic-cagr-sub">--</span>
+          </div>
+          <div class="scorecard-metric-card" id="card-dynamic-dd">
+            <span class="scorecard-metric-title">Maximum Drawdown</span>
+            <span class="scorecard-metric-value" id="sc-dynamic-dd-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-dynamic-dd-sub">--</span>
+          </div>
+          <div class="scorecard-metric-card" id="card-dynamic-sharpe">
+            <span class="scorecard-metric-title">Sharpe Ratio (Risk-Adjusted)</span>
+            <span class="scorecard-metric-value" id="sc-dynamic-sharpe-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-dynamic-sharpe-sub">--</span>
+          </div>
+        </div>
+
+        <!-- CHART 1: Cumulative Portfolio Growth -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📈 Cumulative Portfolio Growth ($10,000 Initial)</h2>
+              <span class="chart-subtitle">Dynamic Portfolio trajectory compared against Static 60/40 and 100% US Equities</span>
+            </div>
+            <div class="chart-controls-group">
+              <label class="scale-toggle-label">
+                <input type="checkbox" id="chk-log-scale" />
+                <span>Log Scale (Logarithmic Y-Axis)</span>
+              </label>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 420px; position: relative;">
+            <canvas id="canvas-growth"></canvas>
+            <div id="tooltip-growth" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- CHART 2: Dynamic Asset Allocation Over Time (Stacked Area Chart) -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📊 Dynamic Asset Allocation Over Time (Target Weights History)</h2>
+              <span class="chart-subtitle">Visualizes the continuous evolution of your portfolio asset mix across the 54-year timeline</span>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 380px; position: relative;">
+            <canvas id="canvas-stacked-weights"></canvas>
+            <div id="tooltip-weights" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- CHART 3: Calendar Year Annual Returns Bar Chart -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📅 Calendar Year Annual Returns Comparison</h2>
+              <span class="chart-subtitle">Annual return history comparing Dynamic Model vs Static 60/40 and 100% US Equities</span>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 360px; position: relative;">
+            <canvas id="canvas-annual-returns"></canvas>
+            <div id="tooltip-annual" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- CHART 4: Underwater Drawdowns -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>🌊 Underwater Drawdown Time Series</h2>
+              <span class="chart-subtitle">Capital preservation and downside resilience across 1973 OPEC, 1987, 2000-02, 2008 GFC, and 2022</span>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 320px; position: relative;">
+            <canvas id="canvas-drawdowns"></canvas>
+            <div id="tooltip-drawdown" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- TABLE 1: Institutional Performance Summary Table -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📋 Performance Summary &amp; Risk Metrics</h2>
+              <span class="chart-subtitle">Standardized MPT metrics comparing Dynamic Allocation against static benchmarks</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="table-performance-summary">
+              <thead>
+                <tr>
+                  <th>Model / Strategy</th>
+                  <th style="text-align: right;">Initial Balance</th>
+                  <th style="text-align: right;">Final Balance</th>
+                  <th style="text-align: right;">CAGR</th>
+                  <th style="text-align: right;">Stdev (Vol)</th>
+                  <th style="text-align: right;">Sharpe Ratio</th>
+                  <th style="text-align: right;">Sortino Ratio</th>
+                  <th style="text-align: right;">Max Drawdown</th>
+                  <th style="text-align: right;">Best Year</th>
+                  <th style="text-align: right;">Worst Year</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-performance-summary">
+                <!-- Dynamic Summary Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 2: Tactical Signals & Reallocation Event Log -->
+        <div class="chart-panel-card" id="card-event-log">
+          <div class="chart-header-row">
+            <div>
+              <h2>⚡ Tactical Signals &amp; Reallocation Event Log</h2>
+              <span class="chart-subtitle">Chronological record of milestone transitions, moving average signals, and cash rotations</span>
+            </div>
+            <div class="chart-controls-group">
+              <span class="status-sub" id="event-log-count">0 Events</span>
+            </div>
+          </div>
+          <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+            <table class="data-table" id="table-event-log">
+              <thead>
+                <tr>
+                  <th style="width: 15%;">Date</th>
+                  <th style="width: 20%;">Signal / Event</th>
+                  <th style="width: 20%;">Asset</th>
+                  <th style="width: 45%;">Execution Message</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-event-log">
+                <!-- Dynamic Log Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 3: Year-by-Year Historical Returns Table with CSV Export -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📅 Year-by-Year Historical Calendar Returns</h2>
+              <span class="chart-subtitle">Calendar annual returns for the Dynamic Portfolio</span>
+            </div>
+            <div class="chart-controls-group">
+              <button type="button" class="btn-csv-download" id="btn-download-csv">
+                <span>📥 Download Historical CSV</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+            <table class="data-table" id="table-annual-returns">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th style="text-align: right;">Dynamic Portfolio</th>
+                  <th style="text-align: right;">Static 60/40</th>
+                  <th style="text-align: right;">100% US Equities</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-annual-returns">
+                <!-- Dynamic Year Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./dynamic-ui.js"></script>
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>
