@@ -30,6 +30,7 @@
         { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation, rebalancing frequencies & side-by-side models" },
         { id: "efficient-frontier", name: "Efficient Frontier", icon: "📈", path: "portfolio-optimization/index.html", desc: "Markowitz efficient frontier, CAL, Tangency portfolio & transition map" },
         { id: "portfolio-optimization", name: "Portfolio Optimization", icon: "⚖️", path: "portfolio-optimization/portfolio-optimization.html", desc: "Multi-objective portfolio optimization, Risk Parity & CVaR" },
+        { id: "black-litterman", name: "Black-Litterman Model", icon: "🧠", path: "portfolio-optimization/black-litterman.html", desc: "Bayesian market views, implied equilibrium prior & active tilts" },
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
         { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
         { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
