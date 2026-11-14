@@ -24,6 +24,7 @@
       name: "Trading & Fund Analytics",
       icon: "📈",
       tools: [
+        { id: "asset-analytics", name: "Asset Analytics Studio", icon: "📊", path: "asset-analytics/index.html", desc: "Fund performance, underwater crashes, heatmaps & rolling bands" },
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" },
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
         { id: "options", name: "Options Strategy Lab", icon: "🎯", path: "pages/options.html", desc: "Black-Scholes pricing, Greeks & 40+ payoff diagrams" }
