@@ -21,7 +21,12 @@ import {
   solveTargetReturnPortfolio,
   solveTangencyPortfolio,
   generateEfficientFrontier,
-  generateMonteCarloPortfolios
+  generateMonteCarloPortfolios,
+  calculateRiskContributions,
+  solveRiskParity,
+  calculateCVaR,
+  calculateSortinoRatio,
+  solveMinCVaR
 } from '../portfolio-optimization/optimization-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 
@@ -158,5 +163,37 @@ mcPorts.forEach(p => {
 });
 assert(breachCount === 0, `No random portfolio has lower volatility than the GMV portfolio (breaches: ${breachCount})`);
 console.log('✅ PASS: 1,000 Monte Carlo portfolios respect the theoretical GMV boundary');
+
+// TEST 7: Euler's Risk Decomposition & Risk Parity (ERC)
+console.log('\n--- TEST 7: Equal Risk Contribution (Risk Parity / ERC) ---');
+const rpResult = solveRiskParity(stats.expectedReturns, stats.covarianceMatrix, { riskFreeRate: 0.03 });
+const rc = rpResult.riskContributions;
+
+console.log(`Risk Parity Weights: VOO: ${(rpResult.weights[0] * 100).toFixed(1)}% | BND: ${(rpResult.weights[1] * 100).toFixed(1)}% | QQQ: ${(rpResult.weights[2] * 100).toFixed(1)}%`);
+console.log(`Percentage Risk Contribs: VOO: ${(rc.pctRiskContrib[0] * 100).toFixed(1)}% | BND: ${(rc.pctRiskContrib[1] * 100).toFixed(1)}% | QQQ: ${(rc.pctRiskContrib[2] * 100).toFixed(1)}%`);
+
+// Verify that risk contributions sum to 100%
+const sumPctRC = rc.pctRiskContrib.reduce((a, b) => a + b, 0);
+assert(Math.abs(sumPctRC - 1.0) < 1e-6, `Percentage risk contributions sum to 100% (got ${sumPctRC})`);
+
+// Verify that for Risk Parity, risk contributions are approximately equal (1/3 each = ~33.3%)
+rc.pctRiskContrib.forEach((pct, idx) => {
+  assert(Math.abs(pct - 1 / 3) < 0.02, `Asset ${idx} risk contribution is equal to 33.3% within 2% tolerance (got ${(pct * 100).toFixed(1)}%)`);
+});
+console.log('✅ PASS: Equal Risk Contribution (ERC) converges and balances risk across assets');
+
+// TEST 8: Downside Volatility, Sortino Ratio, and 95% CVaR
+console.log('\n--- TEST 8: Downside Tail Risk & 95% CVaR ---');
+const sampleReturns = stats.monthlyReturns[0]; // VOO monthly returns
+const cvarMetrics = calculateCVaR(sampleReturns, 0.05);
+const sortinoMetrics = calculateSortinoRatio(sampleReturns, stats.expectedReturns[0], 0.03);
+
+assert(cvarMetrics.cvar > 0, `95% CVaR is positive (got ${(cvarMetrics.cvar * 100).toFixed(2)}%)`);
+assert(cvarMetrics.cvar >= cvarMetrics.var, `CVaR (${cvarMetrics.cvar}) >= VaR (${cvarMetrics.var})`);
+assert(sortinoMetrics.sortinoRatio > 0, `Sortino ratio is positive (got ${sortinoMetrics.sortinoRatio.toFixed(3)})`);
+
+console.log(`VOO 95% Monthly VaR: ${(cvarMetrics.var * 100).toFixed(2)}% | 95% CVaR: ${(cvarMetrics.cvar * 100).toFixed(2)}%`);
+console.log(`VOO Sortino Ratio: ${sortinoMetrics.sortinoRatio.toFixed(3)} | Downside Vol: ${(sortinoMetrics.downsideVol * 100).toFixed(2)}%`);
+console.log('✅ PASS: Tail risk (CVaR) and downside semivariance (Sortino) verified');
 
 console.log('\n🎉 ALL PORTFOLIO OPTIMIZATION TESTS PASSED SUCCESSFULLY!');

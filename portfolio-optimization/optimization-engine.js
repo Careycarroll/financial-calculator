@@ -704,3 +704,303 @@ export function generateMonteCarloPortfolios(expectedReturns, covarianceMatrix, 
 
   return results;
 }
+
+
+/**
+ * Calculates marginal and percentage risk contributions (Euler's decomposition):
+ * PRC_i = (w_i * (Sigma * w)_i) / (w^T * Sigma * w)
+ * Guaranteed to sum to 100% across all assets.
+ *
+ * @param {Array<number>} weights
+ * @param {Array<Array<number>>} covarianceMatrix
+ * @returns {{ variance: number, volatility: number, marginalRisk: number[], totalRiskContrib: number[], pctRiskContrib: number[] }}
+ */
+export function calculateRiskContributions(weights, covarianceMatrix) {
+  const n = weights.length;
+  let variance = 0;
+  const sigW = new Array(n).fill(0);
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      sigW[i] += covarianceMatrix[i][j] * weights[j];
+    }
+    variance += weights[i] * sigW[i];
+  }
+
+  variance = Math.max(1e-12, variance);
+  const volatility = Math.sqrt(variance);
+
+  const marginalRisk = new Array(n);
+  const totalRiskContrib = new Array(n);
+  const pctRiskContrib = new Array(n);
+
+  for (let i = 0; i < n; i++) {
+    marginalRisk[i] = sigW[i] / volatility;
+    totalRiskContrib[i] = weights[i] * marginalRisk[i];
+    pctRiskContrib[i] = (weights[i] * sigW[i]) / variance;
+  }
+
+  return {
+    variance,
+    volatility,
+    marginalRisk,
+    totalRiskContrib,
+    pctRiskContrib
+  };
+}
+
+/**
+ * Solves for the Equal Risk Contribution (Risk Parity / ERC) Portfolio:
+ * Uses Florin Spinu's (2013) cyclical coordinate descent algorithm on the convex logarithmic barrier:
+ * min_x (1/2) x^T Sigma x - sum(b_i * ln x_i)
+ * where optimal weights are w = x / sum(x_i).
+ *
+ * @param {Array<number>} expectedReturns
+ * @param {Array<Array<number>>} covarianceMatrix
+ * @param {Object} [options]
+ * @param {Array<number>} [options.budgets] - Risk budgets (default 1/n)
+ * @param {number} [options.riskFreeRate=0.03]
+ * @returns {Object} Risk Parity portfolio stats with risk contributions
+ */
+export function solveRiskParity(expectedReturns, covarianceMatrix, options = {}) {
+  const n = expectedReturns.length;
+  const rf = typeof options.riskFreeRate === 'number' ? options.riskFreeRate : 0.03;
+
+  // Default equal risk budgets: b_i = 1 / n
+  const b = Array.isArray(options.budgets) && options.budgets.length === n
+    ? [...options.budgets]
+    : new Array(n).fill(1 / n);
+
+  // Initialize x_i = 1 / sqrt(Sigma_ii) (inverse volatility)
+  let x = new Array(n);
+  for (let i = 0; i < n; i++) {
+    x[i] = 1 / Math.sqrt(Math.max(1e-6, covarianceMatrix[i][i]));
+  }
+
+  const maxIter = 100;
+  const tol = 1e-8;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    let maxDelta = 0;
+
+    for (let i = 0; i < n; i++) {
+      // a_i = sum_{j != i} Sigma_ij * x_j
+      let a_i = 0;
+      for (let j = 0; j < n; j++) {
+        if (j !== i) {
+          a_i += covarianceMatrix[i][j] * x[j];
+        }
+      }
+
+      // Solve quadratic: Sigma_ii * x_i^2 + a_i * x_i - b_i = 0
+      const sig_ii = covarianceMatrix[i][i];
+      const disc = Math.sqrt(a_i * a_i + 4 * sig_ii * b[i]);
+      const newX_i = (-a_i + disc) / (2 * sig_ii);
+
+      maxDelta = Math.max(maxDelta, Math.abs(newX_i - x[i]));
+      x[i] = newX_i;
+    }
+
+    if (maxDelta < tol) break;
+  }
+
+  // Normalize weights: w_i = x_i / sum(x_j)
+  const sumX = x.reduce((a, b) => a + b, 0);
+  const w = x.map(val => val / sumX);
+
+  const stats = calculatePortfolioStats(w, expectedReturns, covarianceMatrix, rf);
+  const rc = calculateRiskContributions(w, covarianceMatrix);
+
+  return {
+    ...stats,
+    riskContributions: rc
+  };
+}
+
+/**
+ * Calculates historical Conditional Value-at-Risk (CVaR / Expected Shortfall)
+ * at confidence level 1 - alpha (default 95% confidence, alpha = 0.05).
+ *
+ * @param {Array<number>} returns - Monthly percentage return series
+ * @param {number} [alpha=0.05]
+ * @returns {{ var: number, cvar: number, worstReturn: number }}
+ */
+export function calculateCVaR(returns, alpha = 0.05) {
+  if (!returns || returns.length === 0) {
+    return { var: 0, cvar: 0, worstReturn: 0 };
+  }
+
+  const sorted = [...returns].sort((a, b) => a - b);
+  const k = Math.max(1, Math.floor(alpha * sorted.length));
+
+  // VaR is the cutoff loss threshold
+  const varCutoff = -sorted[k - 1];
+
+  // CVaR is the average loss beyond VaR
+  let tailSum = 0;
+  for (let i = 0; i < k; i++) {
+    tailSum += sorted[i];
+  }
+  const cvar = -tailSum / k;
+
+  return {
+    var: Math.max(0, varCutoff),
+    cvar: Math.max(0, cvar),
+    worstReturn: sorted[0]
+  };
+}
+
+/**
+ * Calculates downside semivariance and Sortino Ratio.
+ *
+ * @param {Array<number>} returns - Monthly returns
+ * @param {number} expectedReturn - Annualized expected return
+ * @param {number} [riskFreeRate=0.03]
+ * @returns {{ downsideVol: number, sortinoRatio: number }}
+ */
+export function calculateSortinoRatio(returns, expectedReturn, riskFreeRate = 0.03) {
+  if (!returns || returns.length < 2) {
+    return { downsideVol: 0, sortinoRatio: 0 };
+  }
+
+  const monthlyRf = riskFreeRate / 12;
+  let downsideSumSq = 0;
+
+  for (let i = 0; i < returns.length; i++) {
+    const diff = returns[i] - monthlyRf;
+    if (diff < 0) {
+      downsideSumSq += diff * diff;
+    }
+  }
+
+  const monthlyDownsideVar = downsideSumSq / returns.length;
+  const annualDownsideVol = Math.sqrt(monthlyDownsideVar * 12);
+  const sortinoRatio = annualDownsideVol > 0 ? (expectedReturn - riskFreeRate) / annualDownsideVol : 0;
+
+  return {
+    downsideVol: annualDownsideVol,
+    sortinoRatio
+  };
+}
+
+/**
+ * Solves for the Minimum Conditional Value-at-Risk (Min CVaR at 95% confidence) portfolio:
+ * Uses projected subgradient descent on historical return trajectories.
+ *
+ * @param {Array<number>} expectedReturns
+ * @param {Array<Array<number>>} monthlyReturns - [numAssets][numMonths]
+ * @param {Array<Array<number>>} covarianceMatrix
+ * @param {Object} [options]
+ * @returns {Object} Min CVaR portfolio stats
+ */
+export function solveMinCVaR(expectedReturns, monthlyReturns, covarianceMatrix, options = {}) {
+  const n = expectedReturns.length;
+  const numMonths = monthlyReturns[0].length;
+  const { lower, upper } = validateBounds(n, options.lowerBounds, options.upperBounds);
+  const rf = typeof options.riskFreeRate === 'number' ? options.riskFreeRate : 0.03;
+  const alpha = 0.05;
+
+  // Start at GMV portfolio
+  let w = solveGMV(expectedReturns, covarianceMatrix, options).weights;
+
+  // Numerical optimization for CVaR
+  const maxIter = 150;
+  const eps = 1e-4;
+  let step = 0.005;
+
+  const getCVaRForWeights = (weights) => {
+    const pReturns = new Array(numMonths).fill(0);
+    for (let t = 0; t < numMonths; t++) {
+      for (let i = 0; i < n; i++) {
+        pReturns[t] += weights[i] * monthlyReturns[i][t];
+      }
+    }
+    return calculateCVaR(pReturns, alpha).cvar;
+  };
+
+  let bestCVaR = getCVaRForWeights(w);
+  let bestW = [...w];
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const grad = new Array(n);
+    const baseCVaR = getCVaRForWeights(w);
+
+    // Finite difference gradient of CVaR
+    for (let i = 0; i < n; i++) {
+      const wPerturb = [...w];
+      wPerturb[i] += eps;
+      const cvarPerturb = getCVaRForWeights(wPerturb);
+      grad[i] = (cvarPerturb - baseCVaR) / eps;
+    }
+
+    const prevW = [...w];
+    const trial = new Array(n);
+    for (let i = 0; i < n; i++) {
+      trial[i] = w[i] - step * grad[i]; // Descent
+    }
+
+    w = projectOntoSimplex(trial, lower, upper);
+    const newCVaR = getCVaRForWeights(w);
+
+    if (newCVaR < bestCVaR) {
+      bestCVaR = newCVaR;
+      bestW = [...w];
+    }
+
+    let delta = 0;
+    for (let i = 0; i < n; i++) {
+      delta = Math.max(delta, Math.abs(w[i] - prevW[i]));
+    }
+    if (delta < 1e-6) break;
+  }
+
+  const stats = calculatePortfolioStats(bestW, expectedReturns, covarianceMatrix, rf);
+  const pReturns = new Array(numMonths).fill(0);
+  for (let t = 0; t < numMonths; t++) {
+    for (let i = 0; i < n; i++) {
+      pReturns[t] += bestW[i] * monthlyReturns[i][t];
+    }
+  }
+  const cvarMetrics = calculateCVaR(pReturns, alpha);
+  const sortinoMetrics = calculateSortinoRatio(pReturns, stats.expectedReturn, rf);
+
+  return {
+    ...stats,
+    cvar: cvarMetrics.cvar,
+    var: cvarMetrics.var,
+    downsideVol: sortinoMetrics.downsideVol,
+    sortinoRatio: sortinoMetrics.sortinoRatio,
+    riskContributions: calculateRiskContributions(bestW, covarianceMatrix)
+  };
+}
+
+/**
+ * Solves for the Maximum Return portfolio subject to Volatility <= targetVol:
+ *
+ * @param {number} targetVol - Target annual standard deviation
+ * @param {Array<number>} expectedReturns
+ * @param {Array<Array<number>>} covarianceMatrix
+ * @param {Object} [options]
+ * @returns {Object} Target risk portfolio stats
+ */
+export function solveTargetRiskPortfolio(targetVol, expectedReturns, covarianceMatrix, options = {}) {
+  // Use Efficient Frontier curve to locate exact target risk boundary point
+  const ef = generateEfficientFrontier(expectedReturns, covarianceMatrix, {
+    ...options,
+    numPoints: 60
+  });
+
+  const frontier = ef.frontier;
+  let best = frontier[0];
+  let minDiff = Math.abs(frontier[0].volatility - targetVol);
+
+  frontier.forEach(p => {
+    const diff = Math.abs(p.volatility - targetVol);
+    if (diff < minDiff) {
+      minDiff = diff;
+      best = p;
+    }
+  });
+
+  return best;
+}

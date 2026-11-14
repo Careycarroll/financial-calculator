@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfolio Optimization Studio | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="./optimization.css" />
+  </head>
+  <body class="optimization-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="portfolio-optimization.html" class="top-nav-link active">⚖️ Portfolio Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container optimization-container">
+      <!-- Header -->
+      <header class="studio-header">
+        <h1>⚖️ Portfolio Optimization Studio</h1>
+        <p class="studio-tagline">
+          Optimize asset allocations based on specific investment objectives: Maximize Sharpe Ratio, Minimize Volatility (GMV),
+          Equal Risk Contribution (Risk Parity), or Minimize Tail Risk (CVaR). Compare the optimal portfolio against equal-weighted and benchmark allocations.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Portfolio Optimization Suite Pages">
+        <a href="index.html" class="suite-subnav-link">📈 Efficient Frontier</a>
+        <a href="portfolio-optimization.html" class="suite-subnav-link active">⚖️ Portfolio Optimization <span class="suite-subnav-badge">Page 2</span></a>
+        <a href="black-litterman.html" class="suite-subnav-link">🧠 Black-Litterman Model <span class="suite-subnav-badge">Page 3</span></a>
+        <a href="rolling-optimization.html" class="suite-subnav-link">🔄 Rolling Optimization <span class="suite-subnav-badge">Page 4</span></a>
+      </nav>
+
+      <!-- Dynamic Status & Control Bar -->
+      <section class="status-summary-bar" aria-label="Timeline and Model Summary">
+        <div class="status-pill highlight">
+          <span>Active Timeline:</span>
+          <strong id="status-timeline-range">-- to --</strong>
+          <span class="status-sub" id="status-total-months">(0 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Objective:</span>
+          <strong id="status-goal-name">Maximize Sharpe Ratio</strong>
+        </div>
+        <div class="status-pill">
+          <span>Baseline:</span>
+          <strong id="status-baseline-name">Equal Weighted (1/N)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Risk-Free Rate:</span>
+          <strong id="status-rf-rate">3.00%</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Configuration Card -->
+      <section class="config-card" id="config-card">
+        <div class="config-card-inner">
+          <!-- Presets Bar -->
+          <div class="presets-row">
+            <span class="presets-label">Preset Universes:</span>
+            <div class="presets-buttons-wrap">
+              <button type="button" class="btn-preset" data-preset="core-two">Core 60/40 (VOO + BND)</button>
+              <button type="button" class="btn-preset" data-preset="three-fund">Three-Fund (VOO + SCHD + BND)</button>
+              <button type="button" class="btn-preset" data-preset="growth-four">Core Four (VOO + QQQ + SCHD + BND)</button>
+              <button type="button" class="btn-preset" data-preset="equities">All-Equity (VOO + QQQ + SCHD)</button>
+            </div>
+          </div>
+
+          <!-- Asset Universe & Constraints Table -->
+          <div class="asset-table-wrap">
+            <table class="opt-asset-table" id="table-assets-config">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th>Asset / ETF</th>
+                  <th style="width: 140px; text-align: right;">Min. Weight (%)</th>
+                  <th style="width: 140px; text-align: right;">Max. Weight (%)</th>
+                  <th style="width: 150px; text-align: right;">Historical Ann. Return</th>
+                  <th style="width: 140px; text-align: right;">Historical Volatility</th>
+                  <th style="width: 60px; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="asset-rows-body">
+                <!-- Dynamically generated rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Add Asset Button -->
+          <div class="asset-actions-row">
+            <button type="button" class="btn-add-asset" id="btn-open-asset-modal">
+              <span>+</span>
+              <span>Add Asset / ETF</span>
+            </button>
+            <span class="status-sub">Minimum 2 assets required for optimization. Individual weight bounds default to 0% - 100%.</span>
+          </div>
+
+          <!-- Optimization Settings Grid -->
+          <div class="settings-grid">
+            <div class="setting-item">
+              <label for="select-opt-goal">Optimization Objective</label>
+              <select id="select-opt-goal" class="setting-select">
+                <option value="max-sharpe" selected>🎯 Mean Variance - Maximize Sharpe Ratio</option>
+                <option value="min-vol">🛡️ Mean Variance - Minimize Volatility (GMV)</option>
+                <option value="risk-parity">⚖️ Risk Parity (Equal Risk Contribution / ERC)</option>
+                <option value="min-cvar">🔻 Tail Risk - Minimize Conditional Value-at-Risk (95% CVaR)</option>
+                <option value="target-return">📈 Mean Variance - Minimize Volatility for Target Return</option>
+                <option value="target-vol">📉 Mean Variance - Maximize Return for Target Volatility</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label for="select-opt-baseline">Comparison Baseline</label>
+              <select id="select-opt-baseline" class="setting-select">
+                <option value="equal" selected>Equal Weighted (1/N)</option>
+                <option value="inv-vol">Inverse Volatility Weighted</option>
+                <option value="benchmark">Core Asset Benchmark (e.g. VOO or BND)</option>
+              </select>
+            </div>
+            <div class="setting-item" id="wrap-target-val" style="display: none;">
+              <label for="input-target-val" id="lbl-target-val">Target Return (%)</label>
+              <input type="number" id="input-target-val" class="setting-input" value="10.0" step="0.5" />
+            </div>
+            <div class="setting-item">
+              <label for="opt-rf-input">Risk-Free Rate (%)</label>
+              <input type="number" id="opt-rf-input" class="setting-input" value="3.0" step="0.25" min="0" max="15" />
+            </div>
+            <div class="setting-item">
+              <label for="opt-start-date">Start Date</label>
+              <select id="opt-start-date" class="setting-select"></select>
+            </div>
+            <div class="setting-item">
+              <label for="opt-end-date">End Date</label>
+              <select id="opt-end-date" class="setting-select"></select>
+            </div>
+          </div>
+
+          <div class="btn-calc-wrap">
+            <button type="button" class="btn-calculate-primary" id="btn-run-optimization">
+              <span>⚡</span>
+              <span>Optimize Portfolio</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTS SECTION -->
+      <main id="results-container">
+        <!-- Side-by-Side Comparison Scorecard -->
+        <section class="flagship-cards-grid">
+          <!-- Optimal Portfolio Card -->
+          <div class="flagship-card tangency-card">
+            <div class="card-title-row">
+              <h3 id="opt-card-title">⭐ Optimal Portfolio</h3>
+              <span class="card-pill tangency" id="opt-card-badge">OPTIMIZED</span>
+            </div>
+            <div class="card-metrics-grid">
+              <div class="card-metric-box">
+                <div class="card-metric-label">Expected Return</div>
+                <div class="card-metric-value highlight-gold" id="opt-metric-return">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Annual Volatility</div>
+                <div class="card-metric-value" id="opt-metric-vol">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Sharpe Ratio</div>
+                <div class="card-metric-value highlight-gold" id="opt-metric-sharpe">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Sortino Ratio</div>
+                <div class="card-metric-value" id="opt-metric-sortino">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">95% Monthly CVaR</div>
+                <div class="card-metric-value" id="opt-metric-cvar">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Downside Vol</div>
+                <div class="card-metric-value" id="opt-metric-downside">--</div>
+              </div>
+            </div>
+            <div class="card-donut-row">
+              <div class="donut-canvas-wrap">
+                <canvas id="canvas-donut-opt" width="130" height="130"></canvas>
+              </div>
+              <div class="donut-weights-table" id="opt-weights-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Baseline Portfolio Card -->
+          <div class="flagship-card gmv-card">
+            <div class="card-title-row">
+              <h3 id="base-card-title">⚖️ Baseline Portfolio</h3>
+              <span class="card-pill gmv" id="base-card-badge">BASELINE</span>
+            </div>
+            <div class="card-metrics-grid">
+              <div class="card-metric-box">
+                <div class="card-metric-label">Expected Return</div>
+                <div class="card-metric-value" id="base-metric-return">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Annual Volatility</div>
+                <div class="card-metric-value highlight-green" id="base-metric-vol">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Sharpe Ratio</div>
+                <div class="card-metric-value" id="base-metric-sharpe">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Sortino Ratio</div>
+                <div class="card-metric-value" id="base-metric-sortino">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">95% Monthly CVaR</div>
+                <div class="card-metric-value" id="base-metric-cvar">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Downside Vol</div>
+                <div class="card-metric-value" id="base-metric-downside">--</div>
+              </div>
+            </div>
+            <div class="card-donut-row">
+              <div class="donut-canvas-wrap">
+                <canvas id="canvas-donut-base" width="130" height="130"></canvas>
+              </div>
+              <div class="donut-weights-table" id="base-weights-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Charts Stack -->
+        <section class="charts-stack">
+          <!-- Side-by-Side Allocation & Risk Contribution Comparison Chart -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <span>📊</span>
+                <span>Asset Allocation & Risk Contribution Comparison</span>
+              </div>
+              <div class="chart-legend">
+                <div class="legend-item"><span class="legend-swatch" style="background: #38bdf8;"></span> Optimal Weights</div>
+                <div class="legend-item"><span class="legend-swatch" style="background: #94a3b8;"></span> Baseline Weights</div>
+                <div class="legend-item"><span class="legend-swatch" style="background: #facc15;"></span> Optimal % Risk Contribution</div>
+                <div class="legend-item"><span class="legend-swatch" style="background: #f43f5e;"></span> Baseline % Risk Contribution</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-bar-chart">
+              <canvas id="canvas-bar-chart"></canvas>
+              <div class="opt-chart-tooltip" id="tooltip-bars"></div>
+            </div>
+          </div>
+
+          <!-- Historical Wealth Trajectory Simulation Chart -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <span>📈</span>
+                <span>Historical Cumulative Growth ($10,000 Portfolio)</span>
+              </div>
+              <div class="chart-legend" id="growth-legend">
+                <div class="legend-item"><span class="legend-swatch" style="background: #38bdf8;"></span> Optimal Portfolio</div>
+                <div class="legend-item"><span class="legend-swatch" style="background: #34d399;"></span> Baseline Portfolio</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-growth-chart">
+              <canvas id="canvas-growth-chart"></canvas>
+              <div class="opt-chart-tooltip" id="tooltip-growth"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Detailed Asset Allocation & Risk Decomposition Table -->
+        <section class="tables-grid">
+          <div class="data-card">
+            <div class="data-card-title">
+              <span>📋</span>
+              <span>Asset Allocation, Risk Contributions & Sensitivity Decomposition</span>
+            </div>
+            <div class="data-table-scroll">
+              <table class="opt-data-table" id="table-opt-details">
+                <!-- Injected via JS -->
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script src="../js/nav.js"></script>
+    <script type="module" src="./optimization-ui.js"></script>
+  </body>
+</html>
