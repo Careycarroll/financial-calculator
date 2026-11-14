@@ -134,16 +134,22 @@
                 <tr class="totals-row">
                   <td><strong>Total Allocation:</strong></td>
                   <td class="total-col" id="col-total-p1">
-                    <span class="total-val" id="total-val-p1">100.0%</span>
-                    <span class="total-status" id="total-status-p1">✓ Valid</span>
+                    <div class="total-col-wrap">
+                      <span class="total-val" id="total-val-p1">100.0%</span>
+                      <span class="total-status" id="total-status-p1">✓ Valid</span>
+                    </div>
                   </td>
                   <td class="total-col" id="col-total-p2">
-                    <span class="total-val" id="total-val-p2">0.0%</span>
-                    <span class="total-status" id="total-status-p2">(Inactive)</span>
+                    <div class="total-col-wrap">
+                      <span class="total-val" id="total-val-p2">0.0%</span>
+                      <span class="total-status" id="total-status-p2">(Inactive)</span>
+                    </div>
                   </td>
                   <td class="total-col" id="col-total-p3">
-                    <span class="total-val" id="total-val-p3">0.0%</span>
-                    <span class="total-status" id="total-status-p3">(Inactive)</span>
+                    <div class="total-col-wrap">
+                      <span class="total-val" id="total-val-p3">0.0%</span>
+                      <span class="total-status" id="total-status-p3">(Inactive)</span>
+                    </div>
                   </td>
                   <td></td>
                 </tr>
@@ -293,6 +299,7 @@
             <canvas id="annual-canvas" width="1200" height="380"></canvas>
             <div class="canvas-tooltip hidden" id="annual-tooltip"></div>
           </div>
+          <div class="chart-legend-bar" id="annual-legend-bar"></div>
         </section>
 
         <!-- SECTION 5: DRAWDOWN & CRASH RECOVERY ANALYSIS -->
@@ -307,6 +314,7 @@
             <canvas id="drawdown-canvas" width="1200" height="340"></canvas>
             <div class="canvas-tooltip hidden" id="drawdown-tooltip"></div>
           </div>
+          <div class="chart-legend-bar" id="drawdown-legend-bar"></div>
         </section>
 
         <!-- SECTION 6: HISTORICAL ALLOCATION WEIGHT DRIFT -->

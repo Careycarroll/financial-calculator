@@ -236,6 +236,7 @@
 .allocations-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   text-align: left;
   font-size: 0.85rem;
 }
@@ -249,6 +250,27 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.allocations-table th:first-child,
+.allocations-table td:first-child {
+  width: 34%;
+}
+
+.allocations-table th.th-p1,
+.allocations-table td.td-p1,
+.allocations-table th.th-p2,
+.allocations-table td.td-p2,
+.allocations-table th.th-p3,
+.allocations-table td.td-p3 {
+  width: 20%;
+  text-align: left;
+}
+
+.allocations-table th:last-child,
+.allocations-table td:last-child {
+  width: 6%;
+  text-align: center;
 }
 
 .model-th-title {
@@ -371,16 +393,18 @@
   background: #0f172a;
   border-top: 2px solid rgba(255, 255, 255, 0.1);
   font-weight: 700;
+  vertical-align: middle;
 }
 
-.total-col {
-  display: flex;
+.total-col-wrap {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .total-val {
   font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .total-status {
@@ -503,79 +527,130 @@
 /* Donut Cards */
 .donuts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1.5rem;
 }
 
 .donut-card {
-  background: #0b1120;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 1.25rem;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
-.donut-title-row {
+.donut-card-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
   width: 100%;
 }
 
+.donut-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .donut-title {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #f8fafc;
+}
+
+.donut-asset-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+}
+
+.donut-body {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
 }
 
 .donut-canvas-wrap {
-  width: 180px;
-  height: 180px;
-  margin-bottom: 1rem;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
   position: relative;
 }
 
 .donut-legend {
-  width: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 0.75rem;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .donut-legend-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  transition: background 0.15s ease;
+}
+
+.donut-legend-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .donut-legend-left {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  overflow: hidden;
 }
 
 .donut-legend-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.donut-ticker {
+  color: #f1f5f9;
+  font-weight: 700;
+  min-width: 45px;
+}
+
+.donut-fund-name {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
 }
 
 .donut-legend-pct {
-  font-weight: 700;
-  color: #f1f5f9;
+  font-weight: 800;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.5rem;
 }
 
 /* Scorecard Table */
 .scorecard-table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
   font-size: 0.85rem;
 }
 
@@ -589,13 +664,34 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.scorecard-table th:first-child {
+  text-align: left;
+}
+
+.scorecard-table th:not(:first-child) {
+  text-align: right;
+}
+
 .scorecard-table td {
   padding: 0.8rem 1.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+.scorecard-table td:first-child {
+  text-align: left;
+}
+
+.scorecard-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.scorecard-table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.012);
+}
+
 .scorecard-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(56, 189, 248, 0.03);
 }
 
 .scorecard-metric-name {

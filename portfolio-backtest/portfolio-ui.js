@@ -116,9 +116,11 @@ function cacheDOMElements() {
 
     annualCanvas: document.getElementById('annual-canvas'),
     annualTooltip: document.getElementById('annual-tooltip'),
+    annualLegendBar: document.getElementById('annual-legend-bar'),
 
     drawdownCanvas: document.getElementById('drawdown-canvas'),
     drawdownTooltip: document.getElementById('drawdown-tooltip'),
+    drawdownLegendBar: document.getElementById('drawdown-legend-bar'),
 
     selectDriftPortfolio: document.getElementById('select-drift-portfolio'),
     driftCanvas: document.getElementById('drift-canvas'),
@@ -130,6 +132,16 @@ function cacheDOMElements() {
 // -------------------------------------------------------------------
 // Helper Utilities
 // -------------------------------------------------------------------
+function hexToRgba(hex, alpha = 0.2) {
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function formatCurrency(val) {
   if (val === null || val === undefined || isNaN(val)) return '$0';
   return '$' + Math.round(val).toLocaleString();
@@ -335,6 +347,8 @@ function renderDonutCharts() {
   elements.donutsContainer.innerHTML = '';
 
   const { portfolios } = state.simulationResult;
+  const allFunds = getAllFundsSync();
+  const fundMap = new Map(allFunds.map(f => [f.ticker.toUpperCase(), f]));
 
   portfolios.forEach(p => {
     const card = document.createElement('div');
@@ -342,26 +356,34 @@ function renderDonutCharts() {
 
     const canvasId = `donut-canvas-${p.id}`;
     card.innerHTML = `
-      <div class="donut-title-row">
-        <span class="model-color-dot" style="background: ${p.color};"></span>
-        <span class="donut-title">${p.name}</span>
+      <div class="donut-card-header">
+        <div class="donut-title-group">
+          <span class="model-color-dot" style="background: ${p.color};"></span>
+          <span class="donut-title">${p.name}</span>
+        </div>
+        <span class="donut-asset-badge">${p.allocations.length} ${p.allocations.length === 1 ? 'Asset' : 'Assets'}</span>
       </div>
-      <div class="donut-canvas-wrap">
-        <canvas id="${canvasId}" width="360" height="360"></canvas>
-      </div>
-      <div class="donut-legend">
-        ${p.allocations.map((a, idx) => {
-          const color = ASSET_PALETTE[idx % ASSET_PALETTE.length];
-          return `
-            <div class="donut-legend-item">
-              <div class="donut-legend-left">
-                <span class="donut-legend-dot" style="background: ${color};"></span>
-                <span>${a.ticker}</span>
+      <div class="donut-body">
+        <div class="donut-canvas-wrap">
+          <canvas id="${canvasId}" width="280" height="280" style="width: 140px; height: 140px;"></canvas>
+        </div>
+        <div class="donut-legend">
+          ${p.allocations.map((a, idx) => {
+            const color = ASSET_PALETTE[idx % ASSET_PALETTE.length];
+            const fund = fundMap.get(a.ticker.toUpperCase());
+            const fundName = fund ? fund.name : '';
+            return `
+              <div class="donut-legend-item">
+                <div class="donut-legend-left">
+                  <span class="donut-legend-dot" style="background: ${color};"></span>
+                  <span class="donut-ticker">${a.ticker}</span>
+                  ${fundName ? `<span class="donut-fund-name" title="${fundName}">${fundName}</span>` : ''}
+                </div>
+                <span class="donut-legend-pct" style="color: ${color};">${a.weight}%</span>
               </div>
-              <span class="donut-legend-pct">${a.weight}%</span>
-            </div>
-          `;
-        }).join('')}
+            `;
+          }).join('')}
+        </div>
       </div>
     `;
 
@@ -372,14 +394,14 @@ function renderDonutCharts() {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = 180 * dpr;
-      canvas.height = 180 * dpr;
+      canvas.width = 140 * dpr;
+      canvas.height = 140 * dpr;
       ctx.scale(dpr, dpr);
 
-      const cx = 90;
-      const cy = 90;
-      const rOuter = 75;
-      const rInner = 48;
+      const cx = 70;
+      const cy = 70;
+      const rOuter = 62;
+      const rInner = 39;
       let startAngle = -Math.PI / 2;
 
       p.allocations.forEach((a, idx) => {
@@ -398,11 +420,15 @@ function renderDonutCharts() {
       });
 
       // Center Text
-      ctx.fillStyle = '#f1f5f9';
-      ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${p.allocations.length} Assets`, cx, cy);
+      ctx.fillText('100%', cx, cy - 6);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '600 9px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+      ctx.fillText('TARGET', cx, cy + 9);
     }
   });
 }
@@ -418,20 +444,20 @@ function renderScorecardTable() {
   // Render Header
   let headHtml = `
     <tr>
-      <th style="width: 25%;">Metric</th>
+      <th style="width: 25%; text-align: left;">Metric</th>
   `;
   portfolios.forEach(p => {
     headHtml += `
-      <th style="color: ${p.color};">
-        <span class="model-color-dot" style="background:${p.color}; display:inline-block; margin-right:4px;"></span>
+      <th style="color: ${p.color}; text-align: right;">
+        <span class="model-color-dot" style="background:${p.color}; display:inline-block; margin-right:6px; vertical-align: middle;"></span>
         ${p.name}
       </th>
     `;
   });
   if (benchmark) {
     headHtml += `
-      <th style="color: #94a3b8;">
-        <span class="model-color-dot" style="background:#94a3b8; display:inline-block; margin-right:4px;"></span>
+      <th style="color: #94a3b8; text-align: right;">
+        <span class="model-color-dot" style="background:#64748b; display:inline-block; margin-right:6px; vertical-align: middle;"></span>
         ${benchmark.ticker} Benchmark
       </th>
     `;
@@ -439,21 +465,53 @@ function renderScorecardTable() {
   headHtml += `</tr>`;
   elements.scorecardThead.innerHTML = headHtml;
 
-  // Rows definition
+  // Metric definitions with best-performer criteria
   const metricDefs = [
-    { label: 'Initial Balance', key: m => formatCurrency(m.initialBalance) },
-    { label: 'Final Balance', key: m => formatCurrency(m.finalBalance), bold: true },
-    { label: 'Total Contributions', key: m => formatCurrency(m.totalContributed) },
-    { label: 'Total Net Profit', key: m => formatCurrency(m.totalGain) },
-    { label: 'CAGR (Annualized Return)', key: m => formatPct(m.cagr), bold: true },
-    { label: 'Annualized Volatility (Stdev)', key: m => formatPct(m.annualVolatility) },
-    { label: 'Sharpe Ratio (Rf = 3%)', key: m => m.sharpeRatio.toFixed(2), highlight: true },
-    { label: 'Sortino Ratio', key: m => m.sortinoRatio.toFixed(2) },
-    { label: 'Max Drawdown', key: m => `<span style="color:#ef4444; font-weight:700;">${formatPct(m.maxDrawdown)}</span>` },
-    { label: 'Best Year', key: m => `${m.bestYear.year} (${formatPct(m.bestYear.return)})` },
-    { label: 'Worst Year', key: m => `${m.worstYear.year} (${formatPct(m.worstYear.return)})` },
-    { label: 'Rebalance Events', key: (m, p) => p ? `${p.rebalanceCount} times` : 'N/A' },
-    { label: 'Correlation to Benchmark', key: (m, p) => p && p.correlationToBenchmark !== undefined ? p.correlationToBenchmark.toFixed(2) : '1.00' }
+    { label: 'Initial Balance', format: m => formatCurrency(m.initialBalance) },
+    {
+      label: 'Final Balance',
+      format: m => formatCurrency(m.finalBalance),
+      bold: true,
+      findBest: arr => Math.max(...arr.map(m => m.finalBalance))
+    },
+    { label: 'Total Contributions', format: m => formatCurrency(m.totalContributed) },
+    {
+      label: 'Total Net Profit',
+      format: m => formatCurrency(m.totalGain),
+      bold: true,
+      findBest: arr => Math.max(...arr.map(m => m.totalGain))
+    },
+    {
+      label: 'CAGR (Annualized Return)',
+      format: m => formatPct(m.cagr),
+      bold: true,
+      findBest: arr => Math.max(...arr.map(m => m.cagr))
+    },
+    {
+      label: 'Annualized Volatility (Stdev)',
+      format: m => formatPct(m.annualVolatility),
+      findBest: arr => Math.min(...arr.map(m => m.annualVolatility))
+    },
+    {
+      label: 'Sharpe Ratio (Rf = 3%)',
+      format: m => m.sharpeRatio.toFixed(2),
+      bold: true,
+      findBest: arr => Math.max(...arr.map(m => m.sharpeRatio))
+    },
+    {
+      label: 'Sortino Ratio',
+      format: m => m.sortinoRatio.toFixed(2),
+      findBest: arr => Math.max(...arr.map(m => m.sortinoRatio))
+    },
+    {
+      label: 'Max Drawdown',
+      format: m => `<span style="color:#ef4444; font-weight:700;">${formatPct(m.maxDrawdown)}</span>`,
+      findBest: arr => Math.max(...arr.map(m => m.maxDrawdown))
+    },
+    { label: 'Best Year', format: m => `${m.bestYear.year} (${formatPct(m.bestYear.return)})` },
+    { label: 'Worst Year', format: m => `${m.worstYear.year} (${formatPct(m.worstYear.return)})` },
+    { label: 'Rebalance Events', format: (m, p) => p ? `${p.rebalanceCount} times` : 'N/A' },
+    { label: 'Correlation to Benchmark', format: (m, p) => p && p.correlationToBenchmark !== undefined ? p.correlationToBenchmark.toFixed(2) : '1.00' }
   ];
 
   let bodyHtml = '';
@@ -462,13 +520,32 @@ function renderScorecardTable() {
       <tr>
         <td class="scorecard-metric-name">${row.label}</td>
     `;
+
+    // Determine best value across active portfolios if more than 1 portfolio
+    let bestVal = null;
+    if (row.findBest && portfolios.length > 1) {
+      bestVal = row.findBest(portfolios.map(p => p.metrics));
+    }
+
     portfolios.forEach(p => {
-      const val = row.key(p.metrics, p);
-      bodyHtml += `<td style="${row.bold ? 'font-weight:700;' : ''}">${val}</td>`;
+      const val = row.format(p.metrics, p);
+      let isBest = false;
+      if (row.findBest && portfolios.length > 1) {
+        const valNum = row.findBest([p.metrics]);
+        if (Math.abs(valNum - bestVal) < 0.0001) isBest = true;
+      }
+
+      const style = row.bold ? 'font-weight:700;' : '';
+      const badge = isBest
+        ? ` <span style="display:inline-block; font-size:0.65rem; padding:0.1rem 0.35rem; background:rgba(52,211,153,0.15); color:#34d399; border:1px solid rgba(52,211,153,0.3); border-radius:4px; margin-left:4px; vertical-align:middle;">BEST</span>`
+        : '';
+
+      bodyHtml += `<td style="${style} text-align: right;">${val}${badge}</td>`;
     });
+
     if (benchmark) {
-      const bVal = row.key(benchmark.metrics, null);
-      bodyHtml += `<td style="color:#94a3b8; ${row.bold ? 'font-weight:700;' : ''}">${bVal}</td>`;
+      const bVal = row.format(benchmark.metrics, null);
+      bodyHtml += `<td style="color:#94a3b8; ${row.bold ? 'font-weight:700;' : ''} text-align: right;">${bVal}</td>`;
     }
     bodyHtml += `</tr>`;
   });
@@ -673,6 +750,29 @@ function drawGrowthChart() {
 // -------------------------------------------------------------------
 // Visualization: Annual Returns Bar Chart
 // -------------------------------------------------------------------
+function drawRoundedBar(ctx, x, y, w, h, isPositive) {
+  if (h <= 0 || w <= 0) return;
+  const r = Math.min(4, w / 2, h / 2);
+  ctx.beginPath();
+  if (isPositive) {
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h);
+  } else {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
 function drawAnnualReturnsChart() {
   const canvas = elements.annualCanvas;
   if (!canvas || !state.simulationResult) return;
@@ -747,10 +847,10 @@ function drawAnnualReturnsChart() {
   ctx.lineTo(w - pad.right, yZero);
   ctx.stroke();
 
-  // Draw Grouped Bars per Year
+  // Draw Grouped Bars per Year with wider geometry
   const numSeries = portfolios.length + (benchmark ? 1 : 0);
   const groupW = plotW / years.length;
-  const barW = Math.max(2, Math.min(18, (groupW * 0.75) / numSeries));
+  const barW = Math.max(4, Math.min(22, (groupW * 0.82) / numSeries));
 
   years.forEach((yr, yIdx) => {
     const groupCenter = pad.left + (yIdx + 0.5) * groupW;
@@ -768,10 +868,10 @@ function drawAnnualReturnsChart() {
       const ret = yrData ? yrData.return : 0;
       const barX = groupStart + pIdx * barW;
       const barY = ret >= 0 ? getY(ret) : yZero;
-      const barH = Math.abs(getY(ret) - yZero);
+      const barH = Math.max(1, Math.abs(getY(ret) - yZero));
 
       ctx.fillStyle = p.color;
-      ctx.fillRect(barX, barY, barW - 1, barH);
+      drawRoundedBar(ctx, barX + 0.5, barY, barW - 1, barH, ret >= 0);
     });
 
     // Benchmark Bar
@@ -780,12 +880,81 @@ function drawAnnualReturnsChart() {
       const bRet = bData ? bData.return : 0;
       const barX = groupStart + portfolios.length * barW;
       const barY = bRet >= 0 ? getY(bRet) : yZero;
-      const barH = Math.abs(getY(bRet) - yZero);
+      const barH = Math.max(1, Math.abs(getY(bRet) - yZero));
 
       ctx.fillStyle = '#64748b';
-      ctx.fillRect(barX, barY, barW - 1, barH);
+      drawRoundedBar(ctx, barX + 0.5, barY, barW - 1, barH, bRet >= 0);
     }
   });
+
+  // Annual Returns Legend Bar
+  if (elements.annualLegendBar) {
+    let annualLegend = '';
+    portfolios.forEach(p => {
+      annualLegend += `
+        <div class="legend-item">
+          <span class="legend-color-box" style="background: ${p.color};"></span>
+          <strong>${p.name}:</strong> CAGR ${formatPct(p.metrics.cagr)}
+        </div>
+      `;
+    });
+    if (benchmark) {
+      annualLegend += `
+        <div class="legend-item" style="color: #94a3b8;">
+          <span class="legend-color-box" style="background: #64748b;"></span>
+          <span>${benchmark.ticker} Benchmark:</span> CAGR ${formatPct(benchmark.metrics.cagr)}
+        </div>
+      `;
+    }
+    elements.annualLegendBar.innerHTML = annualLegend;
+  }
+
+  // Annual Hover Tooltip
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const relX = mouseX - pad.left;
+    if (relX < 0 || relX > plotW) {
+      if (elements.annualTooltip) elements.annualTooltip.classList.add('hidden');
+      return;
+    }
+
+    const yIdx = Math.min(years.length - 1, Math.max(0, Math.floor(relX / groupW)));
+    const yr = years[yIdx];
+
+    let tipHtml = `<div style="font-weight:700; margin-bottom: 0.35rem; color:#cbd5e1;">Year: ${yr}</div>`;
+    portfolios.forEach(p => {
+      const yrData = p.metrics.annualReturns.find(a => a.year === yr);
+      const ret = yrData ? yrData.return : 0;
+      tipHtml += `
+        <div style="display:flex; justify-content:space-between; gap:1.2rem; color:${p.color}; margin-bottom:0.15rem;">
+          <span>${p.name}:</span>
+          <strong style="color:${ret >= 0 ? '#34d399' : '#f87171'}">${formatPct(ret)}</strong>
+        </div>
+      `;
+    });
+    if (benchmark) {
+      const bData = benchmark.metrics.annualReturns.find(a => a.year === yr);
+      const bRet = bData ? bData.return : 0;
+      tipHtml += `
+        <div style="display:flex; justify-content:space-between; gap:1.2rem; color:#94a3b8;">
+          <span>${benchmark.ticker} Benchmark:</span>
+          <strong style="color:${bRet >= 0 ? '#34d399' : '#f87171'}">${formatPct(bRet)}</strong>
+        </div>
+      `;
+    }
+
+    if (elements.annualTooltip) {
+      elements.annualTooltip.innerHTML = tipHtml;
+      elements.annualTooltip.style.left = `${Math.min(w - 180, Math.max(pad.left, mouseX))}px`;
+      elements.annualTooltip.style.top = `${pad.top + 20}px`;
+      elements.annualTooltip.classList.remove('hidden');
+    }
+  };
+
+  canvas.onmouseleave = () => {
+    if (elements.annualTooltip) elements.annualTooltip.classList.add('hidden');
+  };
 }
 
 // -------------------------------------------------------------------
@@ -824,6 +993,10 @@ function drawDrawdownChart() {
     ...p,
     ddSeries: computeDD(p.trajectory)
   }));
+  const bDrawdown = benchmark ? {
+    ...benchmark,
+    ddSeries: computeDD(benchmark.trajectory)
+  } : null;
 
   let maxDrop = -0.10;
   pDrawdowns.forEach(p => {
@@ -831,6 +1004,11 @@ function drawDrawdownChart() {
       if (dd < maxDrop) maxDrop = dd;
     });
   });
+  if (bDrawdown) {
+    bDrawdown.ddSeries.forEach(dd => {
+      if (dd < maxDrop) maxDrop = dd;
+    });
+  }
 
   maxDrop = Math.min(-0.25, maxDrop * 1.15); // e.g. -0.55
 
@@ -871,10 +1049,44 @@ function drawDrawdownChart() {
     ctx.fillText(dateStr, x, h - pad.bottom + 8);
   }
 
-  // Draw Drawdown Lines
+  const yZero = pad.top;
+
+  // Draw Benchmark Drawdown (if present)
+  if (bDrawdown) {
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    bDrawdown.ddSeries.forEach((dd, idx) => {
+      const x = getX(idx);
+      const y = getY(dd);
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw Underwater Area Fills and Outline Curves for active portfolios
   pDrawdowns.forEach(p => {
+    // 1. Shaded area
+    const grad = ctx.createLinearGradient(0, yZero, 0, pad.top + plotH);
+    grad.addColorStop(0, hexToRgba(p.color, 0.22));
+    grad.addColorStop(1, hexToRgba(p.color, 0.03));
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(getX(0), yZero);
+    p.ddSeries.forEach((dd, idx) => {
+      ctx.lineTo(getX(idx), getY(dd));
+    });
+    ctx.lineTo(getX(nPoints - 1), yZero);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Stroke curve
     ctx.strokeStyle = p.color;
-    ctx.lineWidth = 1.75;
+    ctx.lineWidth = 2.0;
     ctx.beginPath();
     p.ddSeries.forEach((dd, idx) => {
       const x = getX(idx);
@@ -884,6 +1096,73 @@ function drawDrawdownChart() {
     });
     ctx.stroke();
   });
+
+  // Legend Bar
+  if (elements.drawdownLegendBar) {
+    let ddLegend = '';
+    portfolios.forEach(p => {
+      ddLegend += `
+        <div class="legend-item">
+          <span class="legend-color-box" style="background: ${p.color};"></span>
+          <strong>${p.name}:</strong> Max DD <span style="color:#ef4444; font-weight:700;">${formatPct(p.metrics.maxDrawdown)}</span>
+        </div>
+      `;
+    });
+    if (benchmark) {
+      ddLegend += `
+        <div class="legend-item" style="color: #94a3b8;">
+          <span class="legend-color-box" style="background: #64748b; border: 1px dashed #94a3b8;"></span>
+          <span>${benchmark.ticker} Benchmark:</span> Max DD <span style="color:#ef4444; font-weight:700;">${formatPct(benchmark.metrics.maxDrawdown)}</span>
+        </div>
+      `;
+    }
+    elements.drawdownLegendBar.innerHTML = ddLegend;
+  }
+
+  // Drawdown Tooltip
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const relX = mouseX - pad.left;
+    if (relX < 0 || relX > plotW) {
+      if (elements.drawdownTooltip) elements.drawdownTooltip.classList.add('hidden');
+      return;
+    }
+
+    const idx = Math.min(nPoints - 1, Math.max(0, Math.round((relX / plotW) * (nPoints - 1))));
+    const date = portfolios[0].trajectory[idx].date;
+
+    let tipHtml = `<div style="font-weight:700; margin-bottom: 0.35rem; color:#cbd5e1;">${date}</div>`;
+    pDrawdowns.forEach(p => {
+      const dd = p.ddSeries[idx];
+      tipHtml += `
+        <div style="display:flex; justify-content:space-between; gap:1.2rem; color:${p.color}; margin-bottom:0.15rem;">
+          <span>${p.name}:</span>
+          <strong style="color:${dd < 0 ? '#ef4444' : '#34d399'}">${formatPct(dd)}</strong>
+        </div>
+      `;
+    });
+    if (bDrawdown) {
+      const bDd = bDrawdown.ddSeries[idx];
+      tipHtml += `
+        <div style="display:flex; justify-content:space-between; gap:1.2rem; color:#94a3b8;">
+          <span>${benchmark.ticker} Benchmark:</span>
+          <strong style="color:${bDd < 0 ? '#ef4444' : '#34d399'}">${formatPct(bDd)}</strong>
+        </div>
+      `;
+    }
+
+    if (elements.drawdownTooltip) {
+      elements.drawdownTooltip.innerHTML = tipHtml;
+      elements.drawdownTooltip.style.left = `${Math.min(w - 180, Math.max(pad.left, mouseX))}px`;
+      elements.drawdownTooltip.style.top = `${getY(pDrawdowns[0].ddSeries[idx])}px`;
+      elements.drawdownTooltip.classList.remove('hidden');
+    }
+  };
+
+  canvas.onmouseleave = () => {
+    if (elements.drawdownTooltip) elements.drawdownTooltip.classList.add('hidden');
+  };
 }
 
 // -------------------------------------------------------------------
@@ -955,6 +1234,18 @@ function drawDriftChart() {
     ctx.closePath();
     ctx.fill();
 
+    // Subtle outline separating layers
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < nPoints; i++) {
+      const x = getX(i);
+      const y = getY(newCumulative[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
     cumulativeBaseline = newCumulative;
   });
 
@@ -997,6 +1288,43 @@ function drawDriftChart() {
     `;
   });
   if (elements.driftLegendBar) elements.driftLegendBar.innerHTML = driftLegend;
+
+  // Drift Hover Tooltip
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const relX = mouseX - pad.left;
+    if (relX < 0 || relX > plotW) {
+      if (elements.driftTooltip) elements.driftTooltip.classList.add('hidden');
+      return;
+    }
+
+    const idx = Math.min(nPoints - 1, Math.max(0, Math.round((relX / plotW) * (nPoints - 1))));
+    const date = traj[idx].date;
+
+    let tipHtml = `<div style="font-weight:700; margin-bottom: 0.35rem; color:#cbd5e1;">${date}</div>`;
+    tickers.forEach((t, tIdx) => {
+      const color = ASSET_PALETTE[tIdx % ASSET_PALETTE.length];
+      const wt = traj[idx].assetWeights[t] || 0;
+      tipHtml += `
+        <div style="display:flex; justify-content:space-between; gap:1.2rem; color:${color}; margin-bottom:0.15rem;">
+          <span>${t}:</span>
+          <strong>${wt.toFixed(1)}%</strong>
+        </div>
+      `;
+    });
+
+    if (elements.driftTooltip) {
+      elements.driftTooltip.innerHTML = tipHtml;
+      elements.driftTooltip.style.left = `${Math.min(w - 180, Math.max(pad.left, mouseX))}px`;
+      elements.driftTooltip.style.top = `${pad.top + 20}px`;
+      elements.driftTooltip.classList.remove('hidden');
+    }
+  };
+
+  canvas.onmouseleave = () => {
+    if (elements.driftTooltip) elements.driftTooltip.classList.add('hidden');
+  };
 }
 
 // -------------------------------------------------------------------
