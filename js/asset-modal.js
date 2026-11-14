@@ -492,7 +492,7 @@ function renderAssetList() {
       : 'Historical series loaded';
 
     html += `
-      <div class="asset-list-item ${isSelected ? 'is-selected' : ''}">
+      <div class="asset-list-item ${isSelected ? 'is-selected' : ''}" data-ticker="${escapeHtml(f.ticker)}" role="button" tabindex="0" style="cursor: pointer;">
         <div class="item-left">
           <span class="picker-dot" style="background: ${f.color || '#38bdf8'};"></span>
           <span class="item-ticker-badge">${escapeHtml(f.ticker)}</span>
@@ -519,17 +519,35 @@ function renderAssetList() {
   listContainer.innerHTML = html;
 
   if (isMulti) {
-    listContainer.querySelectorAll('[data-toggle-ticker]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const ticker = btn.dataset.toggleTicker;
+    listContainer.querySelectorAll('.asset-list-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const toggleBtn = item.querySelector('[data-toggle-ticker]');
+        const ticker = toggleBtn ? toggleBtn.dataset.toggleTicker : item.dataset.ticker;
         if (ticker) toggleMultiFund(ticker);
+      });
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const toggleBtn = item.querySelector('[data-toggle-ticker]');
+          const ticker = toggleBtn ? toggleBtn.dataset.toggleTicker : item.dataset.ticker;
+          if (ticker) toggleMultiFund(ticker);
+        }
       });
     });
   } else {
-    listContainer.querySelectorAll('[data-select-ticker]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const ticker = btn.dataset.selectTicker;
+    listContainer.querySelectorAll('.asset-list-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const selectBtn = item.querySelector('[data-select-ticker]');
+        const ticker = selectBtn ? selectBtn.dataset.selectTicker : item.dataset.ticker;
         if (ticker) selectFund(ticker);
+      });
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const selectBtn = item.querySelector('[data-select-ticker]');
+          const ticker = selectBtn ? selectBtn.dataset.selectTicker : item.dataset.ticker;
+          if (ticker) selectFund(ticker);
+        }
       });
     });
   }
@@ -591,13 +609,13 @@ export function openAssetModal(options = {}) {
 
   currentOptions = {
     title: options.title || 'Select Asset / Benchmark',
-    badgeText: options.badgeText || 'Asset',
+    badgeText: options.badgeText || (options.targetType === 'fund' ? 'Asset' : (options.targetType === 'benchmark' ? 'Benchmark' : 'Asset')),
     badgeColor: options.badgeColor || '#2dd4bf',
     isMulti: Boolean(options.isMulti),
     selectedTickers: options.selectedTickers || [],
     minSelected: options.minSelected != null ? options.minSelected : 2,
     maxSelected: options.maxSelected != null ? options.maxSelected : 15,
-    activeTicker: options.activeTicker || '',
+    activeTicker: options.activeTicker || options.selectedTicker || '',
     onSelect: options.onSelect || (() => {}),
     onApply: options.onApply || (() => {}),
     onImport: options.onImport || null,
