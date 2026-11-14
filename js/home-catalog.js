@@ -4,6 +4,64 @@
 // Powers the homepage search, suite tiles, and workflow views.
 // ===================================================================
 
+export const BADGE_DEFINITIONS = {
+  STUDIO: {
+    name: "Studio Workspace",
+    icon: "💼",
+    desc: "Deep multi-tab analytical suite with interactive charts, multi-asset portfolio modeling, or stochastic simulation runs."
+  },
+  ENGINE: {
+    name: "Algorithmic Engine",
+    icon: "🛡️",
+    desc: "Deterministic rule solver with complex financial policies, tax-aware logic, or dynamic guardrails."
+  },
+  SIMULATOR: {
+    name: "Stress Simulator",
+    icon: "⚡",
+    desc: "Macro scenario testing environment for market shocks, crisis depth, and historical timing shifts."
+  },
+  LAB: {
+    name: "Strategy Lab",
+    icon: "🎯",
+    desc: "Quantitative sandbox for exploring mathematical formulas, derivative payoffs, and theoretical models."
+  },
+  DASHBOARD: {
+    name: "Planning Dashboard",
+    icon: "🔥",
+    desc: "High-level personal finance dashboard for milestone tracking, targets, and progressive metrics."
+  },
+  CALCULATOR: {
+    name: "Financial Calculator",
+    icon: "🏦",
+    desc: "Rapid single-purpose mathematical solver for amortization, present value, compounding, or cash flows."
+  },
+  VALUATOR: {
+    name: "Valuation Suite",
+    icon: "🔍",
+    desc: "Multi-method fundamental equity research combining DCF, Graham Number, and market multiples."
+  },
+  ANALYZER: {
+    name: "Financial Statement Analyzer",
+    icon: "📑",
+    desc: "Automated SEC EDGAR 10-K filings parser with health scoring, DuPont ratios, and red flag audits."
+  },
+  TOOL: {
+    name: "Managerial Tool",
+    icon: "📊",
+    desc: "Interactive corporate analysis for breakeven, operating leverage, and cost allocation structures."
+  },
+  ECON: {
+    name: "Economics Model",
+    icon: "📉",
+    desc: "Interactive microeconomic solver for linear supply/demand equilibrium, elasticity, and utility theory."
+  },
+  NEWS: {
+    name: "Curated Feed",
+    icon: "📰",
+    desc: "Live stream of curated financial news, macro developments, and market headlines."
+  }
+};
+
 export const SUITES_CONFIG = [
   {
     id: "monte-carlo",

@@ -1,10 +1,11 @@
 // ===================================================================
 // HOME INTERACTION & CATALOG CONTROLLER
 // Handles dynamic rendering of Suite vs Workflow views, global search,
-// category filtering, and persistent layout preferences.
+// category filtering, persistent layout preferences, and interactive
+// badge taxonomy popovers.
 // ===================================================================
 
-import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.js';
+import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG, BADGE_DEFINITIONS } from './home-catalog.js';
 
 (function () {
   const STORAGE_KEY = 'fc_home_view';
@@ -21,6 +22,84 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
   const contentArea = document.getElementById('home-content-area');
 
   if (!contentArea) return;
+
+  // --- FLOATING BADGE POPOVER SINGLETON (OPTION A) ---
+  let popoverEl = null;
+  let activeBadgeEl = null;
+
+  function getOrCreatePopover() {
+    if (popoverEl) return popoverEl;
+    popoverEl = document.createElement('div');
+    popoverEl.id = 'badge-popover';
+    popoverEl.className = 'badge-popover hidden';
+    popoverEl.setAttribute('role', 'tooltip');
+    popoverEl.setAttribute('aria-hidden', 'true');
+    popoverEl.innerHTML = `
+      <div class="popover-arrow"></div>
+      <div class="popover-header">
+        <span class="popover-icon"></span>
+        <span class="popover-title"></span>
+      </div>
+      <p class="popover-desc"></p>
+    `;
+    document.body.appendChild(popoverEl);
+    return popoverEl;
+  }
+
+  function showBadgePopover(badgeEl) {
+    const badgeKey = badgeEl.getAttribute('data-badge');
+    if (!badgeKey) return;
+    const def = BADGE_DEFINITIONS[badgeKey];
+    if (!def) return;
+
+    activeBadgeEl = badgeEl;
+    const popover = getOrCreatePopover();
+    popover.querySelector('.popover-icon').textContent = def.icon;
+    popover.querySelector('.popover-title').textContent = `${badgeKey} • ${def.name}`;
+    popover.querySelector('.popover-desc').textContent = def.desc;
+
+    popover.classList.remove('hidden');
+    popover.classList.add('visible');
+    popover.setAttribute('aria-hidden', 'false');
+
+    positionPopover(badgeEl, popover);
+  }
+
+  function positionPopover(badgeEl, popover) {
+    const badgeRect = badgeEl.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+
+    // Default position: above the badge, centered horizontally
+    let top = badgeRect.top + scrollY - popoverRect.height - 10;
+    let left = badgeRect.left + scrollX + badgeRect.width / 2 - popoverRect.width / 2;
+    let arrowOnBottom = true;
+
+    // If overflowing top of viewport, flip to below badge
+    if (badgeRect.top - popoverRect.height - 10 < 10) {
+      top = badgeRect.bottom + scrollY + 10;
+      arrowOnBottom = false;
+    }
+
+    // Ensure horizontal boundaries (at least 12px padding from screen edge)
+    const minLeft = scrollX + 12;
+    const maxLeft = scrollX + document.documentElement.clientWidth - popoverRect.width - 12;
+    left = Math.max(minLeft, Math.min(left, maxLeft));
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+    popover.classList.toggle('arrow-bottom', arrowOnBottom);
+    popover.classList.toggle('arrow-top', !arrowOnBottom);
+  }
+
+  function hideBadgePopover() {
+    if (!popoverEl) return;
+    popoverEl.classList.remove('visible');
+    popoverEl.classList.add('hidden');
+    popoverEl.setAttribute('aria-hidden', 'true');
+    activeBadgeEl = null;
+  }
 
   // --- ESCAPE HTML UTILITY ---
   function escapeHTML(str) {
@@ -88,7 +167,7 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
               <span class="suite-tool-name">${escapeHTML(tool.title)}</span>
               <span class="suite-tool-snippet">${escapeHTML(tool.desc)}</span>
             </div>
-            <span class="suite-tool-badge badge-${tool.badge.toLowerCase()}">${tool.badge}</span>
+            <span class="suite-tool-badge badge-${tool.badge.toLowerCase()}" data-badge="${tool.badge}" role="button" tabindex="0" title="Click or hover to learn about ${tool.badge} tools">${tool.badge}</span>
             <span class="suite-tool-arrow">»</span>
           </a>
         `;
@@ -109,7 +188,6 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
     let workflowsToRender = WORKFLOWS_CONFIG;
 
     if (activeCategoryFilter !== 'all') {
-      // Find workflows that contain tools from the selected suite
       const suiteTools = TOOLS_CATALOG.filter((t) => t.suiteId === activeCategoryFilter);
       const activeWorkflowIds = new Set(suiteTools.map((t) => t.workflowId));
       workflowsToRender = WORKFLOWS_CONFIG.filter((wf) => activeWorkflowIds.has(wf.id));
@@ -155,7 +233,7 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
           <a href="${tool.path}" class="workflow-card">
             <div class="workflow-card-top">
               <span class="workflow-card-icon">${tool.icon}</span>
-              <span class="workflow-card-badge badge-${tool.badge.toLowerCase()}">${tool.badge}</span>
+              <span class="workflow-card-badge badge-${tool.badge.toLowerCase()}" data-badge="${tool.badge}" role="button" tabindex="0" title="Click or hover to learn about ${tool.badge} tools">${tool.badge}</span>
             </div>
             <h4 class="workflow-card-title">${escapeHTML(tool.title)}</h4>
             <p class="workflow-card-desc">${escapeHTML(tool.desc)}</p>
@@ -230,7 +308,7 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
         <a href="${tool.path}" class="workflow-card">
           <div class="workflow-card-top">
             <span class="workflow-card-icon">${tool.icon}</span>
-            <span class="workflow-card-badge badge-${tool.badge.toLowerCase()}">${tool.badge}</span>
+            <span class="workflow-card-badge badge-${tool.badge.toLowerCase()}" data-badge="${tool.badge}" role="button" tabindex="0" title="Click or hover to learn about ${tool.badge} tools">${tool.badge}</span>
           </div>
           <h4 class="workflow-card-title">${highlightedTitle}</h4>
           <p class="workflow-card-desc">${highlightedDesc}</p>
@@ -274,6 +352,8 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
 
   // --- RENDER DISPATCHER ---
   function applyCurrentView() {
+    hideBadgePopover();
+
     if (searchQuery.trim().length > 0) {
       renderSearchResults(searchQuery);
       return;
@@ -335,16 +415,71 @@ import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from './home-catalog.j
     }
   }
 
+  // --- BADGE INTERACTION EVENT DELEGATION (OPTION A) ---
+  contentArea.addEventListener('mouseover', (e) => {
+    const badge = e.target.closest('[data-badge]');
+    if (badge) {
+      showBadgePopover(badge);
+    }
+  });
+
+  contentArea.addEventListener('mouseout', (e) => {
+    const badge = e.target.closest('[data-badge]');
+    if (badge) {
+      hideBadgePopover();
+    }
+  });
+
+  // Tap / click handler on badge (especially for phones)
+  contentArea.addEventListener('click', (e) => {
+    const badge = e.target.closest('[data-badge]');
+    if (badge) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeBadgeEl === badge) {
+        hideBadgePopover();
+      } else {
+        showBadgePopover(badge);
+      }
+    }
+  });
+
+  // Global dismiss listeners
+  window.addEventListener('click', (e) => {
+    if (popoverEl && !popoverEl.contains(e.target) && !e.target.closest('[data-badge]')) {
+      hideBadgePopover();
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    if (activeBadgeEl && popoverEl && !popoverEl.classList.contains('hidden')) {
+      positionPopover(activeBadgeEl, popoverEl);
+    }
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (activeBadgeEl && popoverEl && !popoverEl.classList.contains('hidden')) {
+      positionPopover(activeBadgeEl, popoverEl);
+    }
+  }, { passive: true });
+
   // --- KEYBOARD SHORTCUTS ---
   window.addEventListener('keydown', (e) => {
     // '/' or 'Cmd+K' / 'Ctrl+K' to focus search
-    if ((e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) && document.activeElement !== searchInput) {
+    if (
+      (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) &&
+      document.activeElement !== searchInput
+    ) {
       if (searchInput) {
         e.preventDefault();
         searchInput.focus();
         searchInput.select();
       }
     } else if (e.key === 'Escape') {
+      if (popoverEl && !popoverEl.classList.contains('hidden')) {
+        hideBadgePopover();
+        return;
+      }
       if (searchInput && (document.activeElement === searchInput || searchQuery.length > 0)) {
         searchInput.value = '';
         searchQuery = '';

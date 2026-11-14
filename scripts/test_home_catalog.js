@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG } from '../js/home-catalog.js';
+import { SUITES_CONFIG, WORKFLOWS_CONFIG, TOOLS_CATALOG, BADGE_DEFINITIONS } from '../js/home-catalog.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,13 +40,19 @@ for (const wf of WORKFLOWS_CONFIG) {
   assert(Boolean(wf.title && wf.icon && wf.desc), `Workflow "${wf.id}" has title, icon, desc`);
 }
 
-// 3. Tool validations
+// 3. Badge definitions
+for (const [badgeKey, def] of Object.entries(BADGE_DEFINITIONS)) {
+  assert(Boolean(def.name && def.icon && def.desc), `Badge definition "${badgeKey}" has name, icon, desc`);
+}
+
+// 4. Tool validations
 const toolIds = new Set();
 for (const tool of TOOLS_CATALOG) {
   assert(!toolIds.has(tool.id), `Tool ID "${tool.id}" is unique`);
   toolIds.add(tool.id);
 
   assert(Boolean(tool.title && tool.desc && tool.icon && tool.badge), `Tool "${tool.id}" has all core metadata`);
+  assert(tool.badge in BADGE_DEFINITIONS, `Tool "${tool.id}" badge "${tool.badge}" exists in BADGE_DEFINITIONS`);
   assert(suiteIds.has(tool.suiteId), `Tool "${tool.id}" references valid suiteId "${tool.suiteId}"`);
   assert(workflowIds.has(tool.workflowId), `Tool "${tool.id}" references valid workflowId "${tool.workflowId}"`);
   assert(Array.isArray(tool.keywords) && tool.keywords.length >= 3, `Tool "${tool.id}" has at least 3 keywords`);
