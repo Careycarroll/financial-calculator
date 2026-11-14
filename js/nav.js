@@ -13,7 +13,10 @@
       tools: [
         { id: "fire", name: "FIRE Dashboard", icon: "🔥", path: "pages/fire.html", desc: "Financial Independence number & Coast FIRE target" },
         { id: "drawdown-engine", name: "Drawdown Engine", icon: "🛡️", path: "pages/drawdown-engine.html", desc: "Tax-aware Guyton-Klinger withdrawal guardrails & RMDs" },
-        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Mega-cap concentration & 401(k) DCA stress testing" }
+        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Mega-cap concentration & 401(k) DCA stress testing" },
+        { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
+        { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
+        { id: "asset-liability", name: "Asset Liability Modeling", icon: "⚖️", path: "monte-carlo/asset-liability.html", desc: "Stress test asset allocation against future liability obligations" }
       ],
       bridges: [
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "Analyze factor risks & Jensen's Alpha" }
@@ -28,6 +31,7 @@
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" },
         { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation, rebalancing frequencies & side-by-side models" },
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
+        { id: "monte-carlo", name: "Monte Carlo Studio", icon: "🎲", path: "monte-carlo/index.html", desc: "Institutional Monte Carlo simulations, glide paths & ALM" },
         { id: "options", name: "Options Strategy Lab", icon: "🎯", path: "pages/options.html", desc: "Black-Scholes pricing, Greeks & 40+ payoff diagrams" }
       ],
       bridges: [

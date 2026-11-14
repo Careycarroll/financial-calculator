@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asset Liability Modeling — Financial Calculator</title>
+  <link rel="stylesheet" href="../css/base.css" />
+  <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/asset-modal.css" />
+  <link rel="stylesheet" href="./monte-carlo.css" />
+  <script src="../js/font-scale.js"></script>
+  <script src="../js/prefetch.js"></script>
+</head>
+<body class="monte-carlo-page">
+  <!-- GLOBAL HEADER -->
+  <header class="top-nav">
+    <div class="top-nav-left">
+      <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+      <span class="nav-separator">/</span>
+      <div class="nav-category-dropdown-wrap">
+        <button class="nav-category-btn" id="nav-category-btn" type="button">
+          <span id="nav-category-label">Trading &amp; Fund Analytics</span>
+          <span class="nav-chevron">▾</span>
+        </button>
+        <div class="nav-category-menu" id="nav-category-menu"></div>
+      </div>
+      <a href="../index.html" class="nav-all-tools-link">← All Tools</a>
+    </div>
+    <div class="top-nav-actions" id="top-nav-actions">
+      <!-- Populated dynamically by nav.js -->
+    </div>
+  </header>
+
+  <main class="monte-carlo-container">
+    <!-- SUITE SUB-NAVIGATION -->
+    <nav class="suite-subnav" aria-label="Monte Carlo Suite">
+      <a href="index.html" class="subnav-link">🎲 Monte Carlo Simulation</a>
+      <a href="financial-goals.html" class="subnav-link">🎯 Financial Goals</a>
+      <a href="asset-liability.html" class="subnav-link active">⚖️ Asset Liability Modeling</a>
+    </nav>
+
+    <!-- HEADER TITLE & TAGLINE -->
+    <header class="studio-header">
+      <h1>⚖️ Asset Liability Modeling Studio</h1>
+      <p class="studio-tagline">
+        Stress-test portfolio asset allocation against future liability obligations, debt service schedules,
+        and defined benefit cashflows. Track funded ratio percentiles, deficit probabilities, and solvency over time.
+      </p>
+    </header>
+
+    <!-- STATUS SUMMARY BAR -->
+    <section class="status-summary-bar">
+      <div class="status-pill highlight">
+        <span>Initial Assets:</span>
+        <strong id="status-initial-assets">$1,000,000</strong>
+      </div>
+      <div class="status-pill">
+        <span>Horizon:</span>
+        <strong id="status-horizon">30 Years</strong>
+      </div>
+      <div class="status-pill">
+        <span>Discount Rate:</span>
+        <strong id="status-discount-rate">4.0%</strong>
+      </div>
+      <div class="status-pill">
+        <span>Initial Funded Ratio:</span>
+        <strong id="status-initial-funded-ratio">--</strong>
+      </div>
+      <div class="status-actions">
+        <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+          <span>⚙️</span>
+          <span id="btn-config-text">Collapse Model Configuration</span>
+        </button>
+      </div>
+    </section>
+
+    <div id="alerts-container"></div>
+
+    <!-- CONFIGURATION CARD -->
+    <section class="config-card" id="config-card">
+      <div class="config-tabs-nav">
+        <button type="button" class="cfg-tab-btn active" id="tab-btn-assets">💼 Asset Allocation</button>
+        <button type="button" class="cfg-tab-btn" id="tab-btn-liabilities">⚖️ Liability Obligations</button>
+        <button type="button" class="cfg-tab-btn" id="tab-btn-settings">⚙️ Simulation &amp; Actuarial Settings</button>
+      </div>
+
+      <!-- TAB 1: ASSETS ALLOCATION -->
+      <div class="config-body" id="pane-assets">
+        <div class="presets-bar">
+          <span class="presets-label">⚡ Model Presets:</span>
+          <button type="button" class="btn-preset-chip" data-preset="classic-60-40">Classic 60/40 (VOO/BND)</button>
+          <button type="button" class="btn-preset-chip" data-preset="endowment-70-30">Endowment 70/30 (VOO/QQQ/BND)</button>
+          <button type="button" class="btn-preset-chip" data-preset="conservative-40-60">Conservative 40/60 (VOO/BND)</button>
+          <button type="button" class="btn-preset-chip" data-preset="all-weather">All-Weather (VOO/BND/GLD)</button>
+        </div>
+
+        <div class="allocations-table-container">
+          <table class="allocations-table">
+            <thead>
+              <tr>
+                <th>Asset / Fund</th>
+                <th>Asset Class / Description</th>
+                <th style="width: 140px; text-align: right;">Target Weight</th>
+                <th style="width: 80px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assets-tbody">
+              <!-- Populated dynamically by alm-ui.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-actions-row">
+          <button type="button" class="btn-secondary" id="btn-add-asset">＋ Add Asset</button>
+          <button type="button" class="btn-secondary danger" id="btn-reset-assets">Reset Assets</button>
+          <div class="total-allocation-bar" id="total-assets-bar">
+            <span>Total Asset Weight:</span>
+            <strong id="total-assets-percent">100.0%</strong>
+            <span class="alloc-badge success" id="badge-assets-status">✓ 100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: LIABILITY OBLIGATIONS -->
+      <div class="config-body" id="pane-liabilities" style="display: none;">
+        <div style="margin-bottom: 1.25rem;">
+          <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem;">Future Liability Streams &amp; Debt Schedules</h3>
+          <p style="font-size: 0.85rem; color: #94a3b8;">
+            Configure annual recurring benefit obligations or discrete lump-sum payouts. Future cash flows are discounted at the liability discount rate to track the institutional funded ratio.
+          </p>
+        </div>
+
+        <div class="liabilities-builder" id="liabilities-builder">
+          <!-- Populated dynamically by alm-ui.js -->
+        </div>
+
+        <div class="table-actions-row" style="margin-top: 1.25rem;">
+          <button type="button" class="btn-secondary" id="btn-add-liability">＋ Add Liability Stream</button>
+          <button type="button" class="btn-secondary danger" id="btn-reset-liabilities">Reset Liabilities</button>
+        </div>
+      </div>
+
+      <!-- TAB 3: SIMULATION & ACTUARIAL SETTINGS -->
+      <div class="config-body" id="pane-settings" style="display: none;">
+        <div class="settings-grid">
+          <div class="form-group">
+            <label for="cfg-initial-assets">Initial Asset Balance ($)</label>
+            <input type="number" id="cfg-initial-assets" class="form-control" value="1000000" min="1000" step="10000" />
+            <span class="field-help">Starting liquid portfolio value backing liabilities.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-sim-period">Simulation Period</label>
+            <select id="cfg-sim-period" class="form-control">
+              <option value="10">10 Years</option>
+              <option value="15">15 Years</option>
+              <option value="20">20 Years</option>
+              <option value="25">25 Years</option>
+              <option value="30" selected>30 Years</option>
+              <option value="40">40 Years</option>
+            </select>
+            <span class="field-help">Time horizon to evaluate solvency and cash obligations.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-num-sims">Number of Simulations</label>
+            <select id="cfg-num-sims" class="form-control">
+              <option value="1000" selected>1,000 Runs (Fast, 0.1s)</option>
+              <option value="2500">2,500 Runs (Balanced)</option>
+              <option value="5000">5,000 Runs (Institutional)</option>
+              <option value="10000">10,000 Runs (Maximum Precision)</option>
+            </select>
+            <span class="field-help">Multi-threaded Web Worker background simulation runs.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-discount-rate">Liability Discount Rate</label>
+            <select id="cfg-discount-rate" class="form-control">
+              <option value="0.02">2.0% (Conservative Risk-Free Rate)</option>
+              <option value="0.03">3.0% (Treasury Curve Baseline)</option>
+              <option value="0.035">3.5%</option>
+              <option value="0.04" selected>4.0% (Standard Actuarial Discount)</option>
+              <option value="0.045">4.5%</option>
+              <option value="0.05">5.0% (High-Yield / Expected Return)</option>
+              <option value="0.06">6.0%</option>
+            </select>
+            <span class="field-help">Annual rate used to discount future liability outflows to present value.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-sim-model">Return Simulation Model</label>
+            <select id="cfg-sim-model" class="form-control">
+              <option value="historical" selected>Historical Returns (Bootstrap Resampling)</option>
+              <option value="parameterized">Parameterized Normal (Box-Muller Model)</option>
+            </select>
+            <span class="field-help">Bootstrap preserves empirical fat tails and market crises.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-bootstrap-model">Bootstrap Resampling Model</label>
+            <select id="cfg-bootstrap-model" class="form-control">
+              <option value="singleYear" selected>Single Year (I.I.D. Resampling)</option>
+              <option value="blockYears">Block of Years (Preserves Multi-Year Regime Clumping)</option>
+            </select>
+            <span class="field-help">Determines whether market years are sampled singly or in clusters.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-seq-risk">Sequence of Returns Stress</label>
+            <select id="cfg-seq-risk" class="form-control">
+              <option value="none" selected>No Adjustments (Natural Random Sequence)</option>
+              <option value="worst1">1 Worst Return at Outset (Early Market Crash)</option>
+              <option value="worst2">2 Worst Returns at Outset (Severe Early Bear Market)</option>
+              <option value="worst3">3 Worst Returns at Outset (Prolonged Great Financial Crisis)</option>
+            </select>
+            <span class="field-help">Forces the worst sampled returns to hit at the initial timeline.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-inflation-model">Inflation Model</label>
+            <select id="cfg-inflation-model" class="form-control">
+              <option value="historical" selected>Historical CPI Inflation (1970–2025 Series)</option>
+              <option value="fixed">Fixed Constant Rate (2.5% / Year)</option>
+            </select>
+            <span class="field-help">Used to compound inflation-adjusted liability streams.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfg-tax-treatment">Tax Treatment</label>
+            <select id="cfg-tax-treatment" class="form-control">
+              <option value="preTax" selected>Pre-tax Returns (Tax-Exempt / 401(k) / Pension Fund)</option>
+              <option value="afterTax">After-tax Returns (15% Capital Gains Drag)</option>
+            </select>
+            <span class="field-help">Endowments and pensions operate under pre-tax status.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RUN SIMULATION ACTION BAR -->
+      <div class="run-bar-container">
+        <div class="progress-bar-wrap" id="sim-progress-wrap" style="display: none;">
+          <div class="progress-bar-inner" id="sim-progress-bar"></div>
+        </div>
+        <button type="button" class="btn-run-simulation" id="btn-run-sim">
+          🚀 Run Asset Liability Simulation
+        </button>
+      </div>
+    </section>
+
+    <!-- RESULTS SECTION -->
+    <section class="results-container" id="results-section">
+      <!-- DONUTS & ADEQUACY SCORECARD -->
+      <div class="donuts-grid">
+        <!-- DONUT 1: ASSET ALLOCATION -->
+        <div class="donut-card">
+          <div class="donut-card-header">
+            <div class="donut-title-group">
+              <span class="donut-badge">💼</span>
+              <span class="donut-title">Asset Portfolio</span>
+            </div>
+            <span class="donut-subtitle" id="donut-asset-count">2 Assets</span>
+          </div>
+          <div class="donut-content-layout">
+            <div class="donut-canvas-wrap">
+              <canvas id="donut-canvas-assets" width="220" height="220"></canvas>
+            </div>
+            <div class="donut-legend-wrap" id="donut-legend-assets">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPITAL ADEQUACY SCORECARD -->
+        <div class="donut-card">
+          <div class="donut-card-header">
+            <div class="donut-title-group">
+              <span class="donut-badge">⚖️</span>
+              <span class="donut-title">Actuarial Capital Adequacy</span>
+            </div>
+            <span class="donut-subtitle">30-Year Horizon</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.9rem; padding: 0.5rem 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.5rem;">
+              <span style="font-size: 0.85rem; color: #94a3b8;">Initial Liabilities Present Value:</span>
+              <strong style="font-size: 1.05rem; color: #fff;" id="metric-initial-liab-pv">--</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.5rem;">
+              <span style="font-size: 0.85rem; color: #94a3b8;">Initial Funded Ratio:</span>
+              <strong style="font-size: 1.05rem;" id="metric-initial-funded-ratio">--</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.5rem;">
+              <span style="font-size: 0.85rem; color: #94a3b8;">Median Final Funded Ratio:</span>
+              <strong style="font-size: 1.05rem;" id="metric-median-final-ratio">--</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.5rem;">
+              <span style="font-size: 0.85rem; color: #94a3b8;">Peak Deficit Probability:</span>
+              <strong style="font-size: 1.05rem;" id="metric-peak-deficit-prob">--</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.85rem; color: #94a3b8;">Final Solvency Rate (Assets &gt; $0):</span>
+              <strong style="font-size: 1.05rem;" id="metric-final-solvency">--</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHARTS GRID -->
+      <div class="charts-grid">
+        <!-- CHART 1: FUNDED RATIO PERCENTILE CONES -->
+        <article class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">📈 Funded Ratio Percentile Cones</h2>
+              <p class="chart-subtitle">
+                Percentile paths of Funded Ratio (Assets / Remaining Liabilities PV × 100%). Red line marks the 100% Fully Funded threshold.
+              </p>
+            </div>
+            <div class="chart-legend-wrap">
+              <span class="legend-chip"><span class="legend-color-box" style="background: #38bdf8;"></span> 90th Pct</span>
+              <span class="legend-chip"><span class="legend-color-box" style="background: #22c55e;"></span> 75th Pct</span>
+              <span class="legend-chip"><span class="legend-color-box" style="background: #eab308;"></span> Median (50th)</span>
+              <span class="legend-chip"><span class="legend-color-box" style="background: #f97316;"></span> 25th Pct</span>
+              <span class="legend-chip"><span class="legend-color-box" style="background: #ef4444;"></span> 10th Pct</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="canvas-funded-ratio" class="chart-canvas"></canvas>
+            <div class="chart-tooltip" id="tooltip-funded-ratio"></div>
+          </div>
+        </article>
+
+        <!-- CHART 2: DEFICIT & SOLVENCY PROBABILITY -->
+        <article class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">⚠️ Deficit &amp; Solvency Probability by Year</h2>
+              <p class="chart-subtitle">
+                Likelihood of portfolio slipping into deficit (Funded Ratio &lt; 100%) vs complete asset depletion over time.
+              </p>
+            </div>
+            <div class="chart-legend-wrap">
+              <span class="legend-chip"><span class="legend-color-box" style="background: #ef4444;"></span> Deficit Prob (&lt; 100%)</span>
+              <span class="legend-chip"><span class="legend-color-box" style="background: #a855f7;"></span> Depletion Prob ($0)</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="canvas-deficit-prob" class="chart-canvas"></canvas>
+            <div class="chart-tooltip" id="tooltip-deficit-prob"></div>
+          </div>
+        </article>
+
+        <!-- CHART 3: ASSETS VS REMAINING LIABILITIES PV -->
+        <article class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">💰 Portfolio Assets vs. Remaining Liabilities Present Value</h2>
+              <p class="chart-subtitle">
+                Median nominal portfolio wealth trajectory compared against remaining discounted future liability obligations.
+              </p>
+            </div>
+            <div class="chart-legend-wrap">
+              <span class="legend-chip"><span class="legend-color-box" style="background: #38bdf8;"></span> Median Assets</span>
+              <span class="legend-chip"><span class="legend-color-box" style="background: #f59e0b;"></span> Liabilities PV</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="canvas-assets-vs-liab" class="chart-canvas"></canvas>
+            <div class="chart-tooltip" id="tooltip-assets-vs-liab"></div>
+          </div>
+        </article>
+
+        <!-- CHART 4: ANNUAL LIABILITY OUTFLOWS SCHEDULE -->
+        <article class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2 class="chart-title">🗓️ Annual Liability Cash Outflow Schedule</h2>
+              <p class="chart-subtitle">
+                Scheduled annual cash outflows required to satisfy all benefit streams and debt maturities.
+              </p>
+            </div>
+            <div class="chart-legend-wrap">
+              <span class="legend-chip"><span class="legend-color-box" style="background: #ec4899;"></span> Annual Outflow ($)</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="canvas-liability-outflows" class="chart-canvas"></canvas>
+            <div class="chart-tooltip" id="tooltip-liability-outflows"></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- DETAILED ALM SCORECARD TABLE -->
+      <article class="data-table-card">
+        <div class="table-card-header">
+          <div>
+            <h2 class="table-card-title">📋 Annual Asset Liability Modeling Trajectory Table</h2>
+            <p class="table-card-subtitle">
+              Comprehensive year-by-year actuarial breakdown of liability cash requirements, remaining discounted present value, asset percentiles, and funded ratios.
+            </p>
+          </div>
+          <button type="button" class="btn-secondary" id="btn-export-csv">📥 Export CSV</button>
+        </div>
+        <div class="scorecard-table-container">
+          <table class="scorecard-table">
+            <thead>
+              <tr>
+                <th>Timeline</th>
+                <th style="text-align: right;">Annual Outflow</th>
+                <th style="text-align: right;">Remaining Liab PV</th>
+                <th style="text-align: right;">Median Assets</th>
+                <th style="text-align: right;">10th Pct Assets</th>
+                <th style="text-align: right;">90th Pct Assets</th>
+                <th style="text-align: right;">Median Funded Ratio</th>
+                <th style="text-align: right;">Deficit Prob</th>
+                <th style="text-align: right;">Solvency Rate</th>
+              </tr>
+            </thead>
+            <tbody id="alm-scorecard-tbody">
+              <!-- Populated dynamically by alm-ui.js -->
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <!-- ASSET SELECTOR MODAL -->
+  <div class="asset-modal-overlay" id="asset-modal" style="display: none;">
+    <div class="asset-modal-container">
+      <div class="asset-modal-header">
+        <h3 class="asset-modal-title">Select Asset / Benchmark Fund</h3>
+        <button type="button" class="asset-modal-close" id="btn-close-asset-modal">✕</button>
+      </div>
+      <div class="asset-modal-search-wrap">
+        <input type="text" id="asset-modal-search" class="asset-modal-search-input" placeholder="Search by ticker or asset class name (e.g. VOO, BND, Gold)..." />
+      </div>
+      <div class="asset-modal-list" id="asset-modal-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE SCRIPTS -->
+  <script type="module" src="./alm-ui.js"></script>
+  <script src="../js/nav.js"></script>
+</body>
+</html>
