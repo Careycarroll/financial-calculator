@@ -55,24 +55,26 @@
       <!-- Global Controls Bar -->
       <section class="analytics-controls-bar" aria-label="Analysis Controls">
         <div class="controls-left">
-          <!-- Fund Ticker Selector -->
+          <!-- Fund Ticker Selector (Searchable Modal Trigger) -->
           <div class="control-item">
-            <label for="fund-select">Target Asset / Fund</label>
-            <select id="fund-select" class="control-select">
-              <!-- Populated via JS (Presets + Uploaded) -->
-            </select>
+            <label>Target Asset / Fund</label>
+            <button type="button" class="asset-picker-btn" id="btn-open-target-modal" title="Click to search or upload funds">
+              <span class="picker-dot" style="background: #2dd4bf;"></span>
+              <span class="picker-ticker" id="target-picker-ticker">QQQ</span>
+              <span class="picker-name" id="target-picker-name">Invesco QQQ Trust</span>
+              <span class="picker-arrow">▾</span>
+            </button>
           </div>
 
-          <!-- Benchmark Selector -->
+          <!-- Benchmark Selector (Searchable Modal Trigger) -->
           <div class="control-item">
-            <label for="benchmark-select">Benchmark Reference</label>
-            <select id="benchmark-select" class="control-select">
-              <option value="SPY">SPY — SPDR S&P 500 Trust</option>
-              <option value="VOO" selected>VOO — Vanguard S&P 500 ETF</option>
-              <option value="QQQ">QQQ — Invesco Nasdaq-100</option>
-              <option value="SCHD">SCHD — US Dividend Equity</option>
-              <option value="BND">BND — Total Bond Market</option>
-            </select>
+            <label>Benchmark Reference</label>
+            <button type="button" class="asset-picker-btn" id="btn-open-bench-modal" title="Click to search or change benchmark">
+              <span class="picker-dot" style="background: #a855f7;"></span>
+              <span class="picker-ticker" id="bench-picker-ticker">VOO</span>
+              <span class="picker-name" id="bench-picker-name">Vanguard S&P 500 ETF</span>
+              <span class="picker-arrow">▾</span>
+            </button>
           </div>
 
           <!-- Date Range Horizon -->
@@ -459,6 +461,69 @@
       <footer>
         <p>&copy; 2026 Financial Calculator &bull; Asset Analytics Studio</p>
       </footer>
+    </div>
+
+    <!-- Searchable Asset & Benchmark Modal -->
+    <div class="asset-modal-overlay hidden" id="asset-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="asset-modal-container">
+        <div class="asset-modal-header">
+          <div class="asset-modal-title-row">
+            <h3 id="modal-title">Select Asset / Benchmark</h3>
+            <span class="asset-modal-target-badge" id="modal-target-type-badge">Target Asset</span>
+          </div>
+          <button type="button" class="modal-close-btn" id="btn-close-modal" aria-label="Close modal">✕</button>
+        </div>
+
+        <!-- Search Input -->
+        <div class="asset-modal-search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="modal-search-input" class="modal-search-input" placeholder="Search by ticker (QQQ, VOO) or name (Dividend, Tech, Bond)..." autocomplete="off" />
+          <button type="button" class="modal-clear-search hidden" id="btn-clear-search">✕</button>
+        </div>
+
+        <!-- Quick Benchmark Chips -->
+        <div class="quick-presets-bar">
+          <span class="quick-presets-label">Quick Presets:</span>
+          <button type="button" class="preset-chip" data-ticker="VOO">VOO (S&P 500)</button>
+          <button type="button" class="preset-chip" data-ticker="SPY">SPY (S&P 500)</button>
+          <button type="button" class="preset-chip" data-ticker="QQQ">QQQ (Nasdaq)</button>
+          <button type="button" class="preset-chip" data-ticker="SCHD">SCHD (Dividend)</button>
+          <button type="button" class="preset-chip" data-ticker="BND">BND (Total Bond)</button>
+        </div>
+
+        <!-- Category Tabs & Counter -->
+        <div class="modal-category-tabs">
+          <div class="cat-tabs-left">
+            <button type="button" class="cat-tab active" data-cat="all">All Available (<span id="count-all">5</span>)</button>
+            <button type="button" class="cat-tab" data-cat="preset">Core Presets (<span id="count-preset">5</span>)</button>
+            <button type="button" class="cat-tab" data-cat="custom">Session Uploads (<span id="count-custom">0</span>)</button>
+          </div>
+          <button type="button" class="btn-reset-session" id="btn-reset-session-funds" title="Clear temporary session uploads and reset to default 5">
+            <span>🗑️ Reset to 5 Defaults</span>
+          </button>
+        </div>
+
+        <!-- Virtual / Scrollable Asset List -->
+        <div class="asset-modal-list" id="modal-asset-list">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Session Drag & Drop Upload Dropzone -->
+        <div class="asset-modal-dropzone" id="modal-dropzone">
+          <input type="file" id="modal-file-input" multiple accept=".csv,.txt" class="hidden" />
+          <div class="dropzone-inner">
+            <span class="dropzone-icon">📂</span>
+            <div class="dropzone-text">
+              <strong>Drag &amp; drop CSV/TXT files here</strong> to add funds to this session (shared across Trading Suite)
+              <span class="dropzone-sub">or <button type="button" class="btn-browse-files" id="btn-browse-files">browse files</button></span>
+            </div>
+          </div>
+          <div class="dropzone-progress hidden" id="dropzone-progress">
+            <div class="dropzone-progress-bar" id="dropzone-progress-bar"></div>
+            <span class="dropzone-progress-text" id="dropzone-progress-text">Importing files...</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Scripts -->

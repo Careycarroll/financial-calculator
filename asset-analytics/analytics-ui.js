@@ -1,10 +1,16 @@
 /**
  * Asset Analytics Studio UI Controller
  * Manages reactive UI state, Canvas charts, underwater drawdown tables,
- * monthly return heatmaps, and rolling metric diagnostics.
+ * monthly return heatmaps, rolling metric diagnostics, and searchable asset selector modal.
  */
 
-import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
+import {
+  initSessionFunds,
+  getAllFundsSync,
+  importFilesToSession,
+  resetSessionToDefault,
+  subscribeSessionFunds
+} from '../js/session-funds.js';
 import {
   computeMonthlyReturns,
   calculateGrowthOf10k,
@@ -18,8 +24,6 @@ import {
 } from './analytics-engine.js';
 import { formatCurrency, rafThrottle } from '../js/chart-utils.js';
 import { formatPct } from '../js/formatting.js';
-
-const STORAGE_KEY_CUSTOM_FUNDS = 'dca_custom_funds_library';
 
 // App Reactive State
 const state = {
@@ -37,6 +41,10 @@ const state = {
   benchObj: null
 };
 
+// Searchable Modal State
+let modalMode = 'target'; // 'target' | 'benchmark'
+let activeCategoryFilter = 'all'; // 'all' | 'preset' | 'custom'
+
 // DOM Elements Cache
 let elements = {};
 
@@ -50,12 +58,26 @@ const canvasControllers = {
 
 document.addEventListener('DOMContentLoaded', init);
 
-function init() {
+async function init() {
   cacheDOMElements();
-  populateFundSelectors();
   bindEvents();
+
+  // Initialize IndexedDB session repository
+  await initSessionFunds();
+
+  updatePickerButtons();
+  updateCategoryCounts();
   updateViewModeUI();
   runAnalysis();
+
+  // Subscribe to changes in the session fund repository
+  subscribeSessionFunds(() => {
+    updateCategoryCounts();
+    updatePickerButtons();
+    if (elements.assetModalOverlay && !elements.assetModalOverlay.classList.contains('hidden')) {
+      renderModalAssetList();
+    }
+  });
 
   // Handle window resizing with debounce
   let resizeTimer;
@@ -71,8 +93,36 @@ function init() {
 
 function cacheDOMElements() {
   elements = {
-    fundSelect: document.getElementById('fund-select'),
-    benchSelect: document.getElementById('benchmark-select'),
+    // Modal Triggers & Labels
+    btnOpenTargetModal: document.getElementById('btn-open-target-modal'),
+    btnOpenBenchModal: document.getElementById('btn-open-bench-modal'),
+    targetPickerTicker: document.getElementById('target-picker-ticker'),
+    targetPickerName: document.getElementById('target-picker-name'),
+    benchPickerTicker: document.getElementById('bench-picker-ticker'),
+    benchPickerName: document.getElementById('bench-picker-name'),
+
+    // Searchable Modal
+    assetModalOverlay: document.getElementById('asset-modal-overlay'),
+    modalTitle: document.getElementById('modal-title'),
+    modalTargetTypeBadge: document.getElementById('modal-target-type-badge'),
+    btnCloseModal: document.getElementById('btn-close-modal'),
+    modalSearchInput: document.getElementById('modal-search-input'),
+    btnClearSearch: document.getElementById('btn-clear-search'),
+    modalAssetList: document.getElementById('modal-asset-list'),
+    countAll: document.getElementById('count-all'),
+    countPreset: document.getElementById('count-preset'),
+    countCustom: document.getElementById('count-custom'),
+    btnResetSessionFunds: document.getElementById('btn-reset-session-funds'),
+    presetChips: document.querySelectorAll('.preset-chip'),
+    catTabs: document.querySelectorAll('.cat-tab'),
+    modalDropzone: document.getElementById('modal-dropzone'),
+    modalFileInput: document.getElementById('modal-file-input'),
+    btnBrowseFiles: document.getElementById('btn-browse-files'),
+    dropzoneProgress: document.getElementById('dropzone-progress'),
+    dropzoneProgressBar: document.getElementById('dropzone-progress-bar'),
+    dropzoneProgressText: document.getElementById('dropzone-progress-text'),
+
+    // Controls
     rangeSelect: document.getElementById('range-select'),
     dripToggle: document.getElementById('drip-toggle'),
     btnModeSimple: document.getElementById('btn-mode-simple'),
@@ -156,126 +206,442 @@ function cacheDOMElements() {
   };
 }
 
-function getAvailableFunds() {
-  const fundsMap = new Map();
+function updatePickerButtons() {
+  const allFunds = getAllFundsSync();
+  const fund = allFunds.find(f => f.ticker === state.fundTicker) || allFunds[0];
+  const bench = allFunds.find(f => f.ticker === state.benchTicker) || allFunds.find(f => f.ticker === 'VOO');
 
-  // 1. Pre-bundled benchmarks
-  PRESET_BENCHMARKS.forEach(b => {
-    fundsMap.set(b.ticker.toUpperCase(), {
-      ticker: b.ticker.toUpperCase(),
-      name: b.name,
-      category: b.assetClass || 'Broad Index',
-      color: b.color || '#38bdf8',
-      data: b.data,
-      isPreset: true
-    });
-  });
-
-  // 2. Custom uploaded funds from localStorage
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_FUNDS);
-    if (raw) {
-      const customList = JSON.parse(raw);
-      if (Array.isArray(customList)) {
-        customList.forEach(cf => {
-          if (cf.ticker && cf.data && cf.data.length > 0) {
-            fundsMap.set(cf.ticker.toUpperCase(), {
-              ticker: cf.ticker.toUpperCase(),
-              name: cf.name || cf.ticker,
-              category: cf.category || 'Custom ETF',
-              color: cf.color || '#a855f7',
-              data: cf.data,
-              isPreset: false
-            });
-          }
-        });
-      }
-    }
-  } catch (err) {
-    console.warn('Could not read custom funds library:', err);
+  if (elements.targetPickerTicker && fund) {
+    elements.targetPickerTicker.textContent = fund.ticker;
+    elements.targetPickerName.textContent = fund.name;
   }
-
-  return Array.from(fundsMap.values());
+  if (elements.benchPickerTicker && bench) {
+    elements.benchPickerTicker.textContent = bench.ticker;
+    elements.benchPickerName.textContent = bench.name;
+  }
 }
 
-function populateFundSelectors() {
-  const allFunds = getAvailableFunds();
-  const presets = allFunds.filter(f => f.isPreset);
-  const custom = allFunds.filter(f => !f.isPreset);
+function updateCategoryCounts() {
+  const allFunds = getAllFundsSync();
+  const presets = allFunds.filter(f => f.isPreset).length;
+  const custom = allFunds.filter(f => !f.isPreset).length;
 
-  let fundHtml = '<optgroup label="Core Presets">';
-  presets.forEach(p => {
-    fundHtml += `<option value="${p.ticker}">${p.ticker} — ${p.name}</option>`;
-  });
-  fundHtml += '</optgroup>';
-
-  if (custom.length > 0) {
-    fundHtml += '<optgroup label="Uploaded Funds Library">';
-    custom.forEach(c => {
-      fundHtml += `<option value="${c.ticker}">${c.ticker} — ${c.name}</option>`;
-    });
-    fundHtml += '</optgroup>';
-  }
-
-  elements.fundSelect.innerHTML = fundHtml;
-  elements.fundSelect.value = state.fundTicker;
+  if (elements.countAll) elements.countAll.textContent = allFunds.length;
+  if (elements.countPreset) elements.countPreset.textContent = presets;
+  if (elements.countCustom) elements.countCustom.textContent = custom;
 }
 
 function bindEvents() {
-  elements.fundSelect.addEventListener('change', (e) => {
-    state.fundTicker = e.target.value;
-    runAnalysis();
+  // Modal Triggers
+  if (elements.btnOpenTargetModal) {
+    elements.btnOpenTargetModal.addEventListener('click', () => openAssetModal('target'));
+  }
+  if (elements.btnOpenBenchModal) {
+    elements.btnOpenBenchModal.addEventListener('click', () => openAssetModal('benchmark'));
+  }
+
+  // Modal Close Handlers
+  if (elements.btnCloseModal) {
+    elements.btnCloseModal.addEventListener('click', closeAssetModal);
+  }
+  if (elements.assetModalOverlay) {
+    elements.assetModalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.assetModalOverlay) {
+        closeAssetModal();
+      }
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.assetModalOverlay && !elements.assetModalOverlay.classList.contains('hidden')) {
+      closeAssetModal();
+    }
   });
 
-  elements.benchSelect.addEventListener('change', (e) => {
-    state.benchTicker = e.target.value;
-    runAnalysis();
+  // Modal Search Filter
+  if (elements.modalSearchInput) {
+    elements.modalSearchInput.addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      if (elements.btnClearSearch) {
+        if (val.length > 0) {
+          elements.btnClearSearch.classList.remove('hidden');
+        } else {
+          elements.btnClearSearch.classList.add('hidden');
+        }
+      }
+      renderModalAssetList();
+    });
+  }
+
+  if (elements.btnClearSearch) {
+    elements.btnClearSearch.addEventListener('click', () => {
+      if (elements.modalSearchInput) {
+        elements.modalSearchInput.value = '';
+        elements.modalSearchInput.focus();
+      }
+      elements.btnClearSearch.classList.add('hidden');
+      renderModalAssetList();
+    });
+  }
+
+  // Category Tabs Filter
+  if (elements.catTabs) {
+    elements.catTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        elements.catTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        activeCategoryFilter = tab.dataset.cat || 'all';
+        renderModalAssetList();
+      });
+    });
+  }
+
+  // Quick Preset Chips
+  if (elements.presetChips) {
+    elements.presetChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const ticker = chip.dataset.ticker;
+        if (ticker) {
+          selectFund(ticker);
+        }
+      });
+    });
+  }
+
+  // Reset Session Funds Button
+  if (elements.btnResetSessionFunds) {
+    elements.btnResetSessionFunds.addEventListener('click', async () => {
+      if (confirm('Reset temporary uploads and revert to the default 5 core benchmarks?')) {
+        await resetSessionToDefault();
+
+        const all = getAllFundsSync();
+        if (!all.some(f => f.ticker === state.fundTicker)) {
+          state.fundTicker = 'QQQ';
+        }
+        if (!all.some(f => f.ticker === state.benchTicker)) {
+          state.benchTicker = 'VOO';
+        }
+
+        updatePickerButtons();
+        updateCategoryCounts();
+        renderModalAssetList();
+        runAnalysis();
+      }
+    });
+  }
+
+  // Modal File Dropzone & Browse Handlers
+  if (elements.btnBrowseFiles && elements.modalFileInput) {
+    elements.btnBrowseFiles.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.modalFileInput.click();
+    });
+  }
+
+  if (elements.modalFileInput) {
+    elements.modalFileInput.addEventListener('change', async (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        await handleFilesImport(e.target.files);
+        elements.modalFileInput.value = '';
+      }
+    });
+  }
+
+  if (elements.modalDropzone) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+      elements.modalDropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        elements.modalDropzone.querySelector('.dropzone-inner')?.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      elements.modalDropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        elements.modalDropzone.querySelector('.dropzone-inner')?.classList.remove('dragover');
+      });
+    });
+
+    elements.modalDropzone.addEventListener('drop', async (e) => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        await handleFilesImport(e.dataTransfer.files);
+      }
+    });
+  }
+
+  // Controls
+  if (elements.rangeSelect) {
+    elements.rangeSelect.addEventListener('change', (e) => {
+      state.timeHorizon = e.target.value;
+      runAnalysis();
+    });
+  }
+
+  if (elements.dripToggle) {
+    elements.dripToggle.addEventListener('change', (e) => {
+      state.useDRIP = e.target.value === 'true';
+      runAnalysis();
+    });
+  }
+
+  if (elements.btnModeSimple) {
+    elements.btnModeSimple.addEventListener('click', () => {
+      state.viewMode = 'simple';
+      updateViewModeUI();
+    });
+  }
+
+  if (elements.btnModeQuant) {
+    elements.btnModeQuant.addEventListener('click', () => {
+      state.viewMode = 'quant';
+      updateViewModeUI();
+    });
+  }
+
+  if (elements.btnScaleLinear) {
+    elements.btnScaleLinear.addEventListener('click', () => {
+      state.growthScale = 'linear';
+      elements.btnScaleLinear.classList.add('active');
+      elements.btnScaleLog.classList.remove('active');
+      drawGrowthChart();
+    });
+  }
+
+  if (elements.btnScaleLog) {
+    elements.btnScaleLog.addEventListener('click', () => {
+      state.growthScale = 'log';
+      elements.btnScaleLog.classList.add('active');
+      elements.btnScaleLinear.classList.remove('active');
+      drawGrowthChart();
+    });
+  }
+
+  if (elements.rollingWindowBtns) {
+    elements.rollingWindowBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        elements.rollingWindowBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.rollingWindowMonths = parseInt(btn.dataset.window, 10);
+        computeAndDrawRolling();
+      });
+    });
+  }
+
+  if (elements.btnExportCsv) {
+    elements.btnExportCsv.addEventListener('click', exportPerformanceReportCSV);
+  }
+}
+
+/**
+ * Opens Searchable Asset / Benchmark Modal
+ * @param {'target' | 'benchmark'} mode
+ */
+function openAssetModal(mode) {
+  modalMode = mode;
+
+  if (elements.modalTitle) {
+    elements.modalTitle.textContent = mode === 'target'
+      ? 'Select Target Asset / Fund'
+      : 'Select Benchmark Reference';
+  }
+
+  if (elements.modalTargetTypeBadge) {
+    elements.modalTargetTypeBadge.textContent = mode === 'target' ? 'Target Asset' : 'Benchmark Reference';
+    elements.modalTargetTypeBadge.style.background = mode === 'target' ? 'rgba(45, 212, 191, 0.15)' : 'rgba(168, 85, 247, 0.15)';
+    elements.modalTargetTypeBadge.style.color = mode === 'target' ? '#2dd4bf' : '#c084fc';
+  }
+
+  // Reset category tabs to 'all'
+  activeCategoryFilter = 'all';
+  if (elements.catTabs) {
+    elements.catTabs.forEach(t => {
+      if (t.dataset.cat === 'all') t.classList.add('active');
+      else t.classList.remove('active');
+    });
+  }
+
+  // Clear search input
+  if (elements.modalSearchInput) {
+    elements.modalSearchInput.value = '';
+  }
+  if (elements.btnClearSearch) {
+    elements.btnClearSearch.classList.add('hidden');
+  }
+
+  updateCategoryCounts();
+  renderModalAssetList();
+
+  if (elements.assetModalOverlay) {
+    elements.assetModalOverlay.classList.remove('hidden');
+  }
+
+  setTimeout(() => {
+    if (elements.modalSearchInput) elements.modalSearchInput.focus();
+  }, 50);
+}
+
+function closeAssetModal() {
+  if (elements.assetModalOverlay) {
+    elements.assetModalOverlay.classList.add('hidden');
+  }
+}
+
+function selectFund(ticker) {
+  if (modalMode === 'target') {
+    state.fundTicker = ticker.toUpperCase();
+  } else {
+    state.benchTicker = ticker.toUpperCase();
+  }
+
+  updatePickerButtons();
+  closeAssetModal();
+  runAnalysis();
+}
+
+/**
+ * Handles batch file import via Drag & Drop or File Input
+ */
+async function handleFilesImport(files) {
+  if (!files || files.length === 0) return;
+
+  if (elements.dropzoneProgress) {
+    elements.dropzoneProgress.classList.remove('hidden');
+  }
+  if (elements.dropzoneProgressBar) {
+    elements.dropzoneProgressBar.style.width = '0%';
+  }
+  if (elements.dropzoneProgressText) {
+    elements.dropzoneProgressText.textContent = `Importing ${files.length} file(s)...`;
+  }
+
+  const result = await importFilesToSession(files, (processed, total) => {
+    if (elements.dropzoneProgressBar) {
+      elements.dropzoneProgressBar.style.width = `${Math.round((processed / total) * 100)}%`;
+    }
+    if (elements.dropzoneProgressText) {
+      elements.dropzoneProgressText.textContent = `Parsed ${processed} of ${total} files...`;
+    }
   });
 
-  elements.rangeSelect.addEventListener('change', (e) => {
-    state.timeHorizon = e.target.value;
-    runAnalysis();
+  if (elements.dropzoneProgress) {
+    elements.dropzoneProgress.classList.add('hidden');
+  }
+
+  if (result.errors && result.errors.length > 0) {
+    console.warn('Import warnings:', result.errors);
+  }
+
+  if (result.importedCount > 0) {
+    updateCategoryCounts();
+    renderModalAssetList();
+
+    // If exactly 1 fund was uploaded in target mode, automatically select it!
+    if (files.length === 1 && modalMode === 'target') {
+      const allFunds = getAllFundsSync();
+      const lastUploaded = allFunds[allFunds.length - 1];
+      if (lastUploaded && !lastUploaded.isPreset) {
+        selectFund(lastUploaded.ticker);
+      }
+    }
+  } else if (result.errors.length > 0) {
+    alert(`Import failed: ${result.errors[0]}`);
+  }
+}
+
+/**
+ * Renders the scrollable fund list inside the modal with live search & tab filters
+ */
+function renderModalAssetList() {
+  if (!elements.modalAssetList) return;
+
+  const allFunds = getAllFundsSync();
+  const query = (elements.modalSearchInput ? elements.modalSearchInput.value : '').trim().toLowerCase();
+  const currentActiveTicker = modalMode === 'target' ? state.fundTicker : state.benchTicker;
+
+  // Filter by active category tab
+  let filtered = allFunds;
+  if (activeCategoryFilter === 'preset') {
+    filtered = filtered.filter(f => f.isPreset);
+  } else if (activeCategoryFilter === 'custom') {
+    filtered = filtered.filter(f => !f.isPreset);
+  }
+
+  // Filter by search query
+  if (query.length > 0) {
+    filtered = filtered.filter(f => {
+      const t = f.ticker.toLowerCase();
+      const n = (f.name || '').toLowerCase();
+      const c = (f.category || '').toLowerCase();
+      return t.includes(query) || n.includes(query) || c.includes(query);
+    });
+  }
+
+  // Sort: Presets first, then alphabetical by ticker
+  filtered.sort((a, b) => {
+    if (a.isPreset && !b.isPreset) return -1;
+    if (!a.isPreset && b.isPreset) return 1;
+    return a.ticker.localeCompare(b.ticker);
   });
 
-  elements.dripToggle.addEventListener('change', (e) => {
-    state.useDRIP = e.target.value === 'true';
-    runAnalysis();
+  if (filtered.length === 0) {
+    elements.modalAssetList.innerHTML = `
+      <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-secondary); font-size: 0.85rem;">
+        <span style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;">🔍</span>
+        No matching funds found for "<strong>${escapeHtml(query)}</strong>".
+        <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+          Try searching another ticker or drop CSV files below to import custom funds.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(fund => {
+    const isSelected = fund.ticker === currentActiveTicker;
+    const tagBadge = fund.isPreset
+      ? '<span style="font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-weight: 600;">Core</span>'
+      : '<span style="font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(168, 85, 247, 0.15); color: #c084fc; font-weight: 600;">Session</span>';
+
+    const rangeStr = fund.start && fund.end
+      ? `${fund.start.substring(0, 7)} → ${fund.end.substring(0, 7)} (${fund.monthsCount} mos)`
+      : `${fund.monthsCount} data points`;
+
+    html += `
+      <div class="asset-list-item ${isSelected ? 'is-selected' : ''}" data-ticker="${fund.ticker}">
+        <div class="item-left">
+          <span class="item-ticker-badge" style="border-left: 3px solid ${fund.color || '#38bdf8'};">${fund.ticker}</span>
+          <div class="item-info">
+            <span class="item-name" title="${escapeHtml(fund.name)}">${escapeHtml(fund.name)}</span>
+            <span class="item-meta">${escapeHtml(fund.category)} &bull; ${rangeStr} &bull; ${tagBadge}</span>
+          </div>
+        </div>
+        <button type="button" class="item-select-btn" data-ticker="${fund.ticker}">
+          ${isSelected ? '✓ Active' : 'Select'}
+        </button>
+      </div>
+    `;
   });
 
-  elements.btnModeSimple.addEventListener('click', () => {
-    state.viewMode = 'simple';
-    updateViewModeUI();
-  });
+  elements.modalAssetList.innerHTML = html;
 
-  elements.btnModeQuant.addEventListener('click', () => {
-    state.viewMode = 'quant';
-    updateViewModeUI();
-  });
-
-  elements.btnScaleLinear.addEventListener('click', () => {
-    state.growthScale = 'linear';
-    elements.btnScaleLinear.classList.add('active');
-    elements.btnScaleLog.classList.remove('active');
-    drawGrowthChart();
-  });
-
-  elements.btnScaleLog.addEventListener('click', () => {
-    state.growthScale = 'log';
-    elements.btnScaleLog.classList.add('active');
-    elements.btnScaleLinear.classList.remove('active');
-    drawGrowthChart();
-  });
-
-  elements.rollingWindowBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      elements.rollingWindowBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.rollingWindowMonths = parseInt(btn.dataset.window, 10);
-      computeAndDrawRolling();
+  // Bind click on items and select buttons
+  elements.modalAssetList.querySelectorAll('.asset-list-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      const ticker = item.dataset.ticker;
+      if (ticker) selectFund(ticker);
     });
   });
+}
 
-  elements.btnExportCsv.addEventListener('click', exportPerformanceReportCSV);
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function updateViewModeUI() {
@@ -307,7 +673,7 @@ function filterDataByHorizon(dataList, horizon) {
 }
 
 function runAnalysis() {
-  const allFunds = getAvailableFunds();
+  const allFunds = getAllFundsSync();
   const fund = allFunds.find(f => f.ticker === state.fundTicker) || allFunds[0];
   const bench = allFunds.find(f => f.ticker === state.benchTicker) || allFunds.find(f => f.ticker === 'VOO');
 
@@ -451,8 +817,6 @@ function renderCrashTable() {
 function renderHeatmapTable() {
   const matrix = state.analysis.heatmapMatrix;
   let html = '';
-
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   function getHeatClass(val) {
     if (val === null) return 'heat-neutral';
@@ -600,112 +964,117 @@ function drawGrowthChart() {
   minVal = Math.max(1000, minVal * 0.95);
   maxVal = maxVal * 1.05;
 
+  const logMin = Math.log10(minVal);
+  const logMax = Math.log10(maxVal);
+
   function getY(val) {
     if (isLog) {
-      const logMin = Math.log10(minVal);
-      const logMax = Math.log10(maxVal);
-      const logVal = Math.log10(Math.max(1, val));
-      const ratio = (logVal - logMin) / (logMax - logMin);
-      return pad.top + plotH * (1 - ratio);
-    } else {
-      const ratio = (val - minVal) / (maxVal - minVal);
-      return pad.top + plotH * (1 - ratio);
+      const norm = (Math.log10(val) - logMin) / (logMax - logMin);
+      return pad.top + plotH * (1 - norm);
     }
+    return pad.top + plotH * (1 - (val - minVal) / (maxVal - minVal));
   }
 
-  function getX(i) {
-    return pad.left + (i / (series.length - 1)) * plotW;
+  function getX(idx) {
+    return pad.left + (idx / (series.length - 1)) * plotW;
   }
 
-  // Draw Grid Lines & Y Labels
-  const gridCount = 5;
+  // Draw Horizontal Gridlines & Y-Axis Labels
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-  ctx.lineWidth = 1;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = (window.CHART_FONTS && window.CHART_FONTS.xs) || '11px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
 
-  for (let g = 0; g <= gridCount; g++) {
+  const gridSteps = 5;
+  for (let i = 0; i <= gridSteps; i++) {
     let val;
     if (isLog) {
-      const logMin = Math.log10(minVal);
-      const logMax = Math.log10(maxVal);
-      val = Math.pow(10, logMin + (g / gridCount) * (logMax - logMin));
+      val = Math.pow(10, logMin + (i / gridSteps) * (logMax - logMin));
     } else {
-      val = minVal + (g / gridCount) * (maxVal - minVal);
+      val = minVal + (i / gridSteps) * (maxVal - minVal);
     }
     const y = getY(val);
 
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + plotW, y);
+    ctx.lineTo(w - pad.right, y);
     ctx.stroke();
 
-    ctx.fillText(`$${Math.round(val).toLocaleString()}`, pad.left - 10, y);
+    ctx.fillText(formatCurrency(val), pad.left - 10, y);
   }
 
-  // Draw Benchmark Line (Dashed Slate)
-  if (series[0].benchGrowth !== null) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 2;
+  // Draw Time X-Axis Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const yearStep = Math.max(1, Math.floor(series.length / 8));
+  for (let i = 0; i < series.length; i += yearStep) {
+    const x = getX(i);
+    const dateStr = series[i].date.substring(0, 4);
 
-    series.forEach((pt, i) => {
-      const x = getX(i);
-      const y = getY(pt.benchGrowth);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillText(dateStr, x, h - pad.bottom + 8);
+  }
+
+  // Draw Benchmark Line (Purple dashed)
+  if (series.some(s => s.benchGrowth !== null)) {
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 1.75;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    let started = false;
+    series.forEach((pt, idx) => {
+      if (pt.benchGrowth !== null) {
+        const x = getX(idx);
+        const y = getY(pt.benchGrowth);
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
     });
     ctx.stroke();
-    ctx.restore();
+    ctx.setLineDash([]);
   }
 
-  // Draw Fund Area Fill & Solid Line (Cyan)
-  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+  // Draw Target Fund Area Gradient & Stroke
+  const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
   grad.addColorStop(0, 'rgba(45, 212, 191, 0.28)');
-  grad.addColorStop(1, 'rgba(45, 212, 191, 0.01)');
+  grad.addColorStop(1, 'rgba(45, 212, 191, 0.0)');
 
-  ctx.beginPath();
-  ctx.moveTo(getX(0), pad.top + plotH);
-  series.forEach((pt, i) => {
-    ctx.lineTo(getX(i), getY(pt.fundGrowth));
-  });
-  ctx.lineTo(getX(series.length - 1), pad.top + plotH);
-  ctx.closePath();
   ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(getX(0), h - pad.bottom);
+  series.forEach((pt, idx) => {
+    ctx.lineTo(getX(idx), getY(pt.fundGrowth));
+  });
+  ctx.lineTo(getX(series.length - 1), h - pad.bottom);
+  ctx.closePath();
   ctx.fill();
 
-  ctx.beginPath();
   ctx.strokeStyle = '#2dd4bf';
   ctx.lineWidth = 2.5;
-  series.forEach((pt, i) => {
-    const x = getX(i);
+  ctx.beginPath();
+  series.forEach((pt, idx) => {
+    const x = getX(idx);
     const y = getY(pt.fundGrowth);
-    if (i === 0) ctx.moveTo(x, y);
+    if (idx === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
 
-  // Draw X-Axis Ticks (Dates)
-  ctx.fillStyle = '#94a3b8';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const step = Math.max(1, Math.floor(series.length / 7));
-  for (let i = 0; i < series.length; i += step) {
-    const x = getX(i);
-    ctx.fillText(series[i].date, x, pad.top + plotH + 8);
-  }
-
-  // Bind Mousemove Tooltip
+  // Setup Hover Tooltip
   setupCanvasHover(canvas, elements.growthTooltip, (mouse) => {
-    if (mouse.x < pad.left || mouse.x > pad.left + plotW) return null;
-    const ratio = (mouse.x - pad.left) / plotW;
-    const idx = Math.min(series.length - 1, Math.max(0, Math.round(ratio * (series.length - 1))));
+    const relX = mouse.x - pad.left;
+    if (relX < 0 || relX > plotW) return null;
+    const idx = Math.min(series.length - 1, Math.max(0, Math.round((relX / plotW) * (series.length - 1))));
     const pt = series[idx];
-
     return {
       x: getX(idx),
       y: getY(pt.fundGrowth),
@@ -713,12 +1082,12 @@ function drawGrowthChart() {
         <div class="canvas-tooltip-date">${pt.date}</div>
         <div class="canvas-tooltip-row">
           <span><span class="canvas-tooltip-dot" style="background: #2dd4bf;"></span>${state.fundTicker}:</span>
-          <strong>$${Math.round(pt.fundGrowth).toLocaleString()}</strong>
+          <strong>${formatCurrency(pt.fundGrowth)}</strong>
         </div>
         ${pt.benchGrowth !== null ? `
         <div class="canvas-tooltip-row" style="color: #94a3b8;">
-          <span><span class="canvas-tooltip-dot" style="background: #64748b;"></span>${state.benchTicker}:</span>
-          <strong>$${Math.round(pt.benchGrowth).toLocaleString()}</strong>
+          <span><span class="canvas-tooltip-dot" style="background: #a855f7;"></span>${state.benchTicker}:</span>
+          <strong>${formatCurrency(pt.benchGrowth)}</strong>
         </div>` : ''}
       `
     };
@@ -726,7 +1095,7 @@ function drawGrowthChart() {
 }
 
 /**
- * CHART 2: Annual Calendar Returns Bar Chart
+ * CHART 2: Calendar Annual Returns Canvas Drawing
  */
 function drawAnnualChart() {
   const canvas = elements.annualCanvas;
@@ -741,7 +1110,7 @@ function drawAnnualChart() {
 
   const w = rect.width;
   const h = rect.height;
-  const pad = { top: 30, right: 30, bottom: 40, left: 65 };
+  const pad = { top: 25, right: 25, bottom: 40, left: 60 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
@@ -750,108 +1119,114 @@ function drawAnnualChart() {
   const annuals = state.analysis.annualReturns;
   if (annuals.length === 0) return;
 
-  // Max and Min Return Bounds
-  let minRet = -0.1;
-  let maxRet = 0.2;
-
+  let minRet = 0;
+  let maxRet = 0;
   annuals.forEach(a => {
-    if (a.fundReturn > maxRet) maxRet = a.fundReturn;
-    if (a.fundReturn < minRet) minRet = a.fundReturn;
+    if (a.fundReturn !== null) {
+      if (a.fundReturn > maxRet) maxRet = a.fundReturn;
+      if (a.fundReturn < minRet) minRet = a.fundReturn;
+    }
     if (a.benchReturn !== null) {
       if (a.benchReturn > maxRet) maxRet = a.benchReturn;
       if (a.benchReturn < minRet) minRet = a.benchReturn;
     }
   });
 
-  maxRet = Math.max(0.1, maxRet * 1.15);
-  minRet = Math.min(-0.05, minRet * 1.15);
-
-  const zeroY = pad.top + plotH * (maxRet / (maxRet - minRet));
+  minRet = Math.min(-0.15, minRet * 1.15);
+  maxRet = Math.max(0.15, maxRet * 1.15);
 
   function getY(ret) {
-    return pad.top + plotH * ((maxRet - ret) / (maxRet - minRet));
+    return pad.top + plotH * (1 - (ret - minRet) / (maxRet - minRet));
   }
 
-  // Draw Horizontal Zero Line
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  ctx.lineWidth = 1.5;
+  const zeroY = getY(0);
+
+  // Zero axis line
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pad.left, zeroY);
-  ctx.lineTo(pad.left + plotW, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
   ctx.stroke();
 
-  // Draw Grid Lines & Y Axis
-  const gridSteps = 5;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = (window.CHART_FONTS && window.CHART_FONTS.xs) || '11px sans-serif';
+  // Y-axis grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
 
-  for (let i = 0; i <= gridSteps; i++) {
-    const val = minRet + (i / gridSteps) * (maxRet - minRet);
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const val = minRet + (i / steps) * (maxRet - minRet);
     const y = getY(val);
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + plotW, y);
+    ctx.lineTo(w - pad.right, y);
     ctx.stroke();
     ctx.fillText(`${(val * 100).toFixed(0)}%`, pad.left - 8, y);
   }
 
-  // Draw Bars
-  const barSlotW = plotW / annuals.length;
-  const barW = Math.max(3, barSlotW * 0.35);
+  const barGroupWidth = plotW / annuals.length;
+  const singleBarWidth = Math.max(3, Math.min(18, (barGroupWidth - 6) / 2));
 
-  annuals.forEach((yr, i) => {
-    const slotX = pad.left + i * barSlotW;
-    const fundX = slotX + barSlotW * 0.15;
-    const benchX = fundX + barW + 2;
+  annuals.forEach((a, idx) => {
+    const centerX = pad.left + idx * barGroupWidth + barGroupWidth / 2;
 
-    // Fund Bar
-    const fundY = getY(yr.fundReturn);
-    const fundH = Math.abs(fundY - zeroY);
-    ctx.fillStyle = yr.fundReturn >= 0 ? '#10b981' : '#ef4444';
-    ctx.fillRect(fundX, Math.min(fundY, zeroY), barW, Math.max(2, fundH));
+    // Fund Bar (Left)
+    if (a.fundReturn !== null) {
+      const fundX = centerX - singleBarWidth - 1;
+      const fundY = getY(a.fundReturn);
+      const barH = Math.abs(fundY - zeroY);
+      const topY = a.fundReturn >= 0 ? fundY : zeroY;
 
-    // Bench Bar
-    if (yr.benchReturn !== null) {
-      const benchY = getY(yr.benchReturn);
-      const benchH = Math.abs(benchY - zeroY);
-      ctx.fillStyle = '#64748b';
-      ctx.fillRect(benchX, Math.min(benchY, zeroY), barW, Math.max(2, benchH));
+      ctx.fillStyle = a.fundReturn >= 0 ? '#10b981' : '#ef4444';
+      ctx.fillRect(fundX, topY, singleBarWidth, barH);
     }
 
-    // X Axis Year Label
+    // Benchmark Bar (Right)
+    if (a.benchReturn !== null) {
+      const benchX = centerX + 1;
+      const benchY = getY(a.benchReturn);
+      const barH = Math.abs(benchY - zeroY);
+      const topY = a.benchReturn >= 0 ? benchY : zeroY;
+
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.7)';
+      ctx.fillRect(benchX, topY, singleBarWidth, barH);
+    }
+
+    // Year Label
     ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(yr.year, slotX + barSlotW * 0.5, pad.top + plotH + 8);
+    ctx.fillText(String(a.year).substring(2), centerX, h - pad.bottom + 8);
   });
 
-  // Tooltip
+  // Hover Tooltip
   setupCanvasHover(canvas, elements.annualTooltip, (mouse) => {
-    if (mouse.x < pad.left || mouse.x > pad.left + plotW) return null;
-    const idx = Math.floor((mouse.x - pad.left) / barSlotW);
-    if (idx < 0 || idx >= annuals.length) return null;
-    const yr = annuals[idx];
-
+    const relX = mouse.x - pad.left;
+    if (relX < 0 || relX > plotW) return null;
+    const idx = Math.min(annuals.length - 1, Math.max(0, Math.floor(relX / barGroupWidth)));
+    const a = annuals[idx];
+    const centerX = pad.left + idx * barGroupWidth + barGroupWidth / 2;
     return {
-      x: pad.left + idx * barSlotW + barSlotW * 0.5,
-      y: getY(yr.fundReturn),
+      x: centerX,
+      y: a.fundReturn !== null ? getY(a.fundReturn) : zeroY,
       html: `
-        <div class="canvas-tooltip-date">Calendar Year ${yr.year}</div>
+        <div class="canvas-tooltip-date">Calendar Year ${a.year}</div>
         <div class="canvas-tooltip-row">
-          <span>${state.fundTicker}:</span>
-          <strong style="color: ${yr.fundReturn >= 0 ? '#10b981' : '#ef4444'};">${formatPct(yr.fundReturn)}</strong>
+          <span><span class="canvas-tooltip-dot" style="background: ${a.fundReturn >= 0 ? '#10b981' : '#ef4444'};"></span>${state.fundTicker}:</span>
+          <strong>${a.fundReturn !== null ? formatPct(a.fundReturn) : '—'}</strong>
         </div>
-        ${yr.benchReturn !== null ? `
+        ${a.benchReturn !== null ? `
         <div class="canvas-tooltip-row" style="color: #94a3b8;">
-          <span>${state.benchTicker}:</span>
-          <strong>${formatPct(yr.benchReturn)}</strong>
-        </div>
-        <div class="canvas-tooltip-row" style="margin-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.2rem;">
+          <span><span class="canvas-tooltip-dot" style="background: #a855f7;"></span>${state.benchTicker}:</span>
+          <strong>${formatPct(a.benchReturn)}</strong>
+        </div>` : ''}
+        ${a.excessReturn !== null ? `
+        <div class="canvas-tooltip-row" style="margin-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.2rem; color: ${a.excessReturn >= 0 ? '#6ee7b7' : '#fca5a5'};">
           <span>Excess Return:</span>
-          <strong style="color: ${yr.excessReturn >= 0 ? '#38bdf8' : '#f87171'};">${yr.excessReturn >= 0 ? '+' : ''}${formatPct(yr.excessReturn)}</strong>
+          <strong>${a.excessReturn >= 0 ? '+' : ''}${formatPct(a.excessReturn)}</strong>
         </div>` : ''}
       `
     };
@@ -874,103 +1249,102 @@ function drawDrawdownChart() {
 
   const w = rect.width;
   const h = rect.height;
-  const pad = { top: 25, right: 25, bottom: 35, left: 55 };
+  const pad = { top: 25, right: 30, bottom: 40, left: 60 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
   ctx.clearRect(0, 0, w, h);
 
-  const timeline = state.analysis.drawdownResult.timeline;
-  if (timeline.length < 2) return;
+  const ddSeries = state.analysis.drawdownResult.drawdownSeries;
+  if (ddSeries.length < 2) return;
 
-  const maxDd = Math.min(-0.05, state.analysis.drawdownResult.maxDrawdown * 1.15);
+  const maxDepth = Math.min(...ddSeries.map(d => d.drawdown));
+  const minBound = Math.min(-0.1, maxDepth * 1.15);
 
   function getY(dd) {
-    // dd is <= 0. 0 is top (pad.top), maxDd is bottom
-    const ratio = dd / maxDd;
-    return pad.top + plotH * ratio;
+    return pad.top + plotH * (dd / minBound);
   }
 
-  function getX(i) {
-    return pad.left + (i / (timeline.length - 1)) * plotW;
+  function getX(idx) {
+    return pad.left + (idx / (ddSeries.length - 1)) * plotW;
   }
 
-  // Draw 0% Top Line
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, pad.top);
-  ctx.lineTo(pad.left + plotW, pad.top);
-  ctx.stroke();
-
-  // Grid Lines
-  const steps = 4;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = (window.CHART_FONTS && window.CHART_FONTS.xs) || '11px sans-serif';
+  // Draw Gridlines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
 
-  for (let s = 1; s <= steps; s++) {
-    const val = (s / steps) * maxDd;
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const val = (i / steps) * minBound;
     const y = getY(val);
+
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + plotW, y);
+    ctx.lineTo(w - pad.right, y);
     ctx.stroke();
-    ctx.fillText(`${(val * 100).toFixed(0)}%`, pad.left - 6, y);
+
+    ctx.fillText(`${(val * 100).toFixed(0)}%`, pad.left - 8, y);
   }
 
-  // Red Filled Area
-  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
-  grad.addColorStop(0, 'rgba(239, 68, 68, 0.1)');
-  grad.addColorStop(1, 'rgba(239, 68, 68, 0.55)');
+  // Draw X Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const yearStep = Math.max(1, Math.floor(ddSeries.length / 8));
+  for (let i = 0; i < ddSeries.length; i += yearStep) {
+    const x = getX(i);
+    const dateStr = ddSeries[i].date.substring(0, 4);
 
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillText(dateStr, x, h - pad.bottom + 8);
+  }
+
+  // Draw Underwater Red Area
+  const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+  grad.addColorStop(0, 'rgba(239, 68, 68, 0.05)');
+  grad.addColorStop(1, 'rgba(239, 68, 68, 0.45)');
+
+  ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.moveTo(getX(0), pad.top);
-  timeline.forEach((pt, i) => {
-    ctx.lineTo(getX(i), getY(pt.drawdown));
+  ddSeries.forEach((pt, idx) => {
+    ctx.lineTo(getX(idx), getY(pt.drawdown));
   });
-  ctx.lineTo(getX(timeline.length - 1), pad.top);
+  ctx.lineTo(getX(ddSeries.length - 1), pad.top);
   ctx.closePath();
-  ctx.fillStyle = grad;
   ctx.fill();
 
-  // Red Contour Line
   ctx.strokeStyle = '#ef4444';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  timeline.forEach((pt, i) => {
-    const x = getX(i);
+  ddSeries.forEach((pt, idx) => {
+    const x = getX(idx);
     const y = getY(pt.drawdown);
-    if (i === 0) ctx.moveTo(x, y);
+    if (idx === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
 
-  // X Axis Ticks
-  ctx.fillStyle = '#94a3b8';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const tickStep = Math.max(1, Math.floor(timeline.length / 5));
-  for (let i = 0; i < timeline.length; i += tickStep) {
-    ctx.fillText(timeline[i].date, getX(i), pad.top + plotH + 8);
-  }
-
-  // Tooltip
+  // Hover Tooltip
   setupCanvasHover(canvas, elements.drawdownTooltip, (mouse) => {
-    if (mouse.x < pad.left || mouse.x > pad.left + plotW) return null;
-    const idx = Math.min(timeline.length - 1, Math.max(0, Math.round(((mouse.x - pad.left) / plotW) * (timeline.length - 1))));
-    const pt = timeline[idx];
-
+    const relX = mouse.x - pad.left;
+    if (relX < 0 || relX > plotW) return null;
+    const idx = Math.min(ddSeries.length - 1, Math.max(0, Math.round((relX / plotW) * (ddSeries.length - 1))));
+    const pt = ddSeries[idx];
     return {
       x: getX(idx),
       y: getY(pt.drawdown),
       html: `
         <div class="canvas-tooltip-date">${pt.date}</div>
         <div class="canvas-tooltip-row">
-          <span>Drawdown from Peak:</span>
-          <strong style="color: #ef4444;">${formatPct(pt.drawdown)}</strong>
+          <span><span class="canvas-tooltip-dot" style="background: #ef4444;"></span>Drawdown from Peak:</span>
+          <strong style="color: #f87171;">${formatPct(pt.drawdown)}</strong>
         </div>
       `
     };
@@ -978,7 +1352,7 @@ function drawDrawdownChart() {
 }
 
 /**
- * CHART 4: Rolling Period Returns & Sharpe Chart
+ * CHART 4: Rolling Multi-Year CAGR Comparison Chart
  */
 function drawRollingChart() {
   const canvas = elements.rollingCanvas;
@@ -993,110 +1367,128 @@ function drawRollingChart() {
 
   const w = rect.width;
   const h = rect.height;
-  const pad = { top: 30, right: 35, bottom: 40, left: 65 };
+  const pad = { top: 25, right: 30, bottom: 40, left: 60 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
   ctx.clearRect(0, 0, w, h);
 
-  const windows = state.analysis.rollingStats.windows;
-  if (windows.length < 2) return;
+  const rollSeries = state.analysis.rollingStats.series;
+  if (!rollSeries || rollSeries.length < 2) {
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillText('Insufficient historical data for rolling window', w / 2, h / 2);
+    return;
+  }
 
-  let minCagr = -0.05;
-  let maxCagr = 0.25;
-
-  windows.forEach(w => {
-    if (w.fundCagr > maxCagr) maxCagr = w.fundCagr;
-    if (w.fundCagr < minCagr) minCagr = w.fundCagr;
-    if (w.benchCagr !== null) {
-      if (w.benchCagr > maxCagr) maxCagr = w.benchCagr;
-      if (w.benchCagr < minCagr) minCagr = w.benchCagr;
+  let minVal = Infinity;
+  let maxVal = -Infinity;
+  rollSeries.forEach(pt => {
+    if (pt.fundCagr > maxVal) maxVal = pt.fundCagr;
+    if (pt.fundCagr < minVal) minVal = pt.fundCagr;
+    if (pt.benchCagr !== null) {
+      if (pt.benchCagr > maxVal) maxVal = pt.benchCagr;
+      if (pt.benchCagr < minVal) minVal = pt.benchCagr;
     }
   });
 
-  maxCagr = Math.max(0.1, maxCagr * 1.15);
-  minCagr = Math.min(-0.05, minCagr * 1.15);
+  minVal = Math.min(-0.05, minVal * 1.15);
+  maxVal = Math.max(0.1, maxVal * 1.15);
 
   function getY(cagr) {
-    return pad.top + plotH * ((maxCagr - cagr) / (maxCagr - minCagr));
+    return pad.top + plotH * (1 - (cagr - minVal) / (maxVal - minVal));
   }
 
-  function getX(i) {
-    return pad.left + (i / (windows.length - 1)) * plotW;
+  function getX(idx) {
+    return pad.left + (idx / (rollSeries.length - 1)) * plotW;
   }
 
   const zeroY = getY(0);
 
-  // Horizontal Zero Line
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  ctx.lineWidth = 1.5;
+  // Zero axis line
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pad.left, zeroY);
-  ctx.lineTo(pad.left + plotW, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
   ctx.stroke();
 
-  // Grid lines
-  const steps = 5;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = (window.CHART_FONTS && window.CHART_FONTS.xs) || '11px sans-serif';
+  // Gridlines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
 
-  for (let s = 0; s <= steps; s++) {
-    const val = minCagr + (s / steps) * (maxCagr - minCagr);
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const val = minVal + (i / steps) * (maxVal - minVal);
     const y = getY(val);
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + plotW, y);
+    ctx.lineTo(w - pad.right, y);
     ctx.stroke();
     ctx.fillText(`${(val * 100).toFixed(0)}%`, pad.left - 8, y);
   }
 
-  // Draw Benchmark Rolling Line (Purple / Dashed)
-  if (windows[0].benchCagr !== null) {
-    ctx.save();
-    ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = '#a855f7';
-    ctx.lineWidth = 2;
+  // X Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const yearStep = Math.max(1, Math.floor(rollSeries.length / 8));
+  for (let i = 0; i < rollSeries.length; i += yearStep) {
+    const x = getX(i);
+    const dateStr = rollSeries[i].date.substring(0, 4);
+
     ctx.beginPath();
-    windows.forEach((pt, i) => {
-      const x = getX(i);
-      const y = getY(pt.benchCagr);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
     ctx.stroke();
-    ctx.restore();
+
+    ctx.fillText(dateStr, x, h - pad.bottom + 8);
   }
 
-  // Draw Fund Rolling Line (Cyan)
+  // Benchmark rolling line (Purple dashed)
+  if (rollSeries.some(s => s.benchCagr !== null)) {
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 1.75;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    let started = false;
+    rollSeries.forEach((pt, idx) => {
+      if (pt.benchCagr !== null) {
+        const x = getX(idx);
+        const y = getY(pt.benchCagr);
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Target Fund Rolling CAGR Line
   ctx.strokeStyle = '#2dd4bf';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  windows.forEach((pt, i) => {
-    const x = getX(i);
+  rollSeries.forEach((pt, idx) => {
+    const x = getX(idx);
     const y = getY(pt.fundCagr);
-    if (i === 0) ctx.moveTo(x, y);
+    if (idx === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
 
-  // X Axis Ticks
-  ctx.fillStyle = '#94a3b8';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const tickStep = Math.max(1, Math.floor(windows.length / 6));
-  for (let i = 0; i < windows.length; i += tickStep) {
-    ctx.fillText(windows[i].date, getX(i), pad.top + plotH + 8);
-  }
-
-  // Tooltip
+  // Hover Tooltip
   setupCanvasHover(canvas, elements.rollingTooltip, (mouse) => {
-    if (mouse.x < pad.left || mouse.x > pad.left + plotW) return null;
-    const idx = Math.min(windows.length - 1, Math.max(0, Math.round(((mouse.x - pad.left) / plotW) * (windows.length - 1))));
-    const pt = windows[idx];
-
+    const relX = mouse.x - pad.left;
+    if (relX < 0 || relX > plotW) return null;
+    const idx = Math.min(rollSeries.length - 1, Math.max(0, Math.round((relX / plotW) * (rollSeries.length - 1))));
+    const pt = rollSeries[idx];
     return {
       x: getX(idx),
       y: getY(pt.fundCagr),

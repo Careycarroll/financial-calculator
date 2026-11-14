@@ -6,6 +6,13 @@
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 import { parseCSV, resampleToMonthly } from '../dca-comparator/dca-engine.js';
 import { analyzeFundRegression } from './regression-engine.js';
+import {
+  initSessionFunds,
+  getAllFundsSync,
+  importFilesToSession,
+  resetSessionToDefault,
+  subscribeSessionFunds
+} from '../js/session-funds.js';
 
 const STORAGE_KEY_CUSTOM_FUNDS = 'dca_custom_funds_library';
 
@@ -56,14 +63,22 @@ let elements = {};
 
 document.addEventListener('DOMContentLoaded', init);
 
-function init() {
+async function init() {
   cacheDOMElements();
+  await initSessionFunds();
   loadCustomLibraryIntoUniverse();
   renderUniverseChips();
   populateDropdowns();
   attachEventListeners();
   setMode('simple');
   runAnalysis();
+
+  subscribeSessionFunds(() => {
+    loadCustomLibraryIntoUniverse();
+    renderUniverseChips();
+    populateDropdowns();
+    runAnalysis();
+  });
 }
 
 function cacheDOMElements() {
@@ -163,15 +178,17 @@ function saveCustomFundToLibrary(fund) {
 }
 
 function loadCustomLibraryIntoUniverse() {
-  const custom = getCustomLibrary();
-  allFunds = [...PRESET_BENCHMARKS];
+  const funds = getAllFundsSync();
+  allFunds = funds.map((f, idx) => ({
+    ticker: f.ticker,
+    name: f.name,
+    color: f.color || PALETTE[idx % PALETTE.length],
+    data: f.data,
+    isPreset: f.isPreset
+  }));
 
-  custom.forEach(cf => {
-    if (!allFunds.some(f => f.ticker === cf.ticker)) {
-      allFunds.push({
-        ...cf,
-        color: PALETTE[(allFunds.length) % PALETTE.length]
-      });
+  allFunds.forEach(cf => {
+    if (!cf.isPreset) {
       state.selectedTickers.add(cf.ticker);
     }
   });
@@ -634,90 +651,32 @@ async function handleFiles(files) {
   }
 
   const total = fileList.length;
-  const startTime = performance.now();
-  const CHUNK_SIZE = 50;
-  const newFunds = [];
-  const errors = [];
-
   if (total > 1) {
     showProgressToast(`Importing ${total} funds... (0 / ${total})`);
   }
 
-  for (let i = 0; i < total; i += CHUNK_SIZE) {
-    const chunk = fileList.slice(i, i + CHUNK_SIZE);
-
-    const chunkResults = await Promise.all(chunk.map(async file => {
-      try {
-        let text = '';
-        if (typeof file.text === 'function') {
-          text = await file.text();
-        } else {
-          text = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = ev => resolve(ev.target.result);
-            reader.onerror = reject;
-            reader.readAsText(file);
-          });
-        }
-
-        const parsed = parseCSV(text, file.name);
-        const monthly = resampleToMonthly(parsed.rows);
-        if (monthly.length < 12) {
-          return { error: `"${parsed.ticker}" has less than 12 monthly points.` };
-        }
-
-        return {
-          fund: {
-            ticker: parsed.ticker,
-            name: `${parsed.ticker} (Custom Upload)`,
-            data: monthly
-          }
-        };
-      } catch (err) {
-        return { error: `Failed to parse ${file.name}: ${err.message}` };
-      }
-    }));
-
-    chunkResults.forEach(res => {
-      if (res.fund) newFunds.push(res.fund);
-      if (res.error) errors.push(res.error);
-    });
-
-    if (total > 1) {
-      const processed = Math.min(i + CHUNK_SIZE, total);
-      showProgressToast(`Importing ${total} funds... (${processed} / ${total})`);
-      // Yield to UI loop so progress updates and browser paints smoothly
-      await new Promise(r => setTimeout(r, 0));
+  const result = await importFilesToSession(files, (processed, tot) => {
+    if (tot > 1) {
+      showProgressToast(`Importing ${tot} funds... (${processed} / ${tot})`);
     }
-  }
+  });
 
   clearProgressToast();
 
-  if (newFunds.length === 0) {
+  if (result.importedCount === 0) {
     showAlert('No valid funds could be imported from the selected files.', 'warning');
     return;
   }
 
-  // Batch insert into allFunds and select them
-  newFunds.forEach(fund => {
-    const existingIdx = allFunds.findIndex(f => f.ticker === fund.ticker);
-    if (existingIdx !== -1) {
-      allFunds[existingIdx].data = fund.data;
-      fund.color = allFunds[existingIdx].color;
-    } else {
-      fund.color = PALETTE[allFunds.length % PALETTE.length];
-      allFunds.push(fund);
-    }
-    state.selectedTickers.add(fund.ticker);
-  });
-
-  // Single batch save to localStorage
-  saveCustomFundsBatch(newFunds);
-
-  // Single DOM updates & single econometric run
+  loadCustomLibraryIntoUniverse();
   populateDropdowns();
   renderUniverseChips();
   runAnalysis();
+
+  if (result.errors && result.errors.length > 0) {
+    showAlert(`${result.errors.length} files were skipped due to formatting or insufficient history.`, 'warning');
+  }
+}
 
   const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
   if (total === 1) {

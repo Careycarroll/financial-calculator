@@ -11,6 +11,14 @@ import {
   alignSeries,
   simulateDCA
 } from './dca-engine.js';
+import {
+  initSessionFunds,
+  getAllFundsSync,
+  importFilesToSession,
+  resetSessionToDefault,
+  deleteSessionFund,
+  subscribeSessionFunds
+} from '../js/session-funds.js';
 
 // Vibrant neon-accessible color palette for funds
 const FUND_COLORS = [
@@ -43,40 +51,33 @@ const state = {
 let currentSimulationResults = null;
 
 // Persistent Browser Storage for Uploaded Custom Funds
-const STORAGE_KEY_CUSTOM_FUNDS = 'dca_custom_funds_library';
 let customLibrary = [];
 
 function loadCustomLibrary() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_FUNDS);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.warn('Failed to load custom funds library from localStorage:', e);
-    return [];
-  }
+  return getAllFundsSync().filter(f => !f.isPreset);
 }
 
 function saveCustomLibrary(library) {
-  try {
-    localStorage.setItem(STORAGE_KEY_CUSTOM_FUNDS, JSON.stringify(library));
-  } catch (e) {
-    console.error('Failed to save custom funds library to localStorage:', e);
-    showAlert('Browser storage quota reached. Could not cache custom fund.', 'warning');
-  }
+  // Maintained for compatibility; session funds are persisted via IndexedDB
 }
 
 // DOM Elements
 let elements = {};
 
-export function initDCAComparator() {
+export async function initDCAComparator() {
+  await initSessionFunds();
   customLibrary = loadCustomLibrary();
   cacheDOMElements();
   renderPresetChips();
   renderCustomLibraryChips();
   attachEventListeners();
   runComparison();
+
+  subscribeSessionFunds(all => {
+    customLibrary = all.filter(f => !f.isPreset);
+    renderCustomLibraryChips();
+    runComparison();
+  });
 }
 
 function cacheDOMElements() {
@@ -248,7 +249,7 @@ function toggleCustomFund(fund) {
   runComparison();
 }
 
-function deleteCustomFund(ticker) {
+async function deleteCustomFund(ticker) {
   const activeIdx = state.activeFunds.findIndex(f => f.ticker === ticker);
   if (activeIdx !== -1 && state.activeFunds.length <= 1) {
     showAlert('Cannot delete the only active fund. Please select another fund first.', 'warning');
@@ -259,8 +260,8 @@ function deleteCustomFund(ticker) {
     state.activeFunds.splice(activeIdx, 1);
   }
 
-  customLibrary = customLibrary.filter(f => f.ticker !== ticker);
-  saveCustomLibrary(customLibrary);
+  await deleteSessionFund(ticker);
+  customLibrary = loadCustomLibrary();
 
   state.activeFunds.forEach((f, idx) => {
     f.color = FUND_COLORS[idx % FUND_COLORS.length];
@@ -271,7 +272,7 @@ function deleteCustomFund(ticker) {
   renderActiveFundsList();
   resetDateRangeToMax();
   runComparison();
-  showAlert(`Removed ${ticker} from saved library.`, 'info');
+  showAlert(`Removed ${ticker} from session library.`, 'info');
 }
 
 function renderActiveFundsList() {
@@ -412,9 +413,9 @@ function attachEventListeners() {
 
   // Clear Custom Library button
   if (elements.btnClearCustomLibrary) {
-    elements.btnClearCustomLibrary.addEventListener('click', () => {
+    elements.btnClearCustomLibrary.addEventListener('click', async () => {
       if (customLibrary.length === 0) return;
-      if (!confirm('Remove all saved custom funds from your browser library?')) return;
+      if (!confirm('Remove all saved custom funds from your session library and reset to default 5?')) return;
 
       // Filter out custom funds from active funds, but ensure at least 1 benchmark stays
       state.activeFunds = state.activeFunds.filter(f => PRESET_BENCHMARKS.some(b => b.ticker === f.ticker));
@@ -422,8 +423,9 @@ function attachEventListeners() {
         state.activeFunds = [{ ...PRESET_BENCHMARKS[0], color: FUND_COLORS[0] }];
       }
 
+      await resetSessionToDefault();
       customLibrary = [];
-      saveCustomLibrary([]);
+
       state.activeFunds.forEach((f, idx) => {
         f.color = FUND_COLORS[idx % FUND_COLORS.length];
       });
@@ -433,7 +435,7 @@ function attachEventListeners() {
       renderActiveFundsList();
       resetDateRangeToMax();
       runComparison();
-      showAlert('Cleared all saved custom funds from browser storage.', 'info');
+      showAlert('Cleared all session custom funds and reset to 5 default benchmarks.', 'info');
     });
   }
 
@@ -473,94 +475,32 @@ async function handleUploadedFiles(files) {
   }
 
   const total = fileList.length;
-  const CHUNK_SIZE = 50;
-  const newFunds = [];
-  const errors = [];
-
   if (total > 5) {
     showAlert(`⚡ Batch importing ${total} funds into DCA library...`, 'info');
   }
 
-  for (let i = 0; i < total; i += CHUNK_SIZE) {
-    const chunk = fileList.slice(i, i + CHUNK_SIZE);
-    const chunkResults = await Promise.all(chunk.map(async file => {
-      try {
-        let text = '';
-        if (typeof file.text === 'function') {
-          text = await file.text();
-        } else {
-          text = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = e => resolve(e.target.result);
-            reader.onerror = reject;
-            reader.readAsText(file);
-          });
-        }
+  const result = await importFilesToSession(files);
 
-        const parsed = parseCSV(text, file.name);
-        const monthly = resampleToMonthly(parsed.rows);
-        if (monthly.length === 0) {
-          return { error: `Could not extract monthly price points from "${file.name}".` };
-        }
-
-        return {
-          fund: {
-            ticker: parsed.ticker,
-            name: `${parsed.ticker} (Custom Upload)`,
-            data: monthly
-          }
-        };
-      } catch (err) {
-        return { error: err.message };
-      }
-    }));
-
-    chunkResults.forEach(res => {
-      if (res.fund) {
-        const color = FUND_COLORS[(state.activeFunds.length + newFunds.length) % FUND_COLORS.length];
-        newFunds.push({
-          id: `custom_${Date.now()}_${newFunds.length}`,
-          ...res.fund,
-          color
-        });
-      }
-      if (res.error) errors.push(res.error);
-    });
-
-    if (total > 5) {
-      await new Promise(r => setTimeout(r, 0));
-    }
-  }
-
-  if (newFunds.length > 0) {
+  if (result.importedCount > 0) {
+    customLibrary = loadCustomLibrary();
+    const newFunds = customLibrary.slice(-result.importedCount);
     addUploadedFunds(newFunds);
     if (total === 1) {
       showAlert(`Successfully loaded ${newFunds[0].ticker} into your library!`, 'info');
     } else {
-      showAlert(`⚡ Successfully imported ${newFunds.length} fund(s) into your library!`, 'info');
+      showAlert(`⚡ Successfully imported ${result.importedCount} fund(s) into your library!`, 'info');
     }
   } else {
     showAlert('Could not extract monthly price points from uploaded files.', 'warning');
   }
 
-  if (errors.length > 0 && errors.length <= 3) {
-    errors.forEach(e => showAlert(e, 'warning'));
+  if (result.errors && result.errors.length > 0 && result.errors.length <= 3) {
+    result.errors.forEach(e => showAlert(e, 'warning'));
   }
 }
 
 function addUploadedFunds(newFunds) {
-  // 1. Persist new funds into browser customLibrary (localStorage)
-  newFunds.forEach(nf => {
-    const existingIdx = customLibrary.findIndex(c => c.ticker === nf.ticker);
-    if (existingIdx !== -1) {
-      customLibrary[existingIdx] = nf;
-    } else {
-      customLibrary.push(nf);
-    }
-  });
-  saveCustomLibrary(customLibrary);
-
-  // 2. Add or update in active funds list (avoiding duplicates)
+  // 1. Update in active funds list (avoiding duplicates)
   let combined = [...state.activeFunds];
   newFunds.forEach(nf => {
     const existingIdx = combined.findIndex(f => f.ticker === nf.ticker);
