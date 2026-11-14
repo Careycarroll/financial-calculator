@@ -46,4 +46,11 @@ const afterDelete = await deleteSessionFund('NONEXISTENT');
 assert.strictEqual(afterDelete.length, 5, 'Core 5 remain intact');
 console.log('✅ PASS: Delete session fund executed gracefully');
 
+// TEST 4: Shared Asset Modal Module
+console.log('\n--- TEST 4: Shared Asset Modal Module ---');
+const assetModalModule = await import('../js/asset-modal.js');
+assert.strictEqual(typeof assetModalModule.openAssetModal, 'function', 'openAssetModal is exported as function');
+assert.strictEqual(typeof assetModalModule.closeAssetModal, 'function', 'closeAssetModal is exported as function');
+console.log('✅ PASS: Shared Asset Modal controller exports validated');
+
 console.log('\n🎉 ALL SESSION FUNDS TESTS PASSED SUCCESSFULLY!');

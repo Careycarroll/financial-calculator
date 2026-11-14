@@ -6,6 +6,7 @@
     <title>Historical Fund DCA Backtester | Financial Calculator</title>
     <link rel="stylesheet" href="../css/base.css" />
     <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
     <link rel="stylesheet" href="dca.css" />
   </head>
   <body>
@@ -69,6 +70,13 @@
               <span>📁 Select &amp; Upload Funds</span>
               <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">Max 3</span>
             </h2>
+
+            <!-- Search Modal Trigger Button -->
+            <button type="button" class="asset-picker-btn" id="btn-dca-open-modal" style="width: 100%; margin-bottom: 0.85rem; justify-content: center; background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.3);">
+              <span class="picker-dot" style="background: #38bdf8;"></span>
+              <span class="picker-ticker">Search Universe / Presets</span>
+              <span class="picker-arrow">🔍 Open</span>
+            </button>
 
             <!-- Drag & Drop Zone (Moved to Top for Fast Uploads) -->
             <div class="dropzone" id="dca-dropzone" style="margin-bottom: 0.85rem;">
