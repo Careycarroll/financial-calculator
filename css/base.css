@@ -32,6 +32,19 @@
   display: none !important;
 }
 
+/* ===== NUMBER INPUT RESET (HIDE NATIVE SPINNERS GLOBALLY) ===== */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  font-variant-numeric: tabular-nums;
+}
+
 
 /* ===== FONT SCALE TOGGLE ===== */.font-scale-btn {
   padding: 0.4rem 0.65rem;
