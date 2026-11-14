@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manager Performance Analysis Studio | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="regression.css" />
+    <style>
+      .suite-subnav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+      }
+      .suite-subnav-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+      .suite-subnav-link:hover {
+        color: #f1f5f9;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .suite-subnav-link.active {
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+      }
+      .scorecard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .scorecard-metric-card {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .scorecard-metric-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .scorecard-metric-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #f8fafc;
+        font-variant-numeric: tabular-nums;
+      }
+      .scorecard-metric-sub {
+        font-size: 0.8rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .delta-badge-pos {
+        color: #34d399;
+        font-weight: 700;
+      }
+      .delta-badge-neg {
+        color: #f43f5e;
+        font-weight: 700;
+      }
+      .confidence-banner {
+        background: #111827;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .confidence-icon {
+        font-size: 2rem;
+      }
+      .confidence-content h4 {
+        margin: 0 0 0.25rem;
+        font-size: 1rem;
+        color: #38bdf8;
+      }
+      .confidence-content p {
+        margin: 0;
+        font-size: 0.88rem;
+        color: #cbd5e1;
+        line-height: 1.4;
+      }
+      .two-col-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      @media (max-width: 900px) {
+        .two-col-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body class="regression-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="../portfolio-optimization/index.html" class="top-nav-link">📈 Efficient Frontier</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Portfolio Optimization</a>
+          <a href="../portfolio-optimization/black-litterman.html" class="top-nav-link">🧠 Black-Litterman Model</a>
+          <a href="../portfolio-optimization/rolling-optimization.html" class="top-nav-link">🔄 Rolling Optimization</a>
+          <a href="index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="manager-performance.html" class="top-nav-link active">🏆 Manager Performance</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="regression-container">
+      <!-- Header -->
+      <header class="regression-header">
+        <h1>🏆 Manager Performance Analysis Studio</h1>
+        <p class="regression-tagline">
+          Evaluate active manager edge and skill against a reference benchmark. Measure true excess returns, tracking error (active risk),
+          Information Ratio, trailing periods, bull/bear market capture asymmetry, relative drawdowns, and statistical confidence (skill vs. luck).
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Factor & Performance Suite Pages">
+        <a href="index.html" class="suite-subnav-link">📈 Factor Regression &amp; SML Lab</a>
+        <a href="manager-performance.html" class="suite-subnav-link active">🏆 Manager Performance Analysis</a>
+      </nav>
+
+      <!-- Status Bar -->
+      <section class="regression-status-bar" id="manager-status-bar">
+        <div class="status-pill highlight">
+          <span>Manager Fund:</span>
+          <strong id="status-manager-name">QQQ</strong>
+        </div>
+        <div class="status-pill">
+          <span>Reference Benchmark:</span>
+          <strong id="status-bench-name">SPY</strong>
+        </div>
+        <div class="status-pill">
+          <span>Active Timeline:</span>
+          <strong id="status-timeline">-- to --</strong>
+          <span class="status-sub" id="status-total-months">(0 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Excess Return:</span>
+          <strong id="status-excess-val">--</strong>
+        </div>
+        <div class="status-pill">
+          <span>Information Ratio:</span>
+          <strong id="status-ir-val">--</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Model Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Model Configuration Card -->
+      <section class="config-card" id="config-card">
+        <div class="config-card-inner">
+          <div class="two-col-grid">
+            <!-- Manager Picker -->
+            <div class="picker-group">
+              <label class="control-label-bold">Target Manager / Fund:</label>
+              <div class="asset-picker-card" id="manager-picker-card">
+                <div class="asset-picker-info">
+                  <span class="picker-dot" id="manager-dot" style="background:#38bdf8;"></span>
+                  <div>
+                    <strong id="manager-ticker-display">QQQ</strong>
+                    <span id="manager-name-display" class="picker-sub">Invesco QQQ Trust</span>
+                  </div>
+                </div>
+                <button type="button" class="btn-secondary btn-sm" id="btn-change-manager">
+                  🔍 Change Manager
+                </button>
+              </div>
+              <div class="presets-row mt-2">
+                <span class="presets-label">Quick Pick:</span>
+                <div class="presets-buttons-wrap">
+                  <button type="button" class="btn-preset-chip active" data-manager="QQQ">QQQ (Growth)</button>
+                  <button type="button" class="btn-preset-chip" data-manager="SCHD">SCHD (Dividend)</button>
+                  <button type="button" class="btn-preset-chip" data-manager="VOO">VOO (Core)</button>
+                  <button type="button" class="btn-preset-chip" data-manager="BND">BND (Fixed Income)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Benchmark Picker -->
+            <div class="picker-group">
+              <label class="control-label-bold">Reference Benchmark (MKT):</label>
+              <div class="asset-picker-card" id="bench-picker-card">
+                <div class="asset-picker-info">
+                  <span class="picker-dot" id="bench-dot" style="background:#94a3b8;"></span>
+                  <div>
+                    <strong id="bench-ticker-display">SPY</strong>
+                    <span id="bench-name-display" class="picker-sub">SPDR S&amp;P 500 ETF Trust</span>
+                  </div>
+                </div>
+                <button type="button" class="btn-secondary btn-sm" id="btn-change-bench">
+                  🔍 Change Benchmark
+                </button>
+              </div>
+              <div class="presets-row mt-2">
+                <span class="presets-label">Quick Pick:</span>
+                <div class="presets-buttons-wrap">
+                  <button type="button" class="btn-preset-chip active" data-bench="SPY">SPY (S&amp;P 500)</button>
+                  <button type="button" class="btn-preset-chip" data-bench="VOO">VOO (S&amp;P 500)</button>
+                  <button type="button" class="btn-preset-chip" data-bench="BND">BND (Total Bond)</button>
+                  <button type="button" class="btn-preset-chip" data-bench="QQQ">QQQ (Nasdaq)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parameters Grid -->
+          <div class="opt-controls-grid">
+            <div class="form-group">
+              <label for="select-rolling-window">Rolling Window (Months)</label>
+              <select id="select-rolling-window" class="form-select">
+                <option value="12">12 Months (1 Year)</option>
+                <option value="24">24 Months (2 Years)</option>
+                <option value="36" selected>36 Months (3 Years)</option>
+                <option value="48">48 Months (4 Years)</option>
+                <option value="60">60 Months (5 Years)</option>
+              </select>
+              <span class="form-help">Rolling excess return and active risk window</span>
+            </div>
+
+            <div class="form-group">
+              <label for="select-confidence-level">Skill Confidence Level</label>
+              <select id="select-confidence-level" class="form-select">
+                <option value="0.80" selected>80% Confidence Interval</option>
+                <option value="0.90">90% Confidence Interval</option>
+                <option value="0.95">95% Confidence Interval</option>
+                <option value="0.99">99% Confidence Interval</option>
+              </select>
+              <span class="form-help">Statistical significance threshold (t-test)</span>
+            </div>
+
+            <div class="form-group">
+              <label for="input-annual-rf">Risk-Free Rate (%)</label>
+              <input
+                type="number"
+                id="input-annual-rf"
+                class="form-input"
+                value="3.0"
+                step="0.1"
+                min="0"
+                max="15"
+              />
+              <span class="form-help">Annualized cash hurdle for CAPM Alpha</span>
+            </div>
+
+            <div class="form-group" style="display:flex; flex-direction:column; justify-content:center;">
+              <label class="checkbox-label" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; margin-top:0.75rem;">
+                <input type="checkbox" id="check-drip" checked />
+                <span><strong>Reinvest Dividends (DRIP Total Return)</strong></span>
+              </label>
+              <span class="form-help">Uses dividend-adjusted monthly series</span>
+            </div>
+          </div>
+
+          <div class="config-actions-row">
+            <button type="button" class="btn-primary-action" id="btn-run-analysis">
+              🏆 Analyze Manager Performance
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Results Display Area -->
+      <main class="optimization-results-area" id="results-area">
+        <!-- 4 Highlight Scorecards -->
+        <div class="scorecard-grid">
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Annualized Excess Return</div>
+            <div class="scorecard-metric-value highlight-gold" id="metric-excess-return">--</div>
+            <div class="scorecard-metric-sub">
+              Fund: <span id="metric-fund-cagr">--</span> vs Bench: <span id="metric-bench-cagr">--</span>
+            </div>
+          </div>
+
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Tracking Error (Active Risk)</div>
+            <div class="scorecard-metric-value" id="metric-tracking-error">--</div>
+            <div class="scorecard-metric-sub">Annualized volatility of excess return</div>
+          </div>
+
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Information Ratio (IR)</div>
+            <div class="scorecard-metric-value highlight-green" id="metric-information-ratio">--</div>
+            <div class="scorecard-metric-sub">Active return per unit active risk</div>
+          </div>
+
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Win Rate (% Outperforming)</div>
+            <div class="scorecard-metric-value" id="metric-win-rate">--</div>
+            <div class="scorecard-metric-sub">
+              <span id="metric-win-counts">-- of -- months</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manager Skill vs. Luck Statistical Test Banner -->
+        <div class="confidence-banner" id="skill-confidence-banner">
+          <div class="confidence-icon">🧠</div>
+          <div class="confidence-content">
+            <h4 id="skill-title">Manager Skill Statistical Confidence (Student's t-Test)</h4>
+            <p id="skill-text">Evaluating whether manager excess return represents genuine skill or random sampling noise...</p>
+          </div>
+        </div>
+
+        <!-- Trailing Performance Scorecard Table -->
+        <section class="card mb-4">
+          <div class="card-header">
+            <h3>📅 Trailing Performance Scorecard</h3>
+            <p class="chart-subtitle">Standard trailing performance horizons comparing Fund vs. Benchmark</p>
+          </div>
+          <div class="table-responsive">
+            <table class="opt-data-table" id="trailing-table">
+              <thead>
+                <tr>
+                  <th>Trailing Period</th>
+                  <th class="num">Fund Return (CAGR)</th>
+                  <th class="num">Benchmark Return (CAGR)</th>
+                  <th class="num highlight-gold">Excess Return</th>
+                  <th class="num">Tracking Error</th>
+                  <th class="num highlight-green">Information Ratio</th>
+                  <th class="num">Jensen's Alpha</th>
+                  <th class="num">Market Beta</th>
+                  <th class="num">R²</th>
+                </tr>
+              </thead>
+              <tbody id="trailing-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Charts Layout -->
+        <section class="charts-section">
+          <!-- Chart 1: Annual Excess Returns Bar Chart -->
+          <div class="card mb-4">
+            <div class="chart-card-header">
+              <div>
+                <h3>📊 Calendar Year Active Excess Returns</h3>
+                <p class="chart-subtitle">
+                  Annual outperformance (+) or underperformance (-) against the benchmark.
+                  Green/Red indicates positive/negative excess; dot indicates benchmark up/down regime.
+                </p>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-annual-excess" style="height: 380px;">
+              <canvas id="canvas-annual-excess"></canvas>
+              <div id="tooltip-annual-excess" class="opt-chart-tooltip"></div>
+            </div>
+          </div>
+
+          <!-- Chart 2: Dual-Axis Rolling 36-Month Excess Return & Active Risk -->
+          <div class="card mb-4">
+            <div class="chart-card-header">
+              <div>
+                <h3>📈 Rolling Excess Return &amp; Tracking Error (<span id="rolling-months-label">36</span> Months)</h3>
+                <p class="chart-subtitle">
+                  Dynamic walk-forward active return (Left Y-Axis, Cyan) and annualized tracking error active risk (Right Y-Axis, Amber) across market cycles.
+                </p>
+              </div>
+              <div class="chart-legend-row">
+                <div class="legend-item"><span class="legend-swatch" style="background:#38bdf8;"></span> Rolling Excess Return (Left)</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#f59e0b;"></span> Tracking Error (Right)</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-rolling-excess" style="height: 380px;">
+              <canvas id="canvas-rolling-excess"></canvas>
+              <div id="tooltip-rolling-excess" class="opt-chart-tooltip"></div>
+            </div>
+          </div>
+
+          <!-- Chart 3: Absolute Drawdown vs. Relative Excess Drawdown -->
+          <div class="card mb-4">
+            <div class="chart-card-header">
+              <div>
+                <h3>🌊 Relative Excess Drawdown (Underperformance Fatigue)</h3>
+                <p class="chart-subtitle">
+                  Tracks the percentage decline in relative wealth ($V_{\text{fund}} / V_{\text{bench}}$) from peak outperformance.
+                  Identifies how deep and how long the manager lagged behind the benchmark index.
+                </p>
+              </div>
+              <div class="chart-legend-row">
+                <div class="legend-item"><span class="legend-swatch" style="background:#ef4444;"></span> Relative Drawdown (%)</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#94a3b8; border-style:dashed;"></span> Benchmark Absolute DD</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-relative-dd" style="height: 380px;">
+              <canvas id="canvas-relative-dd"></canvas>
+              <div id="tooltip-relative-dd" class="opt-chart-tooltip"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Two Column Tables: Distribution & Up/Down Regimes -->
+        <div class="two-col-grid">
+          <!-- Table A: Excess Return Distribution -->
+          <div class="card">
+            <div class="card-header">
+              <h3>📐 Excess Return Distribution &amp; Moments</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="opt-data-table" id="distribution-table">
+                <tbody id="distribution-table-body">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table B: Up vs. Down Market Performance -->
+          <div class="card">
+            <div class="card-header">
+              <h3>⚖️ Up vs. Down Market Regimes</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="opt-data-table" id="regime-table">
+                <thead>
+                  <tr>
+                    <th>Market Regime</th>
+                    <th class="num">Months</th>
+                    <th class="num">Avg Active</th>
+                    <th class="num">Win Rate</th>
+                    <th class="num">Capture</th>
+                  </tr>
+                </thead>
+                <tbody id="regime-table-body">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Annual Returns History Table -->
+        <section class="card mb-4">
+          <div class="card-header rebalance-header-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+              <h3>📅 Calendar Annual Excess Returns History</h3>
+              <p class="chart-subtitle">Year-by-year active outperformance vs benchmark</p>
+            </div>
+            <div>
+              <button type="button" class="btn-secondary btn-sm" id="btn-export-csv">
+                ⬇️ Export Manager Performance (CSV)
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="opt-data-table" id="annual-returns-table">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th class="num" id="col-manager-ret">Manager Return</th>
+                  <th class="num" id="col-bench-ret">Benchmark Return</th>
+                  <th class="num highlight-gold">Active Excess Return</th>
+                  <th>Benchmark Regime</th>
+                </tr>
+              </thead>
+              <tbody id="annual-returns-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Asset Modal Container -->
+    <div id="asset-modal-container"></div>
+
+    <!-- Scripts -->
+    <script type="module" src="./manager-ui.js"></script>
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>
