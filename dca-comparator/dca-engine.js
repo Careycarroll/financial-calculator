@@ -253,67 +253,166 @@ export function alignSeries(funds, options = {}) {
 }
 
 /**
+ * Parses an expense ratio string (e.g. "0.20%") into a numeric percentage (e.g. 0.20).
+ * @param {string|number} val
+ * @returns {number}
+ */
+export function parseExpenseRatio(val) {
+  if (typeof val === 'number') return isNaN(val) ? 0 : Math.max(0, val);
+  if (!val || typeof val !== 'string') return 0;
+  const cleaned = val.replace('%', '').trim();
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.max(0, parsed);
+}
+
+/**
  * Executes recurring Dollar-Cost Averaging simulation for a single fund series.
+ * Supports dividend reinvestment (DRIP) and comprehensive fee drag modeling:
+ * - 'reconstruct': Reconstructs theoretical 0%-fee gross returns from net prices to measure fee erosion.
+ * - 'overlay': Applies custom annual advisory/platform fee deducted monthly from portfolio assets.
  * 
  * @param {Array<{date: string, close: number, adjClose: number}>} alignedData
  * @param {Object} config
  * @param {number} config.initialBalance - Starting balance ($)
  * @param {number} config.monthlyDeposit - Monthly deposit amount ($)
  * @param {boolean} [config.useDRIP=true] - Reinvest dividends (true = adjClose, false = close)
- * @returns {{ trajectory: Array<{date: string, totalContributed: number, portfolioValue: number, shares: number, price: number}>, metrics: Object }}
+ * @param {string} [config.feeMode='reconstruct'] - 'reconstruct' | 'overlay' | 'none'
+ * @param {number} [config.annualFeePct=0] - Annual expense ratio or advisory fee % (e.g. 0.20 for 0.20%)
+ * @returns {{ trajectory: Array<Object>, grossTrajectory: Array<Object>, metrics: Object }}
  */
 export function simulateDCA(alignedData, config) {
   const initialBalance = Math.max(0, parseFloat(config.initialBalance) || 0);
   const monthlyDeposit = Math.max(0, parseFloat(config.monthlyDeposit) || 0);
   const useDRIP = config.useDRIP !== false;
 
+  const feeMode = config.feeMode || 'reconstruct';
+  const rawFee = config.annualFeePct ?? config.expenseRatio;
+  const annualFeePct = parseExpenseRatio(rawFee);
+  const monthlyFeeRate = (annualFeePct / 100) / 12;
+
   if (!alignedData || alignedData.length === 0) {
-    return { trajectory: [], metrics: getZeroMetrics() };
+    return { trajectory: [], grossTrajectory: [], metrics: getZeroMetrics() };
   }
 
   const trajectory = [];
+  const grossTrajectory = [];
   const cashFlows = []; // For IRR calculation: { tYears: number, amount: number }
+  const grossCashFlows = [];
 
   let totalContributed = 0;
   let shares = 0;
+  let grossShares = 0;
+  let totalFeesPaid = 0;
+  let grossPrice = 0;
 
   for (let t = 0; t < alignedData.length; t++) {
     const row = alignedData[t];
-    const price = useDRIP ? row.adjClose : row.close;
+    const rawPrice = useDRIP ? row.adjClose : row.close;
+
+    let netPrice = rawPrice;
+    if (t === 0) {
+      grossPrice = rawPrice;
+    } else {
+      const prevRaw = useDRIP ? alignedData[t - 1].adjClose : alignedData[t - 1].close;
+      const rawReturn = prevRaw > 0 ? (rawPrice - prevRaw) / prevRaw : 0;
+
+      if (feeMode === 'reconstruct' && annualFeePct > 0) {
+        // Raw historical price is already net of the fund's expense ratio.
+        // Gross return adds back the monthly fee rate:
+        const grossReturn = rawReturn + monthlyFeeRate;
+        grossPrice = grossPrice * (1 + grossReturn);
+        netPrice = rawPrice;
+      } else if (feeMode === 'overlay' && annualFeePct > 0) {
+        // Raw price is baseline gross; overlay creates an additional fee drag
+        grossPrice = rawPrice;
+        netPrice = rawPrice;
+      } else {
+        grossPrice = rawPrice;
+        netPrice = rawPrice;
+      }
+    }
+
+    let monthlyFee = 0;
 
     if (t === 0) {
       // Month 0: buy initial shares
       totalContributed = initialBalance;
-      if (initialBalance > 0 && price > 0) {
-        shares = initialBalance / price;
+      if (initialBalance > 0) {
+        if (netPrice > 0) shares = initialBalance / netPrice;
+        if (grossPrice > 0) grossShares = initialBalance / grossPrice;
         cashFlows.push({ tYears: 0, amount: -initialBalance });
+        grossCashFlows.push({ tYears: 0, amount: -initialBalance });
       }
     } else {
       // Month t: add recurring monthly contribution
       totalContributed += monthlyDeposit;
-      if (monthlyDeposit > 0 && price > 0) {
-        shares += monthlyDeposit / price;
+
+      // Calculate monthly fee on existing asset balance
+      if (feeMode === 'reconstruct' && annualFeePct > 0) {
+        const prevRaw = useDRIP ? alignedData[t - 1].adjClose : alignedData[t - 1].close;
+        const prevBal = shares * prevRaw;
+        monthlyFee = prevBal * monthlyFeeRate;
+        totalFeesPaid += monthlyFee;
+      } else if (feeMode === 'overlay' && annualFeePct > 0) {
+        const prevRaw = useDRIP ? alignedData[t - 1].adjClose : alignedData[t - 1].close;
+        const prevBal = shares * prevRaw;
+        monthlyFee = prevBal * monthlyFeeRate;
+        totalFeesPaid += monthlyFee;
+        // Liquidate fractional shares to pay the overlay fee
+        if (netPrice > 0) {
+          const sharesDeducted = monthlyFee / netPrice;
+          shares = Math.max(0, shares - sharesDeducted);
+        }
+      }
+
+      if (monthlyDeposit > 0) {
+        if (netPrice > 0) shares += monthlyDeposit / netPrice;
+        if (grossPrice > 0) grossShares += monthlyDeposit / grossPrice;
         cashFlows.push({ tYears: t / 12, amount: -monthlyDeposit });
+        grossCashFlows.push({ tYears: t / 12, amount: -monthlyDeposit });
       }
     }
 
-    const portfolioValue = shares * price;
+    const portfolioValue = shares * netPrice;
+    const grossPortfolioValue = grossShares * grossPrice;
+
     trajectory.push({
       date: row.date,
       totalContributed: round2(totalContributed),
       portfolioValue: round2(portfolioValue),
+      grossPortfolioValue: round2(grossPortfolioValue),
+      monthlyFee: round2(monthlyFee),
+      cumulativeFees: round2(totalFeesPaid),
       shares: round4(shares),
-      price: round2(price)
+      grossShares: round4(grossShares),
+      price: round2(netPrice),
+      grossPrice: round2(grossPrice)
+    });
+
+    grossTrajectory.push({
+      date: row.date,
+      totalContributed: round2(totalContributed),
+      portfolioValue: round2(grossPortfolioValue),
+      shares: round4(grossShares),
+      price: round2(grossPrice)
     });
   }
 
   const finalValue = trajectory[trajectory.length - 1].portfolioValue;
+  const grossFinalValue = grossTrajectory[grossTrajectory.length - 1].portfolioValue;
+
   // Terminal cash flow for IRR
   cashFlows.push({ tYears: (alignedData.length - 1) / 12, amount: finalValue });
+  grossCashFlows.push({ tYears: (alignedData.length - 1) / 12, amount: grossFinalValue });
 
-  const metrics = calculateMetrics(trajectory, cashFlows, initialBalance, monthlyDeposit);
+  const metrics = calculateMetrics(trajectory, cashFlows, initialBalance, monthlyDeposit, {
+    grossFinalValue,
+    totalFeesPaid,
+    annualFeePct,
+    feeMode
+  });
 
-  return { trajectory, metrics };
+  return { trajectory, grossTrajectory, metrics };
 }
 
 /**
@@ -383,7 +482,7 @@ export function solveIRR(cashFlows) {
 /**
  * Calculates financial performance metrics from a completed DCA trajectory.
  */
-function calculateMetrics(trajectory, cashFlows, initialBalance, monthlyDeposit) {
+function calculateMetrics(trajectory, cashFlows, initialBalance, monthlyDeposit, feeInfo = {}) {
   if (!trajectory || trajectory.length === 0) return getZeroMetrics();
 
   const totalMonths = trajectory.length;
@@ -421,6 +520,14 @@ function calculateMetrics(trajectory, cashFlows, initialBalance, monthlyDeposit)
     }
   }
 
+  // Fee and Drag Metrics
+  const grossFinalBalance = feeInfo.grossFinalValue != null ? round2(feeInfo.grossFinalValue) : round2(finalBalance);
+  const totalFeesPaid = feeInfo.totalFeesPaid != null ? round2(feeInfo.totalFeesPaid) : 0;
+  const compoundedFeeDrag = round2(Math.max(0, grossFinalBalance - finalBalance));
+  const lostOpportunityCost = round2(Math.max(0, compoundedFeeDrag - totalFeesPaid));
+  const grossProfit = grossFinalBalance - totalInvested;
+  const feeErosionPct = grossProfit > 0 ? round2((compoundedFeeDrag / grossProfit) * 100) : 0;
+
   return {
     totalMonths,
     totalYears: round2(totalYears),
@@ -431,7 +538,14 @@ function calculateMetrics(trajectory, cashFlows, initialBalance, monthlyDeposit)
     cagrPct: round2(cagrPct),
     irrPct: round2(irrPct),
     maxDrawdownPct: round2(maxDrawdown),
-    finalShares: trajectory[trajectory.length - 1].shares
+    finalShares: trajectory[trajectory.length - 1].shares,
+    totalFeesPaid,
+    compoundedFeeDrag,
+    lostOpportunityCost,
+    feeErosionPct,
+    grossFinalBalance,
+    annualFeePct: feeInfo.annualFeePct || 0,
+    feeMode: feeInfo.feeMode || 'reconstruct'
   };
 }
 
@@ -446,7 +560,14 @@ function getZeroMetrics() {
     cagrPct: 0,
     irrPct: 0,
     maxDrawdownPct: 0,
-    finalShares: 0
+    finalShares: 0,
+    totalFeesPaid: 0,
+    compoundedFeeDrag: 0,
+    lostOpportunityCost: 0,
+    feeErosionPct: 0,
+    grossFinalBalance: 0,
+    annualFeePct: 0,
+    feeMode: 'reconstruct'
   };
 }
 
@@ -464,5 +585,6 @@ export default {
   findCommonDateRange,
   alignSeries,
   simulateDCA,
-  solveIRR
+  solveIRR,
+  parseExpenseRatio
 };

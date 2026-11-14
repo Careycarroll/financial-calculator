@@ -421,6 +421,7 @@ export function analyzeFundRegression(fund, benchmark, options = {}) {
   return {
     ticker: fund.ticker || fund.name,
     name: fund.name,
+    expenseRatio: fund.expenseRatio || null,
     color: fund.color || '#3b82f6',
     monthsCount: aligned.length,
     startDate: aligned[0].date,

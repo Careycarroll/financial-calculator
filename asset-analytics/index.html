@@ -166,6 +166,7 @@
           <div class="verdict-grid">
             <div class="verdict-stat" id="verdict-risk"></div>
             <div class="verdict-stat" id="verdict-winrate"></div>
+            <div class="verdict-stat hidden" id="verdict-fee"></div>
           </div>
         </section>
 
@@ -211,6 +212,10 @@
               <p class="module-desc">Compares total wealth accumulation over time assuming a $10,000 initial investment.</p>
             </div>
             <div class="module-actions">
+              <span class="fee-drag-pill" id="growth-fee-indicator" title="Internal fund fee impact over holding period">
+                <span id="growth-fee-text">🏷️ ER: -- | Fee Drag: $0</span>
+              </span>
+              <button type="button" class="action-btn" id="btn-growth-gross" title="Toggle hypothetical 0%-expense ratio baseline curve">0% Fee Gross</button>
               <div class="action-btn-group">
                 <button type="button" class="action-btn active" id="btn-scale-linear">Linear</button>
                 <button type="button" class="action-btn" id="btn-scale-log">Logarithmic</button>

@@ -328,6 +328,20 @@
   border: 1px solid var(--border);
 }
 
+.fee-drag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+}
+
 .action-btn {
   padding: 0.35rem 0.75rem;
   font-size: 0.75rem;

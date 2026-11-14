@@ -15,6 +15,7 @@ import {
 import {
   computeMonthlyReturns,
   calculateGrowthOf10k,
+  calculateFundFeeDrag,
   calculateAnnualReturns,
   calculateDrawdownEpisodes,
   calculateMonthlyCalendarHeatmap,
@@ -62,6 +63,7 @@ const state = {
   useDRIP: true,
   viewMode: 'simple', // 'simple' | 'quant'
   growthScale: 'linear', // 'linear' | 'log'
+  growthShowGross: false,
   rollingWindowMonths: 36, // 12 | 36 | 60
   annualRf: 0.03, // 3% risk-free rate
 
@@ -216,6 +218,9 @@ function cacheDOMElements() {
     btnModeQuant: document.getElementById('btn-mode-quant'),
     btnScaleLinear: document.getElementById('btn-scale-linear'),
     btnScaleLog: document.getElementById('btn-scale-log'),
+    btnGrowthGross: document.getElementById('btn-growth-gross'),
+    growthFeeIndicator: document.getElementById('growth-fee-indicator'),
+    growthFeeText: document.getElementById('growth-fee-text'),
     rollingWindowBtns: document.querySelectorAll('[data-window]'),
     btnExportCsv: document.getElementById('btn-export-report-csv'),
 
@@ -225,6 +230,7 @@ function cacheDOMElements() {
     verdictSummary: document.getElementById('verdict-summary'),
     verdictRisk: document.getElementById('verdict-risk'),
     verdictWinRate: document.getElementById('verdict-winrate'),
+    verdictFee: document.getElementById('verdict-fee'),
     kpiScorecardGrid: document.getElementById('kpi-scorecard-grid'),
 
     // KPI Cards
@@ -594,6 +600,14 @@ function bindEvents() {
       state.growthScale = 'log';
       elements.btnScaleLog.classList.add('active');
       elements.btnScaleLinear.classList.remove('active');
+      drawGrowthChart();
+    });
+  }
+
+  if (elements.btnGrowthGross) {
+    elements.btnGrowthGross.addEventListener('click', () => {
+      state.growthShowGross = !state.growthShowGross;
+      elements.btnGrowthGross.classList.toggle('active', state.growthShowGross);
       drawGrowthChart();
     });
   }
@@ -1772,8 +1786,12 @@ function runAnalysis() {
     return;
   }
 
+  // Fund cost & fee drag modeling
+  const fundER = fund.expenseRatio || 0;
+  const feeDragInfo = calculateFundFeeDrag(fundMonthlyReturns, fundER, 10000);
+
   // 1. Cumulative Growth of $10k
-  const growthSeries = calculateGrowthOf10k(fundMonthlyReturns, benchMonthlyReturns, 10000);
+  const growthSeries = calculateGrowthOf10k(fundMonthlyReturns, benchMonthlyReturns, 10000, { annualExpenseRatio: fundER });
 
   // 2. Calendar Annual Returns
   const annualReturns = calculateAnnualReturns(fundMonthlyReturns, benchMonthlyReturns);
@@ -1802,9 +1820,20 @@ function runAnalysis() {
     heatmapMatrix,
     riskMetrics,
     profile,
+    feeDragInfo,
     fundMonthlyReturns,
     benchMonthlyReturns
   };
+
+  // Update Fee Indicator Pill
+  if (elements.growthFeeIndicator && elements.growthFeeText) {
+    if (feeDragInfo.annualExpenseRatio > 0) {
+      elements.growthFeeIndicator.classList.remove('hidden');
+      elements.growthFeeText.textContent = `🏷️ ER: ${feeDragInfo.annualExpenseRatio.toFixed(2)}% | Fee Drag: $${Math.round(feeDragInfo.compoundedFeeDrag).toLocaleString()}`;
+    } else {
+      elements.growthFeeText.textContent = `🏷️ Stated ER: 0.00%`;
+    }
+  }
 
   // Render UI
   renderScorecards();
@@ -1837,13 +1866,22 @@ function renderScorecards() {
     },
     { cagr: bRisk.cagr },
     a.drawdownResult.topEpisodes,
-    a.rollingStats || { winRate: 0, totalWindows: 0, outperformedWindows: 0 }
+    a.rollingStats || { winRate: 0, totalWindows: 0, outperformedWindows: 0 },
+    a.feeDragInfo
   );
 
   if (elements.verdictBadge) elements.verdictBadge.textContent = verdict.badge;
   if (elements.verdictSummary) elements.verdictSummary.innerHTML = verdict.summary;
   if (elements.verdictRisk) elements.verdictRisk.innerHTML = verdict.riskVerdict;
   if (elements.verdictWinRate) elements.verdictWinRate.innerHTML = verdict.winVerdict;
+  if (elements.verdictFee) {
+    if (verdict.feeVerdict) {
+      elements.verdictFee.classList.remove('hidden');
+      elements.verdictFee.innerHTML = verdict.feeVerdict;
+    } else {
+      elements.verdictFee.classList.add('hidden');
+    }
+  }
 
   // KPI Scorecard Cards (Quant Mode)
   if (elements.kpiFinalVal) elements.kpiFinalVal.textContent = `$${Math.round(finalFundVal).toLocaleString()}`;
@@ -2040,6 +2078,10 @@ function drawGrowthChart() {
       if (pt.benchGrowth > maxVal) maxVal = pt.benchGrowth;
       if (pt.benchGrowth < minVal) minVal = pt.benchGrowth;
     }
+    if (state.growthShowGross && pt.grossFundGrowth !== undefined) {
+      if (pt.grossFundGrowth > maxVal) maxVal = pt.grossFundGrowth;
+      if (pt.grossFundGrowth < minVal) minVal = pt.grossFundGrowth;
+    }
   });
 
   minVal = Math.max(1000, minVal * 0.95);
@@ -2124,6 +2166,22 @@ function drawGrowthChart() {
     ctx.setLineDash([]);
   }
 
+  // Draw 0%-Fee Gross Fund Curve (Golden dashed)
+  if (state.growthShowGross && series.some(s => s.grossFundGrowth !== undefined)) {
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.75;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    series.forEach((pt, idx) => {
+      const x = getX(idx);
+      const y = getY(pt.grossFundGrowth);
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // Draw Target Fund Area Gradient & Stroke
   const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
   grad.addColorStop(0, 'rgba(45, 212, 191, 0.28)');
@@ -2165,6 +2223,11 @@ function drawGrowthChart() {
           <span><span class="canvas-tooltip-dot" style="background: #2dd4bf;"></span>${state.fundTicker}:</span>
           <strong>${formatCurrency(pt.fundGrowth)}</strong>
         </div>
+        ${(state.growthShowGross && pt.grossFundGrowth !== undefined) ? `
+        <div class="canvas-tooltip-row" style="color: #fbbf24;">
+          <span><span class="canvas-tooltip-dot" style="background: #f59e0b;"></span>0%-Fee Gross:</span>
+          <strong>${formatCurrency(pt.grossFundGrowth)}</strong>
+        </div>` : ''}
         ${pt.benchGrowth !== null ? `
         <div class="canvas-tooltip-row" style="color: #94a3b8;">
           <span><span class="canvas-tooltip-dot" style="background: #a855f7;"></span>${state.benchTicker}:</span>
