@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Financial Goals Planning — Financial Calculator</title>
+  <link rel="stylesheet" href="../css/base.css" />
+  <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/asset-modal.css" />
+  <link rel="stylesheet" href="./monte-carlo.css" />
+  <script src="../js/font-scale.js"></script>
+  <script src="../js/prefetch.js"></script>
+</head>
+<body class="monte-carlo-page">
+  <!-- GLOBAL HEADER -->
+  <header class="top-nav">
+    <div class="top-nav-left">
+      <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+      <span class="nav-separator">/</span>
+      <div class="nav-category-dropdown-wrap">
+        <button class="nav-category-btn" id="nav-category-btn" type="button">
+          <span id="nav-category-label">Trading &amp; Fund Analytics</span>
+          <span class="nav-chevron">▾</span>
+        </button>
+        <div class="nav-category-menu" id="nav-category-menu"></div>
+      </div>
+      <a href="../index.html" class="nav-all-tools-link">← All Tools</a>
+    </div>
+    <div class="top-nav-actions" id="top-nav-actions">
+      <!-- Populated dynamically by nav.js -->
+    </div>
+  </header>
+
+  <main class="monte-carlo-container">
+    <!-- SUITE SUB-NAVIGATION -->
+    <nav class="suite-subnav" aria-label="Monte Carlo Suite">
+      <a href="index.html" class="subnav-link">🎲 Monte Carlo Simulation</a>
+      <a href="financial-goals.html" class="subnav-link active">🎯 Financial Goals</a>
+      <a href="asset-liability.html" class="subnav-link">⚖️ Asset Liability Modeling</a>
+    </nav>
+
+    <!-- HEADER TITLE & TAGLINE -->
+    <header class="studio-header">
+      <h1>🎯 Financial Goals &amp; Glide Path Studio</h1>
+      <p class="studio-tagline">
+        Model complex multi-stage life cycles: transition your portfolio through a dynamic linear glide path
+        from career growth into retirement while testing multiple savings and withdrawal goals.
+      </p>
+    </header>
+
+    <!-- STATUS BAR -->
+    <section class="status-summary-bar">
+      <div class="status-pill highlight">
+        <span>Planning Type:</span>
+        <strong id="status-plan-type">Multistage Glide Path</strong>
+      </div>
+      <div class="status-pill">
+        <span>Horizon:</span>
+        <strong id="status-horizon">50 Years</strong>
+      </div>
+      <div class="status-pill">
+        <span>Retirement:</span>
+        <strong id="status-retire-yr">In 35 Years</strong>
+      </div>
+      <div class="status-pill">
+        <span>Glide Path:</span>
+        <strong id="status-glide-yrs">10 Years Transition</strong>
+      </div>
+      <div class="status-actions">
+        <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+          <span>⚙️</span>
+          <span id="btn-config-text">Collapse Model Configuration</span>
+        </button>
+      </div>
+    </section>
+
+    <div id="alerts-container"></div>
+
+    <!-- CONFIGURATION CARD -->
+    <section class="config-card" id="config-card">
+      <div class="config-tabs-nav">
+        <button type="button" class="cfg-tab-btn active" id="tab-btn-starting">🌱 Starting Portfolio (Career)</button>
+        <button type="button" class="cfg-tab-btn" id="tab-btn-ending">🏖️ Ending Portfolio (Retirement)</button>
+        <button type="button" class="cfg-tab-btn" id="tab-btn-goals">🎯 Financial Goals Cashflows</button>
+        <button type="button" class="cfg-tab-btn" id="tab-btn-settings">⚙️ Model &amp; Glidepath Settings</button>
+      </div>
+
+      <!-- PANE 1: STARTING PORTFOLIO -->
+      <div class="config-body" id="pane-starting">
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">
+          Asset allocation during your working/career accumulation stage before the glide path begins.
+        </p>
+        <div class="allocations-table-container">
+          <table class="allocations-table">
+            <thead>
+              <tr>
+                <th>Asset / Fund</th>
+                <th class="th-weight">Target Allocation</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="start-allocations-tbody"></tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td><strong>Total Career Allocation:</strong></td>
+                <td class="total-col">
+                  <div class="total-col-wrap">
+                    <span class="total-val" id="total-start-val">100.0%</span>
+                    <span class="total-status valid" id="total-start-status">✓ Valid</span>
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="alloc-table-actions">
+          <button type="button" class="btn-tool-secondary" id="btn-add-start-row">➕ Add Asset</button>
+          <button type="button" class="btn-tool-secondary" id="btn-reset-start">🗑️ Reset to 80/20 Growth</button>
+        </div>
+      </div>
+
+      <!-- PANE 2: ENDING PORTFOLIO -->
+      <div class="config-body hidden" id="pane-ending">
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">
+          Target asset allocation reached at retirement to prioritize capital preservation and income.
+        </p>
+        <div class="allocations-table-container">
+          <table class="allocations-table">
+            <thead>
+              <tr>
+                <th>Asset / Fund</th>
+                <th class="th-weight">Target Allocation</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="end-allocations-tbody"></tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td><strong>Total Retirement Allocation:</strong></td>
+                <td class="total-col">
+                  <div class="total-col-wrap">
+                    <span class="total-val" id="total-end-val">100.0%</span>
+                    <span class="total-status valid" id="total-end-status">✓ Valid</span>
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="alloc-table-actions">
+          <button type="button" class="btn-tool-secondary" id="btn-add-end-row">➕ Add Asset</button>
+          <button type="button" class="btn-tool-secondary" id="btn-reset-end">🗑️ Reset to 20/80 Conservative</button>
+        </div>
+      </div>
+
+      <!-- PANE 3: FINANCIAL GOALS BUILDER -->
+      <div class="config-body hidden" id="pane-goals">
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.25rem;">
+          Layer multiple savings and withdrawal goals with custom start triggers, durations, and inflation adjustments.
+        </p>
+        <div class="goals-builder" id="goals-container"></div>
+        <div class="alloc-table-actions" style="margin-top: 1rem;">
+          <button type="button" class="btn-tool-secondary" id="btn-add-goal">➕ Add Goal</button>
+        </div>
+      </div>
+
+      <!-- PANE 4: MODEL & GLIDEPATH SETTINGS -->
+      <div class="config-body hidden" id="pane-settings">
+        <div class="settings-grid">
+          <div class="setting-field">
+            <label class="setting-label" for="select-planning-type">Planning Type</label>
+            <select class="control-select" id="select-planning-type">
+              <option value="multistage" selected>Multistage (Glide Path Transition)</option>
+              <option value="singleStage">Single Stage (Constant Allocation)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="input-years-to-retire">Years to Retirement</label>
+            <input type="number" class="control-input" id="input-years-to-retire" value="35" min="1" max="60" />
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="input-glide-years">Glide Path Duration (Years)</label>
+            <input type="number" class="control-input" id="input-glide-years" value="10" min="0" max="30" />
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="input-initial-capital">Initial Capital ($)</label>
+            <input type="number" class="control-input" id="input-initial-capital" value="100000" min="1000" step="10000" />
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-sim-period">Simulation Period (Years)</label>
+            <select class="control-select" id="select-sim-period">
+              <option value="30">30 Years</option>
+              <option value="40">40 Years</option>
+              <option value="50" selected>50 Years</option>
+              <option value="60">60 Years</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-simulation-model">Simulation Model</label>
+            <select class="control-select" id="select-simulation-model">
+              <option value="historical" selected>Historical Returns (Bootstrap Resampling)</option>
+              <option value="parameterized">Parameterized Returns (Normal Distribution)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-sequence-risk">Sequence of Returns Risk</label>
+            <select class="control-select" id="select-sequence-risk">
+              <option value="none" selected>No Adjustments (Pure Random)</option>
+              <option value="worst1">Worst 1 Year at Retirement</option>
+              <option value="worst2">Worst 2 Years at Retirement</option>
+              <option value="worst3">Worst 3 Years at Retirement</option>
+              <option value="worst5">Worst 5 Years at Retirement (Severe Stress)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-inflation-model">Inflation Model</label>
+            <select class="control-select" id="select-inflation-model">
+              <option value="historical" selected>Historical Inflation (US CPI Series)</option>
+              <option value="parameterized">Parameterized Inflation (Fixed 2.5%/yr)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-tax-treatment">Tax Treatment</label>
+            <select class="control-select" id="select-tax-treatment">
+              <option value="preTax" selected>Pre-tax Returns</option>
+              <option value="afterTax">After-tax Returns (15% Capital Gains Drag)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-sim-count">Number of Simulations</label>
+            <select class="control-select" id="select-sim-count">
+              <option value="1000" selected>1,000 Simulations (Fast)</option>
+              <option value="2500">2,500 Simulations</option>
+              <option value="5000">5,000 Simulations (High Precision)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- RUN SIMULATION BAR -->
+      <div class="run-bar">
+        <div class="run-progress-wrap">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="run-progress-fill"></div>
+          </div>
+          <span id="run-progress-label">Ready</span>
+        </div>
+        <button type="button" class="btn-run-simulation" id="btn-run-simulation">
+          🚀 Run Financial Goals Simulation
+        </button>
+      </div>
+    </section>
+
+    <!-- RESULTS SUITE -->
+    <div id="results-suite" class="results-suite">
+      <!-- MODULE 1: DONUT CARDS -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🎯 Stage Target Allocations</h2>
+            <p class="module-desc">Comparison between Career Accumulation and Retirement Income target portfolios.</p>
+          </div>
+        </div>
+        <div class="donuts-grid" id="donuts-container"></div>
+      </section>
+
+      <!-- MODULE 2: GLIDEPATH CHART -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🌊 Asset Allocation Glide Path</h2>
+            <p class="module-desc">How asset weights transition dynamically from career to retirement stage.</p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" style="height: 320px;">
+          <canvas id="glidepath-canvas" width="1200" height="320"></canvas>
+          <div class="canvas-tooltip hidden" id="glidepath-tooltip"></div>
+        </div>
+        <div class="chart-legend-bar" id="glidepath-legend-bar"></div>
+      </section>
+
+      <!-- MODULE 3: SUMMARY SCORECARD -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>📊 Goals Simulation Percentile Summary</h2>
+            <p class="module-desc">Statistical range of portfolio wealth across 50 simulated years.</p>
+          </div>
+          <div class="module-actions">
+            <button type="button" class="btn-tool-secondary" id="btn-export-csv">📥 Export Trajectory CSV</button>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table class="scorecard-table">
+            <thead>
+              <tr>
+                <th>Outcome Metric</th>
+                <th>10th Percentile</th>
+                <th>25th Percentile</th>
+                <th style="color:#38bdf8;">50th Percentile (Median)</th>
+                <th>75th Percentile</th>
+                <th style="color:#34d399;">90th Percentile</th>
+              </tr>
+            </thead>
+            <tbody id="scorecard-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MODULE 4: GROWTH CONES -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>📈 Forecasted Wealth Trajectory with Goals</h2>
+            <p class="module-desc">Percentile fan cones incorporating contributions, education withdrawals, and retirement spending.</p>
+          </div>
+          <div class="module-actions">
+            <div class="scale-toggle-wrap">
+              <button type="button" class="btn-toggle active" id="btn-scale-linear">Linear Scale</button>
+              <button type="button" class="btn-toggle" id="btn-scale-log">Log Scale</button>
+            </div>
+          </div>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="growth-canvas" width="1200" height="380"></canvas>
+          <div class="canvas-tooltip hidden" id="growth-tooltip"></div>
+        </div>
+        <div class="chart-legend-bar" id="growth-legend-bar"></div>
+      </section>
+
+      <!-- MODULE 5: SOLVENCY SURVIVAL RATE -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🛡️ Goal Solvency &amp; Survival Probability</h2>
+            <p class="module-desc">Probability that the portfolio successfully fully funded all scheduled goals without running out of money.</p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" style="height: 320px;">
+          <canvas id="survival-canvas" width="1200" height="320"></canvas>
+          <div class="canvas-tooltip hidden" id="survival-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- MODULE 6: MILESTONE BALANCES TABLE -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🗓️ Multi-Stage Milestone Balances</h2>
+            <p class="module-desc">Projected values at 5-year milestones across career and retirement.</p>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timeline Milestone</th>
+                <th>Stage</th>
+                <th>10th Percentile</th>
+                <th>25th Percentile</th>
+                <th style="color:#38bdf8;">50th (Median)</th>
+                <th>75th Percentile</th>
+                <th style="color:#34d399;">90th Percentile</th>
+                <th>Solvency Rate</th>
+              </tr>
+            </thead>
+            <tbody id="milestones-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- SCRIPTS -->
+  <script type="module" src="./goals-ui.js"></script>
+  <script src="../js/nav.js"></script>
+</body>
+</html>

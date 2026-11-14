@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monte Carlo Simulation — Financial Calculator</title>
+  <link rel="stylesheet" href="../css/base.css" />
+  <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/asset-modal.css" />
+  <link rel="stylesheet" href="./monte-carlo.css" />
+  <script src="../js/font-scale.js"></script>
+  <script src="../js/prefetch.js"></script>
+</head>
+<body class="monte-carlo-page">
+  <!-- GLOBAL HEADER -->
+  <header class="top-nav">
+    <div class="top-nav-left">
+      <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+      <span class="nav-separator">/</span>
+      <div class="nav-category-dropdown-wrap">
+        <button class="nav-category-btn" id="nav-category-btn" type="button">
+          <span id="nav-category-label">Trading &amp; Fund Analytics</span>
+          <span class="nav-chevron">▾</span>
+        </button>
+        <div class="nav-category-menu" id="nav-category-menu"></div>
+      </div>
+      <a href="../index.html" class="nav-all-tools-link">← All Tools</a>
+    </div>
+    <div class="top-nav-actions" id="top-nav-actions">
+      <!-- Populated dynamically by nav.js -->
+    </div>
+  </header>
+
+  <main class="monte-carlo-container">
+    <!-- SUITE SUB-NAVIGATION -->
+    <nav class="suite-subnav" aria-label="Monte Carlo Suite">
+      <a href="index.html" class="subnav-link active">🎲 Monte Carlo Simulation</a>
+      <a href="financial-goals.html" class="subnav-link">🎯 Financial Goals</a>
+      <a href="asset-liability.html" class="subnav-link">⚖️ Asset Liability Modeling</a>
+    </nav>
+
+    <!-- HEADER TITLE & TAGLINE -->
+    <header class="studio-header">
+      <h1>🎲 Monte Carlo Simulation Studio</h1>
+      <p class="studio-tagline">
+        Project long-term expected portfolio growth, sequence-of-returns risk, crash recovery depth,
+        and retirement solvency across 1,000 to 10,000 randomized market paths.
+      </p>
+    </header>
+
+    <!-- TIMELINE & SETTINGS SUMMARY STATUS BAR -->
+    <section class="status-summary-bar">
+      <div class="status-pill highlight">
+        <span>Horizon:</span>
+        <strong id="status-period">30 Years</strong>
+      </div>
+      <div class="status-pill">
+        <span>Simulations:</span>
+        <strong id="status-sim-count">1,000 Runs</strong>
+      </div>
+      <div class="status-pill">
+        <span>Model:</span>
+        <strong id="status-model-type">Historical Returns</strong>
+      </div>
+      <div class="status-pill">
+        <span>Sequence Risk:</span>
+        <strong id="status-sequence-risk">No Adjustments</strong>
+      </div>
+      <div class="status-actions">
+        <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+          <span>⚙️</span>
+          <span id="btn-config-text">Collapse Model Configuration</span>
+        </button>
+      </div>
+    </section>
+
+    <div id="alerts-container"></div>
+
+    <!-- CONFIGURATION CARD -->
+    <section class="config-card" id="config-card">
+      <div class="config-tabs-nav">
+        <button type="button" class="cfg-tab-btn active" id="tab-btn-assets">💼 Portfolio Assets &amp; Allocations</button>
+        <button type="button" class="cfg-tab-btn" id="tab-btn-settings">⚙️ Simulation &amp; Risk Settings</button>
+      </div>
+
+      <!-- TAB 1: ASSETS & ALLOCATIONS -->
+      <div class="config-body" id="pane-assets">
+        <div class="presets-bar">
+          <span class="presets-label">⚡ Model Presets:</span>
+          <button type="button" class="btn-preset-chip" data-preset="classic-60-40">Classic 60/40 (VOO/BND)</button>
+          <button type="button" class="btn-preset-chip" data-preset="aggressive-80-20">Aggressive 80/20 (VOO/QQQ/BND)</button>
+          <button type="button" class="btn-preset-chip" data-preset="three-fund">Three-Fund (VOO/SCHD/BND)</button>
+          <button type="button" class="btn-preset-chip" data-preset="all-weather">All-Weather (VOO/BND/GLD)</button>
+        </div>
+
+        <div class="allocations-table-container">
+          <table class="allocations-table">
+            <thead>
+              <tr>
+                <th>Asset / Fund</th>
+                <th class="th-weight">Target Allocation</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="allocations-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td><strong>Total Target Allocation:</strong></td>
+                <td class="total-col">
+                  <div class="total-col-wrap">
+                    <span class="total-val" id="total-alloc-val">100.0%</span>
+                    <span class="total-status valid" id="total-alloc-status">✓ Valid</span>
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="alloc-table-actions">
+          <button type="button" class="btn-tool-secondary" id="btn-add-asset-row">➕ Add Asset</button>
+          <button type="button" class="btn-tool-secondary" id="btn-reset-table">🗑️ Reset Table</button>
+        </div>
+      </div>
+
+      <!-- TAB 2: SIMULATION & RISK SETTINGS -->
+      <div class="config-body hidden" id="pane-settings">
+        <div class="settings-grid">
+          <div class="setting-field">
+            <label class="setting-label" for="input-initial-capital">Initial Capital ($)</label>
+            <input type="number" class="control-input" id="input-initial-capital" value="100000" min="1000" step="5000" />
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-period-years">Simulation Period (Years)</label>
+            <select class="control-select" id="select-period-years">
+              <option value="10">10 Years</option>
+              <option value="15">15 Years</option>
+              <option value="20">20 Years</option>
+              <option value="25">25 Years</option>
+              <option value="30" selected>30 Years</option>
+              <option value="40">40 Years</option>
+              <option value="50">50 Years</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-simulation-model">Simulation Model</label>
+            <select class="control-select" id="select-simulation-model">
+              <option value="historical" selected>Historical Returns (Bootstrap Resampling)</option>
+              <option value="parameterized">Parameterized Returns (Normal Distribution)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-bootstrap-model">Bootstrap Sampling Model</label>
+            <select class="control-select" id="select-bootstrap-model">
+              <option value="singleYear" selected>Single Year (Independent Random Draws)</option>
+              <option value="blockYears">Block of Years (Preserves Cyclical Persistence)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-sequence-risk">Sequence of Returns Risk</label>
+            <select class="control-select" id="select-sequence-risk">
+              <option value="none" selected>No Adjustments (Pure Random Order)</option>
+              <option value="worst1">Worst 1 Year First</option>
+              <option value="worst2">Worst 2 Years First</option>
+              <option value="worst3">Worst 3 Years First</option>
+              <option value="worst5">Worst 5 Years First (Severe Crash Stress)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-inflation-model">Inflation Model</label>
+            <select class="control-select" id="select-inflation-model">
+              <option value="historical" selected>Historical Inflation (US CPI Series)</option>
+              <option value="parameterized">Parameterized Inflation (Fixed 2.5%/yr)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-tax-treatment">Tax Treatment</label>
+            <select class="control-select" id="select-tax-treatment">
+              <option value="preTax" selected>Pre-tax Returns</option>
+              <option value="afterTax">After-tax Returns (15% Capital Gains Drag)</option>
+            </select>
+          </div>
+
+          <div class="setting-field">
+            <label class="setting-label" for="select-sim-count">Number of Simulations</label>
+            <select class="control-select" id="select-sim-count">
+              <option value="1000" selected>1,000 Simulations (Fast)</option>
+              <option value="2500">2,500 Simulations</option>
+              <option value="5000">5,000 Simulations (High Precision)</option>
+              <option value="10000">10,000 Simulations (Institutional Standard)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- RUN SIMULATION BAR -->
+      <div class="run-bar">
+        <div class="run-progress-wrap">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="run-progress-fill"></div>
+          </div>
+          <span id="run-progress-label">Ready</span>
+        </div>
+        <button type="button" class="btn-run-simulation" id="btn-run-simulation">
+          🚀 Run Monte Carlo Simulation
+        </button>
+      </div>
+    </section>
+
+    <!-- RESULTS PRESENTATION SUITE -->
+    <div id="results-suite" class="results-suite">
+      <!-- MODULE 1: TARGET ALLOCATION DONUT -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🎯 Target Asset Allocation</h2>
+            <p class="module-desc">Current asset weighting modeled across simulated paths.</p>
+          </div>
+        </div>
+        <div class="donuts-grid" id="donuts-container"></div>
+      </section>
+
+      <!-- MODULE 2: RISK & RETURN SCORECARD TABLE -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>📊 Simulation Percentile Summary</h2>
+            <p class="module-desc">Statistically expected portfolio outcomes across the 10th to 90th percentile spectrum.</p>
+          </div>
+          <div class="module-actions">
+            <button type="button" class="btn-tool-secondary" id="btn-export-csv">📥 Export Trajectory CSV</button>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table class="scorecard-table">
+            <thead>
+              <tr>
+                <th>Outcome Metric</th>
+                <th>10th Percentile (Pessimistic)</th>
+                <th>25th Percentile</th>
+                <th style="color: #38bdf8;">50th Percentile (Median)</th>
+                <th>75th Percentile</th>
+                <th style="color: #34d399;">90th Percentile (Optimistic)</th>
+              </tr>
+            </thead>
+            <tbody id="scorecard-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MODULE 3: FORECASTED GROWTH FAN CHART -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>📈 Forecasted Portfolio Growth Cones</h2>
+            <p class="module-desc">Percentile fan chart showing portfolio balance trajectories over time.</p>
+          </div>
+          <div class="module-actions">
+            <div class="scale-toggle-wrap">
+              <button type="button" class="btn-toggle active" id="btn-scale-linear">Linear Scale</button>
+              <button type="button" class="btn-toggle" id="btn-scale-log">Log Scale</button>
+            </div>
+          </div>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="growth-canvas" width="1200" height="380"></canvas>
+          <div class="canvas-tooltip hidden" id="growth-tooltip"></div>
+        </div>
+        <div class="chart-legend-bar" id="growth-legend-bar"></div>
+      </section>
+
+      <!-- MODULE 4: PORTFOLIO SURVIVAL PROBABILITY -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🛡️ Portfolio Survival Probability (Solvency Rate)</h2>
+            <p class="module-desc">Percentage of simulated market paths where the portfolio balance remained positive.</p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" style="height: 320px;">
+          <canvas id="survival-canvas" width="1200" height="320"></canvas>
+          <div class="canvas-tooltip hidden" id="survival-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- MODULE 5: RETURN & DRAWDOWN HISTOGRAMS -->
+      <section class="histogram-grid">
+        <div class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📊 Annualized Return Distribution</h2>
+              <p class="module-desc">Frequency distribution of simulated CAGR across trials.</p>
+            </div>
+          </div>
+          <div class="canvas-wrapper" style="height: 300px;">
+            <canvas id="return-hist-canvas" width="600" height="300"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-module">
+          <div class="module-header">
+            <div class="module-title-group">
+              <h2>📉 Max Drawdown Distribution</h2>
+              <p class="module-desc">Frequency distribution of deepest crash drops encountered.</p>
+            </div>
+          </div>
+          <div class="canvas-wrapper" style="height: 300px;">
+            <canvas id="drawdown-hist-canvas" width="600" height="300"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULE 6: SAFE WITHDRAWAL RATE (SWR) MATRIX -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🛡️ Safe Withdrawal Rate (SWR) Longevity Analysis</h2>
+            <p class="module-desc">Empirical solvency success rates across initial withdrawal percentages.</p>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Initial Withdrawal Rate</th>
+                <th>Annual Initial Dollar Amount</th>
+                <th>Simulation Horizon</th>
+                <th>Portfolio Survival Rate</th>
+                <th>Risk of Depletion</th>
+              </tr>
+            </thead>
+            <tbody id="swr-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MODULE 7: MILESTONE BALANCES BY YEAR TABLE -->
+      <section class="chart-module">
+        <div class="module-header">
+          <div class="module-title-group">
+            <h2>🗓️ Percentile Milestone Balances by Year</h2>
+            <p class="module-desc">Nominal projected portfolio values at 5-year milestones across percentiles.</p>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timeline Milestone</th>
+                <th>10th Percentile</th>
+                <th>25th Percentile</th>
+                <th style="color:#38bdf8;">50th (Median)</th>
+                <th>75th Percentile</th>
+                <th style="color:#34d399;">90th Percentile</th>
+                <th>Solvency Rate</th>
+              </tr>
+            </thead>
+            <tbody id="milestones-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- SCRIPTS -->
+  <script type="module" src="./simulation-ui.js"></script>
+  <script src="../js/nav.js"></script>
+</body>
+</html>
