@@ -3,187 +3,160 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Financial Calculator</title>
+    <title>Financial Calculator - Financial &amp; Quantitative Analytics Hub</title>
     <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/home.css" />
   </head>
   <body>
     <nav class="top-nav">
       <div class="top-nav-inner">
         <a href="index.html" class="top-nav-logo">Financial Calculator</a>
+
+        <!-- VIEW PREFERENCE TOGGLE IN GLOBAL BAR -->
+        <div class="top-nav-view-toggle" role="group" aria-label="Layout view preference">
+          <button
+            type="button"
+            class="nav-toggle-btn active"
+            data-view="suite"
+            id="nav-toggle-suite"
+            title="Domain Suite Hub View (Portfolio Visualizer style)"
+            aria-pressed="true"
+          >
+            <span class="nav-toggle-icon">🏛️</span>
+            <span class="nav-toggle-text">Suite View</span>
+          </button>
+          <button
+            type="button"
+            class="nav-toggle-btn"
+            data-view="workflow"
+            id="nav-toggle-workflow"
+            title="Workflow &amp; Goal View (Task-driven)"
+            aria-pressed="false"
+          >
+            <span class="nav-toggle-icon">🎯</span>
+            <span class="nav-toggle-text">Workflow View</span>
+          </button>
+        </div>
+
         <div class="top-nav-links">
-          <a href="index.html" class="top-nav-link active">Calculators</a>
-          <a href="pages/news.html" class="top-nav-link">News Feed</a>
+          <a href="pages/news.html" class="top-nav-link">📰 News Feed</a>
         </div>
       </div>
     </nav>
 
     <div class="page-container">
-      <header class="page-header">
-        <p class="tagline">Tools for smarter financial decisions</p>
+      <header class="home-hero">
+        <h1>Financial &amp; Quantitative Analytics</h1>
+        <p class="home-hero-subtitle">
+          Institutional-grade modeling, multi-asset portfolio backtesting, stochastic Monte Carlo simulations,
+          and fundamental valuation tools running 100% locally in your browser.
+        </p>
+
+        <!-- GLOBAL SEARCH & CONTROLS -->
+        <div class="home-controls-bar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="home-search"
+              class="home-search-input"
+              placeholder="Search tools, formulas, or metrics (e.g., Monte Carlo, DCA, Alpha, Guyton-Klinger, Loan)..."
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Search tools"
+            />
+            <div class="search-actions">
+              <button type="button" id="search-clear-btn" class="search-clear-btn hidden" title="Clear search (Esc)">&times;</button>
+              <kbd class="search-kbd-hint" title="Press / or Cmd+K to search">/</kbd>
+            </div>
+          </div>
+
+          <!-- Category filter pills -->
+          <div id="filter-pills" class="filter-pills-row" role="tablist" aria-label="Tool Categories">
+            <!-- Dynamically populated by home.js -->
+          </div>
+        </div>
       </header>
 
-      <main>
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Calculators</h2>
-          <div class="dashboard-cards">
-            <a href="pages/loan.html" class="card">
-              <div class="card-icon">🏦</div>
-              <h3>Loan Calculator</h3>
-              <p>Quick calculator for monthly payments, total interest, and amortization schedules.</p>
-            </a>
-            <a href="pages/loan-advanced.html" class="card">
-              <div class="card-icon">🏦</div>
-              <h3>Advanced Loan Calculator</h3>
-              <p>Track existing loans, add extra payments, compare payoff strategies, and see how much you can save.</p>
-            </a>
-            <a href="pages/pv.html" class="card">
-              <div class="card-icon">💰</div>
-              <h3>PV Calculator</h3>
-              <p>Find the present value of a future sum based on a discount rate.</p>
-            </a>
-            <a href="pages/npv-irr.html" class="card">
-              <div class="card-icon">📊</div>
-              <h3>NPV & IRR Calculator</h3>
-              <p>Analyze investments with net present value, internal rate of return, sensitivity analysis, and side-by-side comparison.</p>
-            </a>
-            <a href="pages/projections.html" class="card">
-              <div class="card-icon">📈</div>
-              <h3>Investment Projections</h3>
-              <p>Project portfolio growth across multiple scenarios with S&P 500 benchmarking and milestone tracking.</p>
-            </a>
+      <main id="home-content-area">
+        <!-- Rendered dynamically by home.js into Suite View, Workflow View, or Live Search Results -->
+        <noscript>
+          <div class="dashboard-section">
+            <h2 class="dashboard-section-title">All Financial Tools</h2>
+            <div class="dashboard-cards">
+              <a href="monte-carlo/index.html" class="card">
+                <div class="card-icon">🎲</div>
+                <h3>Monte Carlo Simulation</h3>
+                <p>Project long-term portfolio growth and retirement survival curves.</p>
+              </a>
+              <a href="monte-carlo/financial-goals.html" class="card">
+                <div class="card-icon">🎯</div>
+                <h3>Financial Goals &amp; Glide Path</h3>
+                <p>Model multi-stage career-to-retirement linear glide paths.</p>
+              </a>
+              <a href="monte-carlo/asset-liability.html" class="card">
+                <div class="card-icon">⚖️</div>
+                <h3>Asset Liability Modeling</h3>
+                <p>Stress-test asset allocation against liability obligations.</p>
+              </a>
+              <a href="portfolio-backtest/index.html" class="card">
+                <div class="card-icon">💼</div>
+                <h3>Portfolio Backtest Studio</h3>
+                <p>Construct multi-asset models and test periodic rebalancing.</p>
+              </a>
+              <a href="dca-comparator/index.html" class="card">
+                <div class="card-icon">📊</div>
+                <h3>Historical Fund DCA Backtester</h3>
+                <p>Compare recurring monthly investments with DRIP dividend reinvestment.</p>
+              </a>
+              <a href="asset-analytics/index.html" class="card">
+                <div class="card-icon">📊</div>
+                <h3>Asset Analytics Studio</h3>
+                <p>Deep-dive fund performance, cumulative $10k growth, and underwater recovery.</p>
+              </a>
+              <a href="fund-regression/index.html" class="card">
+                <div class="card-icon">📈</div>
+                <h3>Fund Regression &amp; Factor Analysis</h3>
+                <p>CAPM, Dual-Beta, and rolling factor regressions.</p>
+              </a>
+              <a href="pages/options.html" class="card">
+                <div class="card-icon">🎯</div>
+                <h3>Options Strategy Lab</h3>
+                <p>Black-Scholes pricing, Greeks, and 40+ payoff diagrams.</p>
+              </a>
+              <a href="pages/drawdown-engine.html" class="card">
+                <div class="card-icon">🛡️</div>
+                <h3>Retirement Drawdown Engine</h3>
+                <p>Tax-aware withdrawal engine with Guyton-Klinger guardrails.</p>
+              </a>
+              <a href="pages/fire.html" class="card">
+                <div class="card-icon">🔥</div>
+                <h3>FIRE Dashboard</h3>
+                <p>Calculate your Financial Independence number and Coast FIRE target.</p>
+              </a>
+              <a href="pages/loan.html" class="card">
+                <div class="card-icon">🏦</div>
+                <h3>Loan Calculator</h3>
+                <p>Monthly payments and amortization schedules.</p>
+              </a>
+              <a href="pages/loan-advanced.html" class="card">
+                <div class="card-icon">🏦</div>
+                <h3>Advanced Loan Calculator</h3>
+                <p>Track extra payments and compare payoff strategies.</p>
+              </a>
+            </div>
           </div>
-        </section>
-
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Trading Tools</h2>
-          <div class="dashboard-cards">
-            <a href="asset-analytics/index.html" class="card">
-              <div class="card-icon">📊</div>
-              <h3>Asset Analytics Studio</h3>
-              <p>Deep-dive fund performance, cumulative $10k growth, underwater crash recovery, monthly calendar heatmaps, and rolling risk bands.</p>
-            </a>
-            <a href="pages/options.html" class="card">
-              <div class="card-icon">🎯</div>
-              <h3>Options Strategy Lab</h3>
-              <p>Visualize payoff diagrams, calculate Black-Scholes pricing, explore the Greeks, and learn 40+ options strategies.</p>
-            </a>
-            <a href="dca-comparator/index.html" class="card">
-              <div class="card-icon">📊</div>
-              <h3>Historical Fund DCA Backtester</h3>
-              <p>Compare recurring monthly investments across VOO, SPY, QQQ, SCHD, BND, or your own CSV files with DRIP dividend reinvestment, IRR, and CAGR.</p>
-            </a>
-            <a href="portfolio-backtest/index.html" class="card">
-              <div class="card-icon">💼</div>
-              <h3>Portfolio Backtest Studio</h3>
-              <p>Construct multi-asset portfolio models, test periodic calendar rebalancing (annual, quarterly, monthly), and compare side-by-side models against market benchmarks.</p>
-            </a>
-            <a href="fund-regression/index.html" class="card">
-              <div class="card-icon">📈</div>
-              <h3>Fund Regression &amp; Factor Analysis</h3>
-              <p>Run CAPM, Dual-Beta, and rolling factor regressions across ETFs and mutual funds. Discover true Jensen's Alpha, market Beta, Sharpe, Sortino, and Up/Down capture ratios.</p>
-            </a>
-          </div>
-        </section>
-
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Research Tools</h2>
-          <div class="dashboard-cards">
-            <a href="pages/valuator.html" class="card">
-              <div class="card-icon">🔍</div>
-              <h3>Stock Evaluator</h3>
-              <p>Multi-method fundamental analysis using DCF, Graham Number, liquidation value, market multiples, enterprise value, and more.</p>
-            </a>
-            <a href="pages/analyzer.html" class="card">
-              <div class="card-icon">📑</div>
-              <h3>10-K Analyzer</h3>
-              <p>Pull SEC filings and get consolidated financial summaries with automated health scoring and red flag detection.</p>
-            </a>
-          </div>
-        </section>
-
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Monte Carlo Simulation Suite</h2>
-          <div class="dashboard-cards">
-            <a href="monte-carlo/index.html" class="card">
-              <div class="card-icon">🎲</div>
-              <h3>Monte Carlo Simulation</h3>
-              <p>Project long-term expected portfolio growth, sequence-of-returns stress testing, crash recovery depth, and retirement survival curves across 10,000 randomized market paths.</p>
-            </a>
-            <a href="monte-carlo/financial-goals.html" class="card">
-              <div class="card-icon">🎯</div>
-              <h3>Financial Goals &amp; Glide Path</h3>
-              <p>Model multi-stage career-to-retirement linear glide paths with dynamic savings, college tuition withdrawals, and inflation-compounded retirement spending cashflows.</p>
-            </a>
-            <a href="monte-carlo/asset-liability.html" class="card">
-              <div class="card-icon">⚖️</div>
-              <h3>Asset Liability Modeling</h3>
-              <p>Stress-test institutional asset allocations against defined benefit obligations, debt maturity schedules, and remaining discounted liabilities with funded ratio cones.</p>
-            </a>
-          </div>
-        </section>
-
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Retirement Planning</h2>
-          <div class="dashboard-cards">
-            <a href="pages/fire.html" class="card">
-              <div class="card-icon">🔥</div>
-              <h3>FIRE Dashboard</h3>
-              <p>Calculate your Financial Independence number, track progress, and find your Coast FIRE target.</p>
-            </a>
-            <a href="pages/drawdown-engine.html" class="card">
-              <div class="card-icon">🛡️</div>
-              <h3>Retirement Drawdown Engine</h3>
-              <p>Deterministic, tax-aware multi-account withdrawal engine with dynamic Guyton-Klinger guardrails, SECURE 2.0 RMD sweeps, and stagflation stress testing.</p>
-            </a>
-            <a href="pages/market-stress.html" class="card">
-              <div class="card-icon">⚡</div>
-              <h3>Market Stress &amp; Timing Simulator</h3>
-              <p>Analyze mega-cap concentration risk and high Treasury yields. Compare staying the course with continuous 401(k) DCA vs an active defensive shift.</p>
-            </a>
-          </div>
-        </section>
-
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Managerial Accounting</h2>
-          <div class="dashboard-cards">
-            <a href="pages/cm-analysis.html" class="card">
-              <div class="card-icon">📊</div>
-              <h3>Contribution Margin Analysis</h3>
-              <p>Analyze contribution margin vs gross profit, breakeven analysis, multi-product mix, capacity constraints, and operating leverage.</p>
-            </a>
-
-            <a href="pages/cost-structure.html" class="card">
-              <div class="card-icon">🏗️</div>
-              <h3>Cost Structure &amp; Allocation</h3>
-              <p>Compare fixed vs variable cost structures, allocate overhead (death spiral demo), classify costs, and avoid the unit cost trap.</p>
-            </a>
-          </div>
-        </section>
-
-        <section class="dashboard-section">
-          <h2 class="dashboard-section-title">Economics</h2>
-          <div class="dashboard-cards">
-            <a href="pages/micro-econ.html" class="card">
-              <div class="card-icon">📉</div>
-              <h3>Supply & Demand</h3>
-              <p>Define linear supply and demand curves by equation or two points, solve for market equilibrium with step-by-step algebra, and explore curve shifts interactively.</p>
-            </a>
-            <a href="pages/consumer-theory.html" class="card">
-              <div class="card-icon">📐</div>
-              <h3>Consumer Theory</h3>
-              <p>Price elasticity, cross-price effects, expected utility, and risk premium — interactive tools for economics.</p>
-            </a>
-          </div>
-        </section>
+        </noscript>
       </main>
 
       <footer>
-        <p>&copy; 2026 Financial Calculator</p>
+        <p>&copy; 2026 Financial Calculator &bull; Private &amp; Client-Side Analytics</p>
       </footer>
     </div>
 
     <script src="js/nav.js"></script>
     <script src="js/font-scale.js"></script>
     <script src="js/prefetch.js"></script>
+    <script type="module" src="js/home.js"></script>
   </body>
 </html>
