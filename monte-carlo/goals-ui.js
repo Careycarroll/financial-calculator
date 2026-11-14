@@ -578,13 +578,13 @@ function renderDonutCards() {
       });
 
       ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+      ctx.font = window.CHART_FONTS?.boldLg || 'bold 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('100%', cx, cy - 6);
 
       ctx.fillStyle = '#64748b';
-      ctx.font = '600 9px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+      ctx.font = window.CHART_FONTS?.xs || '600 9px sans-serif';
       ctx.fillText('STAGE', cx, cy + 9);
     }
   });
@@ -699,14 +699,14 @@ function drawGlidePathChart() {
     ctx.setLineDash([]);
 
     ctx.fillStyle = '#f43f5e';
-    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.font = window.CHART_FONTS?.boldSm || 'bold 11px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Retirement', rx, pad.top - 8);
   }
 
   // Y-Axis Ticks
   ctx.fillStyle = '#64748b';
-  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.font = window.CHART_FONTS?.sm || '11px sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   [0, 25, 50, 75, 100].forEach(pct => {
@@ -824,7 +824,7 @@ function drawGrowthFanChart() {
   // Gridlines
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
   ctx.fillStyle = '#64748b';
-  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.font = window.CHART_FONTS?.sm || '11px sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
 
@@ -981,7 +981,7 @@ function drawSurvivalChart() {
   // Gridlines
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
   ctx.fillStyle = '#64748b';
-  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.font = window.CHART_FONTS?.sm || '11px sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
 
@@ -1119,20 +1119,22 @@ function attachEventListeners() {
   });
 
   // Table events for Starting Allocations
-  wireTableEvents(elements.startAllocationsTbody, state.startRows, elements.totalStartVal, elements.totalStartStatus);
+  wireTableEvents(elements.startAllocationsTbody, () => state.startRows, elements.totalStartVal, elements.totalStartStatus);
   // Table events for Ending Allocations
-  wireTableEvents(elements.endAllocationsTbody, state.endRows, elements.totalEndVal, elements.totalEndStatus);
+  wireTableEvents(elements.endAllocationsTbody, () => state.endRows, elements.totalEndVal, elements.totalEndStatus);
 
   // Add Asset Row Buttons
   if (elements.btnAddStartRow) {
     elements.btnAddStartRow.addEventListener('click', () => {
       openAssetModal({
-        selectedTicker: 'VOO',
+        selectedTicker: 'QQQ',
+        activeTicker: 'QQQ',
         targetType: 'fund',
         onSelect: (sel, fund) => {
-          const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || 'VOO';
+          const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || 'QQQ';
           state.startRows.push({ id: `start-${Date.now()}`, ticker, weight: 0 });
           renderAllocTable(elements.startAllocationsTbody, state.startRows, elements.totalStartVal, elements.totalStartStatus);
+          tryAutoExecuteSimulation();
         }
       });
     });
@@ -1142,11 +1144,13 @@ function attachEventListeners() {
     elements.btnAddEndRow.addEventListener('click', () => {
       openAssetModal({
         selectedTicker: 'BND',
+        activeTicker: 'BND',
         targetType: 'fund',
         onSelect: (sel, fund) => {
           const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || 'BND';
           state.endRows.push({ id: `end-${Date.now()}`, ticker, weight: 0 });
           renderAllocTable(elements.endAllocationsTbody, state.endRows, elements.totalEndVal, elements.totalEndStatus);
+          tryAutoExecuteSimulation();
         }
       });
     });
@@ -1155,25 +1159,27 @@ function attachEventListeners() {
   // Reset Buttons
   if (elements.btnResetStart) {
     elements.btnResetStart.addEventListener('click', () => {
-      state.startRows = [
+      state.startRows.splice(0, state.startRows.length,
         { id: `start-${Date.now()}-1`, ticker: 'VOO', weight: 52 },
         { id: `start-${Date.now()}-2`, ticker: 'VXUS', weight: 28 },
         { id: `start-${Date.now()}-3`, ticker: 'BND', weight: 16 },
         { id: `start-${Date.now()}-4`, ticker: 'BNDX', weight: 4 }
-      ];
+      );
       renderAllocTable(elements.startAllocationsTbody, state.startRows, elements.totalStartVal, elements.totalStartStatus);
+      tryAutoExecuteSimulation();
     });
   }
 
   if (elements.btnResetEnd) {
     elements.btnResetEnd.addEventListener('click', () => {
-      state.endRows = [
+      state.endRows.splice(0, state.endRows.length,
         { id: `end-${Date.now()}-1`, ticker: 'VOO', weight: 13 },
         { id: `end-${Date.now()}-2`, ticker: 'VXUS', weight: 7 },
         { id: `end-${Date.now()}-3`, ticker: 'BND', weight: 64 },
         { id: `end-${Date.now()}-4`, ticker: 'BNDX', weight: 16 }
-      ];
+      );
       renderAllocTable(elements.endAllocationsTbody, state.endRows, elements.totalEndVal, elements.totalEndStatus);
+      tryAutoExecuteSimulation();
     });
   }
 
@@ -1263,14 +1269,37 @@ function attachEventListeners() {
   }
 }
 
-function wireTableEvents(tbodyEl, rows, totalValEl, totalStatusEl) {
+let autoSimTimer = null;
+function debouncedAutoExecuteSimulation(delay = 400) {
+  if (autoSimTimer) clearTimeout(autoSimTimer);
+  autoSimTimer = setTimeout(() => {
+    tryAutoExecuteSimulation();
+  }, delay);
+}
+
+function tryAutoExecuteSimulation() {
+  const startSum = state.startRows.reduce((s, r) => s + (parseFloat(r.weight) || 0), 0);
+  const endSum = state.endRows.reduce((s, r) => s + (parseFloat(r.weight) || 0), 0);
+  if (Math.abs(startSum - 100) < 0.05 && Math.abs(endSum - 100) < 0.05) {
+    executeSimulation();
+  } else {
+    renderDonutCards();
+    drawGlidePathChart();
+  }
+}
+
+function wireTableEvents(tbodyEl, getRows, totalValEl, totalStatusEl) {
   if (!tbodyEl) return;
 
   tbodyEl.addEventListener('input', (e) => {
     if (e.target.classList.contains('weight-input')) {
+      const rows = typeof getRows === 'function' ? getRows() : getRows;
       const idx = parseInt(e.target.dataset.rowIdx, 10);
-      rows[idx].weight = Math.max(0, parseFloat(e.target.value) || 0);
-      updateTableTotals(rows, totalValEl, totalStatusEl);
+      if (rows && rows[idx]) {
+        rows[idx].weight = Math.max(0, parseFloat(e.target.value) || 0);
+        updateTableTotals(rows, totalValEl, totalStatusEl);
+        debouncedAutoExecuteSimulation();
+      }
     }
   });
 
@@ -1279,16 +1308,20 @@ function wireTableEvents(tbodyEl, rows, totalValEl, totalStatusEl) {
   });
 
   tbodyEl.addEventListener('click', (e) => {
+    const rows = typeof getRows === 'function' ? getRows() : getRows;
     const pickBtn = e.target.closest('[data-action="pick-asset"]');
     if (pickBtn) {
       const idx = parseInt(pickBtn.dataset.rowIdx, 10);
+      if (!rows || !rows[idx]) return;
       openAssetModal({
         selectedTicker: rows[idx].ticker,
+        activeTicker: rows[idx].ticker,
         targetType: 'fund',
         onSelect: (sel, fund) => {
           const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || rows[idx].ticker;
           rows[idx].ticker = ticker;
           renderAllocTable(tbodyEl, rows, totalValEl, totalStatusEl);
+          tryAutoExecuteSimulation();
         }
       });
       return;
@@ -1297,12 +1330,13 @@ function wireTableEvents(tbodyEl, rows, totalValEl, totalStatusEl) {
     const rmBtn = e.target.closest('[data-action="remove-row"]');
     if (rmBtn) {
       const idx = parseInt(rmBtn.dataset.rowIdx, 10);
-      if (rows.length <= 1) {
+      if (!rows || rows.length <= 1) {
         showAlert('Portfolio must contain at least one asset row.');
         return;
       }
       rows.splice(idx, 1);
       renderAllocTable(tbodyEl, rows, totalValEl, totalStatusEl);
+      tryAutoExecuteSimulation();
     }
   });
 }

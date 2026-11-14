@@ -122,6 +122,18 @@ assetModalModule.openAssetModal((chosenTicker) => {
 assetModalModule.selectFund('spy');
 assert.strictEqual(receivedTickerD, 'SPY', 'Pattern D direct callback function receives selected ticker SPY');
 
+// Case E: Financial Goals selectedTicker option mapping & replacement
+let receivedTickerE = null;
+assetModalModule.openAssetModal({
+  selectedTicker: 'VOO',
+  targetType: 'fund',
+  onSelect: (sel, fund) => {
+    receivedTickerE = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || fund?.ticker?.toUpperCase();
+  }
+});
+assetModalModule.selectFund('qqq');
+assert.strictEqual(receivedTickerE, 'QQQ', 'Case E Financial Goals selectedTicker properly selects QQQ');
+
 console.log('✅ PASS: All modal callback signature patterns (Goals, Analytics, Backtest, ALM, DCA) verified');
 
 console.log('\n🎉 ALL SESSION FUNDS TESTS PASSED SUCCESSFULLY!');
