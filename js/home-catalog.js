@@ -247,6 +247,18 @@ export const TOOLS_CATALOG = [
     keywords: ["asset class", "backtest", "1972", "asset class allocation", "historical returns", "stagflation", "rebalancing", "all-weather", "60/40", "treasury", "commodities", "gold", "reit", "cagr"]
   },
   {
+    id: "dynamic-allocation",
+    title: "Backtest Dynamic Allocation Studio",
+    shortTitle: "Dynamic Allocation",
+    path: "portfolio-backtest/dynamic-allocation.html",
+    icon: "🔄",
+    badge: "STUDIO",
+    desc: "Simulate lifecycle glidepaths (target-date retirement models) and tactical trend-following signals (10M SMA & Dual Momentum) to avoid bear markets.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["dynamic allocation", "glidepath", "target date", "lifecycle", "tactical", "trend following", "sma", "moving average", "dual momentum", "crash protection", "rebalance"]
+  },
+  {
     id: "dca-comparator",
     title: "Historical Fund DCA Backtester",
     shortTitle: "DCA Backtest",

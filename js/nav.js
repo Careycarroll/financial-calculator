@@ -29,6 +29,7 @@
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" },
         { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation, rebalancing frequencies & side-by-side models" },
         { id: "asset-class-allocation", name: "Asset Class Backtest", icon: "🏛️", path: "portfolio-backtest/asset-class-allocation.html", desc: "54-year backtest across 28 canonical asset classes (1972-present)" },
+        { id: "dynamic-allocation", name: "Dynamic Allocation", icon: "🔄", path: "portfolio-backtest/dynamic-allocation.html", desc: "Lifecycle glidepaths & tactical trend-following crash protection" },
         { id: "efficient-frontier", name: "Efficient Frontier", icon: "📈", path: "portfolio-optimization/index.html", desc: "Markowitz efficient frontier, CAL, Tangency portfolio & transition map" },
         { id: "portfolio-optimization", name: "Portfolio Optimization", icon: "⚖️", path: "portfolio-optimization/portfolio-optimization.html", desc: "Multi-objective portfolio optimization, Risk Parity & CVaR" },
         { id: "black-litterman", name: "Black-Litterman Model", icon: "🧠", path: "portfolio-optimization/black-litterman.html", desc: "Bayesian market views, implied equilibrium prior & active tilts" },
