@@ -1370,3 +1370,311 @@ export function solveBlackLitterman(params) {
     viewsCount: k
   };
 }
+
+
+// ===================================================================
+// ROLLING WALK-FORWARD PORTFOLIO OPTIMIZATION ENGINE
+// ===================================================================
+
+/**
+ * Checks whether the current month index qualifies for periodic rebalancing.
+ * @param {string} frequency - 'monthly' | 'quarterly' | 'annually'
+ * @param {number} monthIndex - Index within out-of-sample simulation
+ * @param {string} date - 'YYYY-MM'
+ * @returns {boolean}
+ */
+function isRebalanceMonth(frequency, monthIndex, date) {
+  if (monthIndex === 0) return true;
+  if (frequency === 'monthly') return true;
+
+  const monthNum = parseInt(date.substring(5, 7), 10);
+  if (frequency === 'quarterly') {
+    return monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
+  }
+  if (frequency === 'annually') {
+    return monthNum === 12;
+  }
+  return false;
+}
+
+/**
+ * Runs walk-forward out-of-sample rolling portfolio optimization.
+ * Slides historical lookback window W across time, optimizes on in-sample training window,
+ * holds weights out-of-sample until next rebalance, and tracks turnover and performance.
+ *
+ * @param {Array<Object>} assets - Array of fund objects with {ticker, data: [{date, adjClose}]}
+ * @param {Object} options
+ * @param {number} [options.lookbackMonths=36] - Lookback window size (12, 24, 36, 48, 60)
+ * @param {string} [options.frequency='annually'] - 'monthly' | 'quarterly' | 'annually'
+ * @param {string} [options.goal='max-sharpe'] - 'max-sharpe' | 'min-vol' | 'risk-parity' | 'min-cvar'
+ * @param {string} [options.baseline='equal'] - 'equal' | 'inv-vol'
+ * @param {number} [options.riskFreeRate=0.03]
+ * @param {Array<number>} [options.lowerBounds]
+ * @param {Array<number>} [options.upperBounds]
+ * @returns {Object} Complete rolling simulation result
+ */
+export function runRollingOptimization(assets, options = {}) {
+  if (!assets || assets.length < 2) {
+    throw new Error('At least 2 assets are required for rolling optimization.');
+  }
+
+  const lookbackMonths = Math.max(12, Math.min(120, options.lookbackMonths || 36));
+  const frequency = options.frequency || 'annually';
+  const goal = options.goal || 'max-sharpe';
+  const baselineType = options.baseline || 'equal';
+  const rf = typeof options.riskFreeRate === 'number' ? options.riskFreeRate : 0.03;
+
+  const numAssets = assets.length;
+  const tickers = assets.map(a => a.ticker.toUpperCase());
+  const names = assets.map(a => a.name || a.ticker.toUpperCase());
+
+  // 1. Find common date range
+  const common = findCommonDateRange(assets);
+  const alignedPrices = assets.map(asset => {
+    return asset.data
+      .filter(d => d.date >= common.start && d.date <= common.end)
+      .map(d => ({
+        date: d.date,
+        price: typeof d.adjClose === 'number' && !isNaN(d.adjClose) ? d.adjClose : d.close
+      }));
+  });
+
+  const totalPeriods = alignedPrices[0].length;
+  if (totalPeriods <= lookbackMonths + 6) {
+    throw new Error(`Insufficient historical data (${totalPeriods} months). Need at least ${lookbackMonths + 6} months for a ${lookbackMonths}-month lookback window.`);
+  }
+
+  // Pre-calculate monthly returns for each asset across full history
+  // totalReturnsCount = totalPeriods - 1
+  const monthlyReturns = [];
+  const returnDates = [];
+  for (let t = 1; t < totalPeriods; t++) {
+    returnDates.push(alignedPrices[0][t].date);
+  }
+
+  for (let i = 0; i < numAssets; i++) {
+    const pSeries = alignedPrices[i];
+    const rSeries = [];
+    for (let t = 1; t < totalPeriods; t++) {
+      const prev = pSeries[t - 1].price;
+      const curr = pSeries[t].price;
+      const ret = prev > 0 ? (curr - prev) / prev : 0;
+      rSeries.push(ret);
+    }
+    monthlyReturns.push(rSeries);
+  }
+
+  const numReturnMonths = returnDates.length;
+  // Out-of-sample starts after lookbackMonths returns
+  const outOfSampleStartIndex = lookbackMonths;
+  const outOfSampleCount = numReturnMonths - outOfSampleStartIndex;
+
+  if (outOfSampleCount < 6) {
+    throw new Error('Out-of-sample period is too short (less than 6 months).');
+  }
+
+  // Prepare Walk-Forward simulation structures
+  const outOfSampleDates = [];
+  const stratMonthlyReturns = [];
+  const baseMonthlyReturns = [];
+  const weightTransitions = {
+    dates: [],
+    series: tickers.map(() => [])
+  };
+  const rebalanceEvents = [];
+
+  let currentStratWeights = new Array(numAssets).fill(1 / numAssets);
+  let currentBaseWeights = new Array(numAssets).fill(1 / numAssets);
+  let prevEndingWeights = [...currentStratWeights];
+  let totalTurnoverSum = 0;
+
+  // Walk-forward loop over out-of-sample months
+  for (let step = 0; step < outOfSampleCount; step++) {
+    const t = outOfSampleStartIndex + step;
+    const date = returnDates[t];
+    outOfSampleDates.push(date);
+
+    // Check rebalance condition
+    const isRebal = isRebalanceMonth(frequency, step, date);
+
+    if (isRebal) {
+      // Extract in-sample lookback slice: [t - lookbackMonths, t)
+      const inSampleReturns = [];
+      for (let i = 0; i < numAssets; i++) {
+        inSampleReturns.push(monthlyReturns[i].slice(t - lookbackMonths, t));
+      }
+
+      // Compute in-sample means & covariance
+      const inSampleMeans = inSampleReturns.map(r => r.reduce((a, b) => a + b, 0) / lookbackMonths);
+      const inSampleExpectedReturns = inSampleMeans.map(m => m * 12);
+
+      const inSampleCov = [];
+      for (let i = 0; i < numAssets; i++) {
+        inSampleCov[i] = new Array(numAssets).fill(0);
+      }
+      for (let i = 0; i < numAssets; i++) {
+        for (let j = i; j < numAssets; j++) {
+          let sumP = 0;
+          for (let m = 0; m < lookbackMonths; m++) {
+            sumP += (inSampleReturns[i][m] - inSampleMeans[i]) * (inSampleReturns[j][m] - inSampleMeans[j]);
+          }
+          const covAnnual = (sumP / (lookbackMonths - 1)) * 12;
+          inSampleCov[i][j] = covAnnual;
+          inSampleCov[j][i] = covAnnual;
+        }
+      }
+
+      // Optimize weights based on selected goal
+      let optResult;
+      const optOpts = {
+        riskFreeRate: rf,
+        lowerBounds: options.lowerBounds,
+        upperBounds: options.upperBounds
+      };
+
+      if (goal === 'min-vol') {
+        optResult = solveGMV(inSampleExpectedReturns, inSampleCov, optOpts);
+      } else if (goal === 'risk-parity') {
+        optResult = solveRiskParity(inSampleExpectedReturns, inSampleCov, optOpts);
+      } else if (goal === 'min-cvar') {
+        optResult = solveMinCVaR(inSampleExpectedReturns, inSampleReturns, inSampleCov, optOpts);
+      } else {
+        optResult = solveTangencyPortfolio(inSampleExpectedReturns, inSampleCov, optOpts);
+      }
+
+      const newWeights = optResult.weights;
+
+      // Calculate turnover: 0.5 * sum |w_new - w_prevEnd|
+      let turnover = 0;
+      if (step > 0) {
+        for (let i = 0; i < numAssets; i++) {
+          turnover += Math.abs(newWeights[i] - prevEndingWeights[i]);
+        }
+        turnover *= 0.5;
+        totalTurnoverSum += turnover;
+      }
+
+      currentStratWeights = [...newWeights];
+
+      // Update baseline weights
+      if (baselineType === 'inv-vol') {
+        const invVols = inSampleCov.map((row, i) => 1 / Math.max(1e-4, Math.sqrt(row[i])));
+        const sumInv = invVols.reduce((a, b) => a + b, 0);
+        currentBaseWeights = invVols.map(v => v / sumInv);
+      } else {
+        currentBaseWeights = new Array(numAssets).fill(1 / numAssets);
+      }
+
+      rebalanceEvents.push({
+        date,
+        weights: [...newWeights],
+        inSampleExpectedReturn: optResult.expectedReturn,
+        inSampleVol: optResult.volatility,
+        inSampleSharpe: optResult.sharpeRatio,
+        turnover
+      });
+    }
+
+    // Record weights for transition area chart
+    weightTransitions.dates.push(date);
+    for (let i = 0; i < numAssets; i++) {
+      weightTransitions.series[i].push(currentStratWeights[i]);
+    }
+
+    // Out-of-sample realization for month t
+    let rStratMonth = 0;
+    let rBaseMonth = 0;
+    for (let i = 0; i < numAssets; i++) {
+      const r_i = monthlyReturns[i][t];
+      rStratMonth += currentStratWeights[i] * r_i;
+      rBaseMonth += currentBaseWeights[i] * r_i;
+    }
+
+    stratMonthlyReturns.push(rStratMonth);
+    baseMonthlyReturns.push(rBaseMonth);
+
+    // Asset drift during holding period
+    const nextEndingStratWeights = new Array(numAssets);
+    for (let i = 0; i < numAssets; i++) {
+      nextEndingStratWeights[i] = (currentStratWeights[i] * (1 + monthlyReturns[i][t])) / (1 + rStratMonth);
+    }
+    prevEndingWeights = [...nextEndingStratWeights];
+
+    // If not rebalancing next month, weights drift
+    currentStratWeights = [...nextEndingStratWeights];
+  }
+
+  // Calculate Cumulative Trajectories ($10,000 initial)
+  const trajectory = [10000];
+  const baseTrajectory = [10000];
+  for (let s = 0; s < outOfSampleCount; s++) {
+    trajectory.push(trajectory[s] * (1 + stratMonthlyReturns[s]));
+    baseTrajectory.push(baseTrajectory[s] * (1 + baseMonthlyReturns[s]));
+  }
+
+  // Calculate Comprehensive Out-of-Sample Performance Metrics
+  function computeSeriesMetrics(mReturns, traj) {
+    const n = mReturns.length;
+    const nYears = n / 12;
+    const finalVal = traj[traj.length - 1];
+    const cagr = Math.pow(finalVal / 10000, 1 / nYears) - 1;
+
+    // Volatility
+    const meanM = mReturns.reduce((a, b) => a + b, 0) / n;
+    const varM = mReturns.reduce((sum, r) => sum + Math.pow(r - meanM, 2), 0) / (n - 1);
+    const annualVol = Math.sqrt(varM * 12);
+    const sharpe = annualVol > 0 ? (cagr - rf) / annualVol : 0;
+
+    // Sortino
+    const monthlyRf = rf / 12;
+    const downsideVar = mReturns.reduce((sum, r) => sum + Math.pow(Math.min(0, r - monthlyRf), 2), 0) / n;
+    const downsideVol = Math.sqrt(downsideVar * 12);
+    const sortino = downsideVol > 0 ? (cagr - rf) / downsideVol : 0;
+
+    // Max Drawdown
+    let peak = traj[0];
+    let maxDD = 0;
+    for (let s = 0; s < traj.length; s++) {
+      if (traj[s] > peak) peak = traj[s];
+      const dd = (traj[s] - peak) / peak;
+      if (dd < maxDD) maxDD = dd;
+    }
+
+    const cvarMetrics = calculateCVaR(mReturns, 0.05);
+
+    return {
+      cagr,
+      annualVol,
+      sharpeRatio: sharpe,
+      sortinoRatio: sortino,
+      maxDrawdown: maxDD,
+      cvar: cvarMetrics.cvar,
+      totalReturn: (finalVal - 10000) / 10000,
+      finalValue: finalVal
+    };
+  }
+
+  const strategyStats = computeSeriesMetrics(stratMonthlyReturns, trajectory);
+  const baselineStats = computeSeriesMetrics(baseMonthlyReturns, baseTrajectory);
+
+  const nYears = outOfSampleCount / 12;
+  const avgAnnualTurnover = nYears > 0 ? (totalTurnoverSum / nYears) : 0;
+  strategyStats.avgAnnualTurnover = avgAnnualTurnover;
+
+  return {
+    lookbackMonths,
+    frequency,
+    goal,
+    baselineType,
+    tickers,
+    names,
+    outOfSampleDates,
+    strategyStats,
+    baselineStats,
+    trajectory,
+    baseTrajectory,
+    weightTransitions,
+    rebalanceEvents,
+    outOfSampleMonths: outOfSampleCount
+  };
+}

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rolling Portfolio Optimization Studio | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="./optimization.css" />
+    <style>
+      .scorecard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .scorecard-metric-card {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .scorecard-metric-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .scorecard-metric-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #f8fafc;
+        font-variant-numeric: tabular-nums;
+      }
+      .scorecard-metric-sub {
+        font-size: 0.8rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .delta-badge-pos {
+        color: #34d399;
+        font-weight: 700;
+      }
+      .delta-badge-neg {
+        color: #f43f5e;
+        font-weight: 700;
+      }
+      .weight-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+        margin-right: 0.35rem;
+        margin-bottom: 0.2rem;
+      }
+      .weight-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .rebalance-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+        border-radius: 50%;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body class="optimization-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="index.html" class="top-nav-link">📈 Efficient Frontier</a>
+          <a href="portfolio-optimization.html" class="top-nav-link">⚖️ Portfolio Optimization</a>
+          <a href="black-litterman.html" class="top-nav-link">🧠 Black-Litterman Model</a>
+          <a href="rolling-optimization.html" class="top-nav-link active">🔄 Rolling Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container optimization-container">
+      <!-- Header -->
+      <header class="studio-header">
+        <h1>🔄 Rolling Portfolio Optimization Studio</h1>
+        <p class="studio-tagline">
+          Evaluate dynamic walk-forward portfolio optimization strategies out-of-sample. At each periodic rebalance, asset weights are re-optimized on a rolling historical lookback window without lookahead bias, held out-of-sample, and tracked for turnover, drift, and cumulative compound returns against a benchmark baseline.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Portfolio Optimization Suite Pages">
+        <a href="index.html" class="suite-subnav-link">📈 Efficient Frontier <span class="suite-subnav-badge">Page 1</span></a>
+        <a href="portfolio-optimization.html" class="suite-subnav-link">⚖️ Portfolio Optimization <span class="suite-subnav-badge">Page 2</span></a>
+        <a href="black-litterman.html" class="suite-subnav-link">🧠 Black-Litterman Model <span class="suite-subnav-badge">Page 3</span></a>
+        <a href="rolling-optimization.html" class="suite-subnav-link active">🔄 Rolling Optimization <span class="suite-subnav-badge">Page 4</span></a>
+      </nav>
+
+      <!-- Dynamic Status & Control Bar -->
+      <section class="status-summary-bar" aria-label="Timeline and Simulation Summary">
+        <div class="status-pill highlight">
+          <span>Out-of-Sample Period:</span>
+          <strong id="status-timeline-range">-- to --</strong>
+          <span class="status-sub" id="status-total-months">(0 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Lookback Window:</span>
+          <strong id="status-lookback-val">36 Months</strong>
+        </div>
+        <div class="status-pill">
+          <span>Rebalance Frequency:</span>
+          <strong id="status-freq-val">Annually</strong>
+        </div>
+        <div class="status-pill">
+          <span>Annual Turnover:</span>
+          <strong id="status-turnover-val">--</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Configuration Card -->
+      <section class="config-card" id="config-card">
+        <div class="config-card-inner">
+          <!-- Presets Bar -->
+          <div class="presets-row">
+            <span class="presets-label">Preset Universes:</span>
+            <div class="presets-buttons-wrap">
+              <button type="button" class="btn-preset active" data-preset="core-two">Core 60/40 (VOO + BND)</button>
+              <button type="button" class="btn-preset" data-preset="three-fund">Three-Fund (VOO + SCHD + BND)</button>
+              <button type="button" class="btn-preset" data-preset="growth-four">Core Four (VOO + QQQ + SCHD + BND)</button>
+              <button type="button" class="btn-preset" data-preset="equities">All-Equity (VOO + QQQ + SCHD)</button>
+            </div>
+          </div>
+
+          <!-- Parameters Grid -->
+          <div class="opt-controls-grid">
+            <div class="form-group">
+              <label for="select-lookback">Lookback Window (W)</label>
+              <select id="select-lookback" class="form-select">
+                <option value="12">12 Months (1 Year)</option>
+                <option value="24">24 Months (2 Years)</option>
+                <option value="36" selected>36 Months (3 Years)</option>
+                <option value="48">48 Months (4 Years)</option>
+                <option value="60">60 Months (5 Years)</option>
+              </select>
+              <span class="form-help">Historical in-sample estimation window</span>
+            </div>
+
+            <div class="form-group">
+              <label for="select-frequency">Rebalance Frequency</label>
+              <select id="select-frequency" class="form-select">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annually" selected>Annually (Year-End)</option>
+              </select>
+              <span class="form-help">Periodic portfolio re-optimization step</span>
+            </div>
+
+            <div class="form-group">
+              <label for="select-goal">Optimization Goal</label>
+              <select id="select-goal" class="form-select">
+                <option value="max-sharpe" selected>⭐ Maximize Sharpe Ratio (Tangency)</option>
+                <option value="min-vol">🛡️ Minimize Volatility (GMV)</option>
+                <option value="risk-parity">⚖️ Equal Risk Contribution (Risk Parity)</option>
+                <option value="min-cvar">📉 Minimize 95% Tail Risk (CVaR)</option>
+              </select>
+              <span class="form-help">Objective function solved at each step</span>
+            </div>
+
+            <div class="form-group">
+              <label for="select-baseline">Benchmark Baseline</label>
+              <select id="select-baseline" class="form-select">
+                <option value="equal" selected>Equal Weighted (1/N)</option>
+                <option value="inv-vol">Inverse Volatility Weighted (1/σ)</option>
+              </select>
+              <span class="form-help">Out-of-sample benchmark comparison</span>
+            </div>
+
+            <div class="form-group">
+              <label for="input-rf">Risk-Free Rate (%)</label>
+              <input
+                type="number"
+                id="input-rf"
+                class="form-input"
+                value="3.0"
+                step="0.1"
+                min="0"
+                max="15"
+              />
+              <span class="form-help">Annualized cash hurdle rate for Sharpe</span>
+            </div>
+          </div>
+
+          <!-- Asset Universe & Constraints Table -->
+          <div class="assets-config-section">
+            <div class="assets-section-header">
+              <h3>Asset Universe & Box Constraints</h3>
+              <div class="assets-header-actions">
+                <button type="button" class="btn-secondary btn-sm" id="btn-add-asset">
+                  + Add Asset
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="opt-data-table" id="asset-universe-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px;">#</th>
+                    <th>Ticker</th>
+                    <th>Asset Name</th>
+                    <th class="num" style="width: 140px;">Min Weight (Lower)</th>
+                    <th class="num" style="width: 140px;">Max Weight (Upper)</th>
+                    <th style="width: 70px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="asset-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Primary Submit Action -->
+          <div class="config-actions-row">
+            <button type="button" class="btn-primary-action" id="btn-run-rolling-opt">
+              🔄 Run Walk-Forward Rolling Optimization
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Results Display Area -->
+      <main class="optimization-results-area" id="results-area">
+        <!-- 4 Flagship Highlight Scorecards -->
+        <div class="scorecard-grid">
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Ending Balance ($10k Initial)</div>
+            <div class="scorecard-metric-value highlight-gold" id="metric-final-val">--</div>
+            <div class="scorecard-metric-sub">
+              Baseline: <span id="metric-final-base">--</span>
+              (<span id="metric-final-delta" class="delta-badge-pos">--</span>)
+            </div>
+          </div>
+
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Compound Annual Growth (CAGR)</div>
+            <div class="scorecard-metric-value highlight-gold" id="metric-cagr">--</div>
+            <div class="scorecard-metric-sub">
+              Baseline: <span id="metric-cagr-base">--</span>
+              (<span id="metric-cagr-delta" class="delta-badge-pos">--</span>)
+            </div>
+          </div>
+
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Out-of-Sample Sharpe Ratio</div>
+            <div class="scorecard-metric-value highlight-green" id="metric-sharpe">--</div>
+            <div class="scorecard-metric-sub">
+              Baseline: <span id="metric-sharpe-base">--</span>
+              (<span id="metric-sharpe-delta" class="delta-badge-pos">--</span>)
+            </div>
+          </div>
+
+          <div class="scorecard-metric-card">
+            <div class="scorecard-metric-title">Maximum Drawdown</div>
+            <div class="scorecard-metric-value" id="metric-maxdd">--</div>
+            <div class="scorecard-metric-sub">
+              Baseline: <span id="metric-maxdd-base">--</span>
+              (<span id="metric-maxdd-delta" class="delta-badge-pos">--</span>)
+            </div>
+          </div>
+        </div>
+
+        <!-- Comprehensive Performance Comparison Table -->
+        <section class="card mb-4" aria-label="Performance Scorecard Table">
+          <div class="card-header">
+            <h3>📊 Walk-Forward Out-of-Sample Performance Comparison</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="opt-data-table" id="performance-scorecard-table">
+              <thead>
+                <tr>
+                  <th>Performance Metric</th>
+                  <th class="num highlight-gold">Dynamic Strategy</th>
+                  <th class="num">Benchmark Baseline</th>
+                  <th class="num">Active Spread / Delta</th>
+                </tr>
+              </thead>
+              <tbody id="scorecard-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Charts Layout (Two Flagship Visualizations) -->
+        <section class="charts-section">
+          <!-- Chart 1: Stacked Area Walk-Forward Allocation Transitions -->
+          <div class="card mb-4">
+            <div class="chart-card-header">
+              <div>
+                <h3>🌊 Walk-Forward Asset Allocation Transitions</h3>
+                <p class="chart-subtitle">
+                  Historical evolution of optimal asset weights across the out-of-sample walk-forward period. Shows dynamic shifts as market regimes unfold.
+                </p>
+              </div>
+              <div class="transition-legend-wrap" id="transition-legend">
+                <!-- Legend items injected via JS -->
+              </div>
+            </div>
+
+            <div class="chart-canvas-container" id="container-transition">
+              <canvas id="canvas-transition"></canvas>
+              <div id="tooltip-transition" class="opt-chart-tooltip"></div>
+            </div>
+          </div>
+
+          <!-- Chart 2: Cumulative Wealth Trajectory ($10,000 Initial) -->
+          <div class="card mb-4">
+            <div class="chart-card-header">
+              <div>
+                <h3>📈 Cumulative Wealth Trajectory ($10,000 Initial Out-of-Sample)</h3>
+                <p class="chart-subtitle">
+                  Growth of $10,000 invested out-of-sample comparing dynamic rebalanced strategy against the unmanaged benchmark baseline.
+                </p>
+              </div>
+              <div class="chart-controls-group">
+                <div class="chart-legend-row">
+                  <div class="legend-item"><span class="legend-swatch" style="background: #38bdf8;"></span> Dynamic Strategy</div>
+                  <div class="legend-item"><span class="legend-swatch" style="background: #94a3b8;"></span> Baseline Benchmark</div>
+                </div>
+                <div class="btn-group">
+                  <button type="button" class="btn-pill active" id="btn-scale-linear">Linear</button>
+                  <button type="button" class="btn-pill" id="btn-scale-log">Logarithmic</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-canvas-container" id="container-growth">
+              <canvas id="canvas-growth"></canvas>
+              <div id="tooltip-growth" class="opt-chart-tooltip"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Detailed Rebalance History Schedule -->
+        <section class="card mb-4" aria-label="Rebalance History Table">
+          <div class="card-header rebalance-header-row">
+            <div>
+              <h3>📅 Walk-Forward Rebalancing History Schedule</h3>
+              <p class="chart-subtitle">
+                Complete event log of periodic rebalance decisions, in-sample training performance metrics, and asset turnover.
+              </p>
+            </div>
+            <div>
+              <button type="button" class="btn-secondary btn-sm" id="btn-export-csv">
+                ⬇️ Export Rebalance History (CSV)
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="opt-data-table" id="rebalance-schedule-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th>Rebalance Date</th>
+                  <th>Optimized Asset Allocations</th>
+                  <th class="num">In-Sample Return</th>
+                  <th class="num">In-Sample Vol</th>
+                  <th class="num">In-Sample Sharpe</th>
+                  <th class="num">Rebalance Turnover</th>
+                </tr>
+              </thead>
+              <tbody id="rebalance-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Asset Modal (Reused from application) -->
+    <div id="asset-modal-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/font-scale.js"></script>
+    <script type="module" src="./rolling-optimization-ui.js"></script>
+  </body>
+</html>

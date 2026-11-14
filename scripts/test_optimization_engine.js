@@ -30,7 +30,8 @@ import {
   invertMatrix,
   matrixMultiply,
   computeImpliedEquilibriumReturns,
-  solveBlackLitterman
+  solveBlackLitterman,
+  runRollingOptimization
 } from '../portfolio-optimization/optimization-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 
@@ -264,5 +265,37 @@ console.log(`Active Tilts:                  VOO: ${(blBullishQQQ.activeTilts[0]*
 assert(blBullishQQQ.posteriorReturns[2] > blBullishQQQ.priorReturns[2], 'Posterior return for QQQ exceeds prior return');
 assert(blBullishQQQ.activeTilts[2] > 0, `QQQ receives positive active tilt (+${(blBullishQQQ.activeTilts[2]*100).toFixed(1)}%)`);
 console.log('✅ PASS: Black-Litterman Bayesian update directionally shifts posterior returns and active tilts');
+
+// TEST 11: Walk-Forward Out-of-Sample Rolling Portfolio Optimization
+console.log('\n--- TEST 11: Rolling Walk-Forward Optimization ---');
+const rollingResult = runRollingOptimization(assets, {
+  lookbackMonths: 36,
+  frequency: 'annually',
+  goal: 'max-sharpe',
+  baseline: 'equal',
+  riskFreeRate: 0.03
+});
+
+assert(rollingResult.outOfSampleMonths > 60, `Out of sample months > 60 (got ${rollingResult.outOfSampleMonths})`);
+assert(rollingResult.trajectory[0] === 10000, 'Trajectory starts at $10,000');
+assert(rollingResult.trajectory[rollingResult.trajectory.length - 1] > 10000, 'Rolling strategy achieved positive net growth');
+assert(rollingResult.rebalanceEvents.length >= 5, `Recorded multiple annual rebalance events (got ${rollingResult.rebalanceEvents.length})`);
+assert(rollingResult.strategyStats.avgAnnualTurnover >= 0, 'Average annual turnover is non-negative');
+
+// Verify weight transitions sum to 1.0 at every month
+const nSteps = rollingResult.weightTransitions.dates.length;
+for (let s = 0; s < nSteps; s++) {
+  let stepSum = 0;
+  for (let a = 0; a < 3; a++) {
+    stepSum += rollingResult.weightTransitions.series[a][s];
+  }
+  assert(Math.abs(stepSum - 1.0) < 0.01, `Step ${s} weights sum to 100% (got ${stepSum})`);
+}
+
+console.log(`Out-of-Sample Period:       ${rollingResult.outOfSampleDates[0]} to ${rollingResult.outOfSampleDates[nSteps - 1]} (${rollingResult.outOfSampleMonths} Months)`);
+console.log(`Strategy Final Value:       $${rollingResult.trajectory[nSteps].toFixed(2)} | CAGR: ${(rollingResult.strategyStats.cagr * 100).toFixed(2)}% | Sharpe: ${rollingResult.strategyStats.sharpeRatio.toFixed(3)}`);
+console.log(`Baseline Final Value:       $${rollingResult.baseTrajectory[nSteps].toFixed(2)} | CAGR: ${(rollingResult.baselineStats.cagr * 100).toFixed(2)}% | Sharpe: ${rollingResult.baselineStats.sharpeRatio.toFixed(3)}`);
+console.log(`Annualized Turnover:        ${(rollingResult.strategyStats.avgAnnualTurnover * 100).toFixed(1)}%/yr`);
+console.log('✅ PASS: Walk-forward rolling out-of-sample simulation, rebalancing drift, and turnover verified');
 
 console.log('\n🎉 ALL PORTFOLIO OPTIMIZATION TESTS PASSED SUCCESSFULLY!');
