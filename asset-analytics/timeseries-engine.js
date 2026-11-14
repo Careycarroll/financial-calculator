@@ -540,3 +540,58 @@ export function runCointegrationAnalysis(depAsset, indepAsset, options = {}) {
     spreadSeries
   };
 }
+
+/**
+ * Synthesizes a plain-English takeaway for Autocorrelation Analysis across lags.
+ * @param {string} ticker
+ * @param {number} lag1
+ * @param {number} lag3
+ * @param {number} lag12
+ * @returns {string} Plain-English HTML narrative
+ */
+export function generateAutocorrTakeaway(ticker, lag1, lag3, lag12) {
+  if (lag1 == null) return 'Evaluating autocorrelation dynamics...';
+
+  let momentumNarrative = '';
+  if (lag1 > 0.15) {
+    momentumNarrative = `exhibits <strong>short-term momentum persistence</strong> (Lag 1: <strong>+${lag1.toFixed(2)}</strong>), indicating winning months tend to follow winning months`;
+  } else if (lag1 < -0.15) {
+    momentumNarrative = `exhibits <strong>short-term mean-reversion</strong> (Lag 1: <strong>${lag1.toFixed(2)}</strong>), where monthly gains frequently experience consolidation the following month`;
+  } else {
+    momentumNarrative = `exhibits <strong>random walk efficiency</strong> (Lag 1: <strong>${lag1 >= 0 ? '+' : ''}${lag1.toFixed(2)}</strong>), with monthly price action largely independent of the prior month`;
+  }
+
+  let seasonNarrative = '';
+  if (lag12 != null && Math.abs(lag12) > 0.15) {
+    seasonNarrative = ` Displays notable <strong>annual seasonality</strong> (Lag 12: <strong>${lag12 >= 0 ? '+' : ''}${lag12.toFixed(2)}</strong>), suggesting calendar tax-year cycles.`;
+  } else if (lag12 != null) {
+    seasonNarrative = ` Shows minimal annual calendar seasonality (Lag 12: <strong>${lag12 >= 0 ? '+' : ''}${lag12.toFixed(2)}</strong>).`;
+  }
+
+  return `<strong>${ticker}</strong> ${momentumNarrative}.${seasonNarrative}`;
+}
+
+/**
+ * Synthesizes a plain-English takeaway for Cointegration Analysis.
+ * @param {string} depTicker
+ * @param {string} indepTicker
+ * @param {Object} cointResult - Output from runCointegrationAnalysis
+ * @returns {string} Plain-English HTML narrative
+ */
+export function generateCointegrationTakeaway(depTicker, indepTicker, cointResult) {
+  if (!cointResult || !cointResult.adfTest) {
+    return 'Evaluating cointegrating equilibrium...';
+  }
+
+  const { isCointegrated, adfTest, criticalValues, pValue, cointegratingEquation } = cointResult;
+  const tStat = adfTest.testStatistic.toFixed(2);
+  const crit95 = criticalValues.crit95.toFixed(2);
+  const pValStr = pValue < 0.001 ? '< 0.001' : pValue.toFixed(3);
+  const hedgeBeta = cointegratingEquation ? cointegratingEquation.beta.toFixed(3) : '—';
+
+  if (isCointegrated) {
+    return `<strong>Statistically Cointegrated:</strong> <strong>${depTicker}</strong> and <strong>${indepTicker}</strong> share a stationary long-term equilibrium (ADF t = <strong>${tStat}</strong> &lt; 95% critical <strong>${crit95}</strong>, p = <strong>${pValStr}</strong>). With an optimal hedge ratio of <strong>${hedgeBeta}</strong>, temporary price divergences have historically snapped back to the mean.`;
+  } else {
+    return `<strong>No Stationary Equilibrium:</strong> <strong>${depTicker}</strong> and <strong>${indepTicker}</strong> are <strong>not cointegrated</strong> (ADF t = <strong>${tStat}</strong> &ge; 95% critical <strong>${crit95}</strong>, p = <strong>${pValStr}</strong>). The price spread behaves like a random walk and divergences may persist indefinitely without mean-reverting.`;
+  }
+}

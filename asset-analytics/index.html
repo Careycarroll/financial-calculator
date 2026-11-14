@@ -116,6 +116,41 @@
 
       <!-- TAB CONTENT: FUND PERFORMANCE -->
       <main id="tab-performance">
+        <!-- Collapsible Performance Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-perf">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-perf">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Read Performance &amp; Risk Scores</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge cagr-badge">📈 CAGR &amp; Compounding</div>
+                <strong>True Wealth Trajectory</strong>
+                <p>Compound Annual Growth Rate geometric average. Outperforming the benchmark CAGR compounds exponentially over decades.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge dd-badge">🌊 Drawdowns &amp; Recovery</div>
+                <strong>Crash Tolerance</strong>
+                <p>Depth and duration of crashes. Shallower drawdowns preserve invested principal, dramatically cutting recovery time.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge sharpe-badge">⚡ Sharpe vs Sortino</div>
+                <strong>Risk-Adjusted Efficiency</strong>
+                <p>Sharpe penalizes all volatility; Sortino only penalizes bad (downside) volatility. Scores &gt; 1.0 demonstrate strong compounding.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge var-badge">🛡️ Tail Risk (VaR &amp; CVaR)</div>
+                <strong>Black-Swan Protection</strong>
+                <p>95% Monthly VaR is the expected loss threshold; CVaR (Expected Shortfall) is the average severity of the worst 5% crash months.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Executive Diagnostic Verdict (Simple Mode) -->
         <section class="diagnostic-verdict-card" id="diagnostic-verdict-container">
           <div class="verdict-header">
@@ -137,32 +172,32 @@
         <!-- KPI Scorecard Summary (Quant Mode) -->
         <section class="kpi-scorecard-grid" id="kpi-scorecard-grid">
           <div class="kpi-card">
-            <span class="kpi-label">Final $10k Value</span>
+            <span class="kpi-label">Final $10k Value <span class="info-tip tip-right" data-tooltip="Total ending portfolio value of a hypothetical $10,000 initial investment over the common historical timeline.">ℹ️</span></span>
             <span class="kpi-value" id="kpi-final-val">$0</span>
             <span class="kpi-sub" id="kpi-final-sub">vs $0 benchmark</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-label">CAGR (Annualized Return)</span>
+            <span class="kpi-label">CAGR (Annualized Return) <span class="info-tip tip-right" data-tooltip="Compound Annual Growth Rate: The annualized geometric return accounting for compounding. True measure of compounding speed.">ℹ️</span></span>
             <span class="kpi-value" id="kpi-cagr">0.0%</span>
             <span class="kpi-sub" id="kpi-cagr-sub">vs 0.0% benchmark</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-label">Annual Volatility</span>
+            <span class="kpi-label">Annual Volatility <span class="info-tip" data-tooltip="Standard deviation of monthly returns scaled to an annual basis (× √12). Lower indicates smoother compounding.">ℹ️</span></span>
             <span class="kpi-value" id="kpi-vol">0.0%</span>
             <span class="kpi-sub" id="kpi-vol-sub">StDev (Annualized)</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-label">Maximum Crash (Drawdown)</span>
+            <span class="kpi-label">Maximum Crash (Drawdown) <span class="info-tip" data-tooltip="Worst historical peak-to-trough percentage loss before reaching a new all-time high. Measures crash risk.">ℹ️</span></span>
             <span class="kpi-value" id="kpi-maxdd">0.0%</span>
             <span class="kpi-sub negative" id="kpi-maxdd-sub">Historical peak to trough</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-label">Sharpe Ratio</span>
+            <span class="kpi-label">Sharpe Ratio <span class="info-tip tip-left" data-tooltip="Excess return divided by volatility: (CAGR − Rf) ÷ Vol. Scores > 1.0 indicate attractive risk-adjusted efficiency.">ℹ️</span></span>
             <span class="kpi-value" id="kpi-sharpe">0.00</span>
             <span class="kpi-sub" id="kpi-sharpe-sub">Risk-adjusted excess return</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-label">Sortino Ratio</span>
+            <span class="kpi-label">Sortino Ratio <span class="info-tip tip-left" data-tooltip="Excess return divided only by downside volatility. Does not penalize upside rally volatility.">ℹ️</span></span>
             <span class="kpi-value" id="kpi-sortino">0.00</span>
             <span class="kpi-sub" id="kpi-sortino-sub">Downside risk penalty only</span>
           </div>
@@ -223,11 +258,11 @@
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Peak</th>
-                    <th>Trough</th>
-                    <th>Depth</th>
-                    <th>Recovery</th>
-                    <th>Total Mos</th>
+                    <th>Peak <span class="info-tip tip-right" data-tooltip="Month when the asset reached its previous high-water mark before entering the crash.">ℹ️</span></th>
+                    <th>Trough <span class="info-tip" data-tooltip="Month when the asset reached its absolute lowest valuation valley during the crash episode.">ℹ️</span></th>
+                    <th>Depth <span class="info-tip" data-tooltip="Total percentage loss from peak to trough.">ℹ️</span></th>
+                    <th>Recovery <span class="info-tip" data-tooltip="Month when the fund fully regained its prior peak. If still underwater, shows ongoing status.">ℹ️</span></th>
+                    <th>Total Mos <span class="info-tip tip-left" data-tooltip="Total months spent underwater from initial peak to full recovery.">ℹ️</span></th>
                   </tr>
                 </thead>
                 <tbody id="crash-table-body">
@@ -320,23 +355,23 @@
               <div class="quad-header">📈 Return &amp; Compounding</div>
               <div class="metric-rows-list">
                 <div class="metric-row">
-                  <span class="metric-row-label">Compound Annual Return (CAGR)</span>
+                  <span class="metric-row-label">Compound Annual Return (CAGR) <span class="info-tip tip-right" data-tooltip="Geometric annualized growth rate accounting for compounding.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-cagr">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Benchmark CAGR</span>
+                  <span class="metric-row-label">Benchmark CAGR <span class="info-tip tip-right" data-tooltip="Compounded growth rate of the reference benchmark over the same period.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-bench-cagr">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Arithmetic Mean (Annualized)</span>
+                  <span class="metric-row-label">Arithmetic Mean (Annualized) <span class="info-tip tip-right" data-tooltip="Simple average monthly return multiplied by 12. Always higher than CAGR due to volatility drag.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-arith-mean">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Best Calendar Year</span>
+                  <span class="metric-row-label">Best Calendar Year <span class="info-tip tip-right" data-tooltip="Highest single January-to-December annual return recorded.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-best-year">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Worst Calendar Year</span>
+                  <span class="metric-row-label">Worst Calendar Year <span class="info-tip tip-right" data-tooltip="Lowest single January-to-December annual return recorded.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-worst-year">0.0%</span>
                 </div>
               </div>
@@ -347,27 +382,27 @@
               <div class="quad-header">🛡️ Risk &amp; Volatility</div>
               <div class="metric-rows-list">
                 <div class="metric-row">
-                  <span class="metric-row-label">Annualized Volatility (StDev)</span>
+                  <span class="metric-row-label">Annualized Volatility (StDev) <span class="info-tip tip-right" data-tooltip="Annualized standard deviation of monthly returns (× √12).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-vol">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Downside Deviation (Semi-StDev)</span>
+                  <span class="metric-row-label">Downside Deviation (Semi-StDev) <span class="info-tip tip-right" data-tooltip="Volatility of negative returns only. Used in the Sortino ratio.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-downside-dev">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Maximum Historical Crash</span>
+                  <span class="metric-row-label">Maximum Historical Crash <span class="info-tip tip-right" data-tooltip="Worst peak-to-trough percentage loss before reaching a new high.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-maxdd">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Ulcer Index (Depth + Duration)</span>
+                  <span class="metric-row-label">Ulcer Index (Depth + Duration) <span class="info-tip tip-right" data-tooltip="Measures both the severity AND length of time spent underwater.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-ulcer">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Monthly 95% Value at Risk (VaR)</span>
+                  <span class="metric-row-label">Monthly 95% Value at Risk (VaR) <span class="info-tip tip-right" data-tooltip="Maximum expected 1-month loss with 95% confidence (19 of 20 months are better).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-var">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Expected Shortfall (CVaR)</span>
+                  <span class="metric-row-label">Expected Shortfall (CVaR) <span class="info-tip tip-right" data-tooltip="Average loss suffered during the worst 5% tail-risk crash months.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-cvar">0.0%</span>
                 </div>
               </div>
@@ -378,35 +413,35 @@
               <div class="quad-header">⚡ Risk-Adjusted Efficiency</div>
               <div class="metric-rows-list">
                 <div class="metric-row">
-                  <span class="metric-row-label">Sharpe Ratio (Rf = 3%)</span>
+                  <span class="metric-row-label">Sharpe Ratio (Rf = 3%) <span class="info-tip tip-right" data-tooltip="Excess return per unit of volatility: (CAGR − Rf) ÷ Vol. >1.0 is good, >2.0 exceptional.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-sharpe">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Sortino Ratio</span>
+                  <span class="metric-row-label">Sortino Ratio <span class="info-tip tip-right" data-tooltip="Excess return per unit of downside risk only. Does not penalize rallies.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-sortino">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Treynor Ratio (Return / Beta)</span>
+                  <span class="metric-row-label">Treynor Ratio (Return / Beta) <span class="info-tip tip-right" data-tooltip="Excess return per unit of systematic market risk (Beta).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-treynor">0.0000</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Calmar Ratio (CAGR / MaxDD)</span>
+                  <span class="metric-row-label">Calmar Ratio (CAGR / MaxDD) <span class="info-tip tip-right" data-tooltip="Annual return divided by absolute max crash. >0.50 indicates strong resilience.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-calmar">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Martin Ratio (UPI: Return / Ulcer)</span>
+                  <span class="metric-row-label">Martin Ratio (UPI: Return / Ulcer) <span class="info-tip tip-right" data-tooltip="Ulcer Performance Index: Excess return divided by the Ulcer Index.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-martin">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Omega Ratio (Gains / Losses)</span>
+                  <span class="metric-row-label">Omega Ratio (Gains / Losses) <span class="info-tip tip-right" data-tooltip="Probability-weighted ratio of gains vs losses. Captures non-normal skewness.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-omega">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Gain-to-Pain Ratio</span>
+                  <span class="metric-row-label">Gain-to-Pain Ratio <span class="info-tip tip-right" data-tooltip="Sum of all monthly returns divided by absolute sum of negative returns. >1.5 is resilient.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-gain-pain">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Modigliani–Modigliani (M²)</span>
+                  <span class="metric-row-label">Modigliani–Modigliani (M²) <span class="info-tip tip-right" data-tooltip="Risk-adjusted return if the fund were leveraged/deleveraged to match benchmark volatility.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-msquared">0.0%</span>
                 </div>
               </div>
@@ -417,35 +452,35 @@
               <div class="quad-header">🎯 Benchmark Relative (CAPM)</div>
               <div class="metric-rows-list">
                 <div class="metric-row">
-                  <span class="metric-row-label">Jensen's Alpha (Excess Return)</span>
+                  <span class="metric-row-label">Jensen's Alpha (Excess Return) <span class="info-tip tip-right" data-tooltip="Annualized manager edge above what CAPM market risk exposure predicts.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-alpha">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Market Beta (Sensitivity)</span>
+                  <span class="metric-row-label">Market Beta (Sensitivity) <span class="info-tip tip-right" data-tooltip="1.0 moves with benchmark; >1.0 amplifies swings; <1.0 provides cushion.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-beta">1.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">R-Squared (Fit to Benchmark)</span>
+                  <span class="metric-row-label">R-Squared (Fit to Benchmark) <span class="info-tip tip-right" data-tooltip="Percentage of variance explained by the benchmark (0.00 to 1.00).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-rsquared">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Tracking Error</span>
+                  <span class="metric-row-label">Tracking Error <span class="info-tip tip-right" data-tooltip="Standard deviation of excess returns relative to the benchmark.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-tracking-error">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Information Ratio</span>
+                  <span class="metric-row-label">Information Ratio <span class="info-tip tip-right" data-tooltip="Active Alpha divided by Tracking Error. Measures consistency of outperformance.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-info-ratio">0.00</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Upside Market Capture</span>
+                  <span class="metric-row-label">Upside Market Capture <span class="info-tip tip-right" data-tooltip="Percentage of benchmark gains captured during positive market months (>100% outperforms).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-up-capture">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Downside Market Capture</span>
+                  <span class="metric-row-label">Downside Market Capture <span class="info-tip tip-right" data-tooltip="Percentage of benchmark losses suffered during down months (<100% defends capital).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-down-capture">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Capture Ratio (Up / Down)</span>
+                  <span class="metric-row-label">Capture Ratio (Up / Down) <span class="info-tip tip-right" data-tooltip="Up-Capture divided by Down-Capture. >1.0 indicates asymmetric compounding edge.">ℹ️</span></span>
                   <span class="metric-row-val" id="m-capture-ratio">0.00</span>
                 </div>
               </div>
@@ -463,6 +498,41 @@
 
       <!-- TAB CONTENT: FUND SCREENER -->
       <main id="tab-screener" class="tab-pane hidden">
+        <!-- Collapsible Screener Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-screener">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-screener">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Screen &amp; Evaluate Investment Funds</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge cagr-badge">🔵 Beta (&beta;)</div>
+                <strong>Market Sensitivity Multiplier</strong>
+                <p>1.0 moves exactly with benchmark swings. &gt;1.0 amplifies rallies and corrections; &lt;1.0 provides defensive shock absorption.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🟢 Jensen's Alpha (&alpha;)</div>
+                <strong>Pure Manager Edge</strong>
+                <p>Excess annual return earned above CAPM market risk exposure. Any positive alpha proves institutional-grade skill.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge sharpe-badge">⚖️ Capture Ratios</div>
+                <strong>Asymmetric Compounding</strong>
+                <p>Aim for Up-Market Capture &gt; 100% and Down-Market Capture &lt; 90% to grow faster in bull runs while losing less in downturns.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge var-badge">🏷️ Expense Ratio</div>
+                <strong>Compound Fee Drag</strong>
+                <p>Annual management fee deducted daily from NAV. Low fees (&lt; 0.20%) protect tens of thousands in long-term wealth.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Screener Controls Bar -->
         <section class="screener-controls-bar" aria-label="Screener Filter Controls">
           <div class="screener-controls-grid">
@@ -581,23 +651,23 @@
             <table class="screener-table" id="screener-results-table">
               <thead>
                 <tr>
-                  <th data-sort="ticker">Ticker <span class="sort-icon">↕</span></th>
+                  <th data-sort="ticker">Ticker <span class="info-tip tip-right" data-tooltip="Fund ticker symbol. Click row to drill down into performance.">ℹ️</span> <span class="sort-icon">↕</span></th>
                   <th data-sort="name">Fund Name <span class="sort-icon">↕</span></th>
-                  <th data-sort="assetClass">Asset Class <span class="sort-icon">↕</span></th>
-                  <th data-sort="category">Category <span class="sort-icon">↕</span></th>
-                  <th data-sort="ytd" class="num-col">YTD <span class="sort-icon">↕</span></th>
-                  <th data-sort="return1y" class="num-col">1Y <span class="sort-icon">↕</span></th>
-                  <th data-sort="return3y" class="num-col">3Y <span class="sort-icon">↕</span></th>
-                  <th data-sort="return5y" class="num-col">5Y <span class="sort-icon">↕</span></th>
-                  <th data-sort="cagr" class="num-col">CAGR <span class="sort-icon">↕</span></th>
-                  <th data-sort="sharpe" class="num-col">Sharpe <span class="sort-icon">↕</span></th>
-                  <th data-sort="sortino" class="num-col">Sortino <span class="sort-icon">↕</span></th>
-                  <th data-sort="volatility" class="num-col">Vol (Ann) <span class="sort-icon">↕</span></th>
-                  <th data-sort="maxDrawdown" class="num-col">Max DD <span class="sort-icon">↕</span></th>
-                  <th data-sort="alpha" class="num-col">Alpha (α) <span class="sort-icon">↕</span></th>
-                  <th data-sort="beta" class="num-col">Beta (β) <span class="sort-icon">↕</span></th>
-                  <th data-sort="upCapture" class="num-col">Up Cap <span class="sort-icon">↕</span></th>
-                  <th data-sort="downCapture" class="num-col">Down Cap <span class="sort-icon">↕</span></th>
+                  <th data-sort="assetClass">Asset Class <span class="info-tip tip-right" data-tooltip="Broad institutional asset classification.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="category">Category <span class="info-tip tip-right" data-tooltip="Granular Morningstar-style fund category.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="ytd" class="num-col">YTD <span class="info-tip" data-tooltip="Year-To-Date return from Jan 1st of current year.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="return1y" class="num-col">1Y <span class="info-tip" data-tooltip="Trailing 12-month total return.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="return3y" class="num-col">3Y <span class="info-tip" data-tooltip="Trailing 36-month annualized return.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="return5y" class="num-col">5Y <span class="info-tip" data-tooltip="Trailing 60-month annualized return.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="cagr" class="num-col">CAGR <span class="info-tip" data-tooltip="Compounded Annual Growth Rate over full history.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="sharpe" class="num-col">Sharpe <span class="info-tip" data-tooltip="Excess annualized return divided by volatility (>1.0 is good).">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="sortino" class="num-col">Sortino <span class="info-tip" data-tooltip="Excess return per unit of downside risk only.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="volatility" class="num-col">Vol (Ann) <span class="info-tip" data-tooltip="Annualized standard deviation of monthly returns.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="maxDrawdown" class="num-col">Max DD <span class="info-tip" data-tooltip="Worst peak-to-trough historical crash percentage.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="alpha" class="num-col">Alpha (α) <span class="info-tip" data-tooltip="Jensen's Alpha: Annualized manager edge above benchmark.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="beta" class="num-col">Beta (β) <span class="info-tip tip-left" data-tooltip="Sensitivity to benchmark (1.0 = moves with market).">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="upCapture" class="num-col">Up Cap <span class="info-tip tip-left" data-tooltip="Percentage of benchmark gains captured in up months.">ℹ️</span> <span class="sort-icon">↕</span></th>
+                  <th data-sort="downCapture" class="num-col">Down Cap <span class="info-tip tip-left" data-tooltip="Percentage of benchmark losses suffered in down months.">ℹ️</span> <span class="sort-icon">↕</span></th>
                   <th style="text-align: right;">Action</th>
                 </tr>
               </thead>
@@ -700,16 +770,16 @@
             <table class="rankings-table" id="rankings-results-table">
               <thead>
                 <tr>
-                  <th style="width: 70px;">Rank</th>
-                  <th style="width: 110px;">Percentile</th>
+                  <th style="width: 70px;">Rank <span class="info-tip tip-right" data-tooltip="Ordinal leaderboard rank (#1 = best).">ℹ️</span></th>
+                  <th style="width: 110px;">Percentile <span class="info-tip tip-right" data-tooltip="Relative percentile position (Top 1% down to Bottom 20%).">ℹ️</span></th>
                   <th>Fund Asset</th>
                   <th>Asset Class</th>
-                  <th class="num-col" id="rankings-col-metric-header">Rank Metric</th>
-                  <th class="num-col">CAGR</th>
-                  <th class="num-col">Sharpe</th>
-                  <th class="num-col">Sortino</th>
-                  <th class="num-col">Max DD</th>
-                  <th class="num-col">Beta (β)</th>
+                  <th class="num-col" id="rankings-col-metric-header">Rank Metric <span class="info-tip" data-tooltip="The active metric used to sort and score this leaderboard.">ℹ️</span></th>
+                  <th class="num-col">CAGR <span class="info-tip" data-tooltip="Compounded Annual Growth Rate over available history.">ℹ️</span></th>
+                  <th class="num-col">Sharpe <span class="info-tip" data-tooltip="Risk-adjusted excess return divided by volatility (>1.0 is good).">ℹ️</span></th>
+                  <th class="num-col">Sortino <span class="info-tip" data-tooltip="Excess return per unit of downside risk only.">ℹ️</span></th>
+                  <th class="num-col">Max DD <span class="info-tip" data-tooltip="Worst historical peak-to-trough crash percentage.">ℹ️</span></th>
+                  <th class="num-col">Beta (β) <span class="info-tip tip-left" data-tooltip="Sensitivity to benchmark (1.0 = moves with market).">ℹ️</span></th>
                   <th style="text-align: right;">Action</th>
                 </tr>
               </thead>
@@ -723,6 +793,41 @@
 
       <!-- TAB CONTENT: ASSET CORRELATIONS -->
       <main id="tab-correlations" class="tab-pane hidden">
+        <!-- Collapsible Correlation Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-corr">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-corr">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Read Correlation &amp; Diversification</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge scale-overlap">🔴 +0.80 to +1.00</div>
+                <strong>High Overlap (Co-Movement)</strong>
+                <p>Assets swing together. Holding both (e.g. VOO + SPY) increases sector risk without downside diversification.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-moderate">🟡 +0.20 to +0.60</div>
+                <strong>Moderate Diversification</strong>
+                <p>Typical cross-sector baseline. Reduces single-company risk while participating in broad market expansions.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🟢 -0.20 to +0.20</div>
+                <strong>True Uncorrelated Buffer</strong>
+                <p>Near-zero relationship (e.g. Equities vs Short Treasuries/BND). Dramatically smooths portfolio volatility.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-hedge">🟣 -0.20 to -1.00</div>
+                <strong>Inverse Hedge</strong>
+                <p>Moves in opposite directions during market panics. Serves as the ultimate portfolio shock-absorber.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Correlation Controls Bar -->
         <section class="correlation-controls-bar" aria-label="Correlation Model Configuration">
           <div class="correlation-universe-row">
@@ -795,6 +900,14 @@
           </div>
         </section>
 
+        <!-- Dynamic Correlation Story Banner -->
+        <div class="story-takeaway-banner" id="corr-story-banner">
+          <span class="story-icon">💡</span>
+          <div class="story-text" id="corr-story-text">
+            Analyzing correlation matrix and diversification benefit...
+          </div>
+        </div>
+
         <!-- Correlation Matrix Card -->
         <section class="analytics-card" style="margin-top: 1.25rem;">
           <div class="card-header">
@@ -851,6 +964,41 @@
 
       <!-- TAB CONTENT: ASSET AUTOCORRELATION LAB -->
       <main id="tab-autocorr" class="tab-pane hidden">
+        <!-- Collapsible Autocorrelation Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-autocorr">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-autocorr">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Read Autocorrelation &amp; Seasonality</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge cagr-badge">⚡ Lag 1 (1 Month)</div>
+                <strong>Momentum vs Reversion</strong>
+                <p>Positive (&gt; +0.10) means winning months follow winning months (trend persistence). Negative indicates mean-reversion pullbacks.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge sharpe-badge">📅 Lag 3 (1 Quarter)</div>
+                <strong>Earnings &amp; Rebalancing Cycle</strong>
+                <p>Tracks quarterly corporate earnings reports and institutional fund flow rebalancing rhythms.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🔄 Lag 12 (1 Year)</div>
+                <strong>Calendar Seasonality</strong>
+                <p>Captures annual seasonal tendencies, such as year-end tax-loss harvesting and January effect rallies.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge var-badge">📊 Rolling Diagnostics</div>
+                <strong>Regime Shift Detection</strong>
+                <p>Observes how return persistence changes across different market phases (bull markets vs structural bear markets).</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Autocorrelation Controls Bar -->
         <section class="correlation-controls-bar" aria-label="Autocorrelation Model Configuration">
           <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
@@ -909,6 +1057,14 @@
             </div>
           </div>
         </section>
+
+        <!-- Dynamic Autocorrelation Story Banner -->
+        <div class="story-takeaway-banner" id="autocorr-story-banner">
+          <span class="story-icon">💡</span>
+          <div class="story-text" id="autocorr-story-text">
+            Evaluating time-series return persistence and cyclical dynamics...
+          </div>
+        </div>
 
         <!-- Autocorrelation Results Card -->
         <section class="analytics-card" style="margin-top: 1.5rem;" id="autocorr-results-container">
@@ -974,6 +1130,41 @@
 
       <!-- TAB CONTENT: ASSET COINTEGRATION ANALYSIS -->
       <main id="tab-cointegration" class="tab-pane hidden">
+        <!-- Collapsible Cointegration Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-coint">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-coint">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Read Cointegration &amp; Pairs Equilibrium</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge scale-hedge">⚓ Cointegration vs Correlation</div>
+                <strong>The Invisible Leash</strong>
+                <p>Correlation measures temporary co-movement. Cointegration proves two prices share a permanent long-term mathematical equilibrium.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge cagr-badge">⚖️ Hedge Ratio (&beta;)</div>
+                <strong>Optimal Basket Multiplier</strong>
+                <p>OLS regression slope determining the portfolio spread: <em>Spread = Y &minus; &beta;&times;X</em>. Isolates the stationary residual.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge dd-badge">📉 ADF Test Statistic</div>
+                <strong>Unit Root Rejection</strong>
+                <p>Augmented Dickey-Fuller t-statistic must be more negative than the 95% critical value (-3.37) to confirm mean-reverting stationarity.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🎯 p-Value (&lt; 0.05)</div>
+                <strong>Pairs Trading &amp; Rebalancing</strong>
+                <p>Statistically significant p-values mean temporary price spreads reliably snap back, enabling low-risk mean-reversion rebalancing.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Cointegration Controls Bar -->
         <section class="correlation-controls-bar" aria-label="Cointegration Model Configuration">
           <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
@@ -1037,6 +1228,14 @@
           </div>
         </section>
 
+        <!-- Dynamic Cointegration Story Banner -->
+        <div class="story-takeaway-banner" id="coint-story-banner">
+          <span class="story-icon">💡</span>
+          <div class="story-text" id="coint-story-text">
+            Running econometric cointegration analysis and stationarity diagnostics...
+          </div>
+        </div>
+
         <!-- Cointegration Test Results Card -->
         <section class="analytics-card" style="margin-top: 1.5rem;" id="coint-results-container">
           <div class="card-header">
@@ -1051,12 +1250,12 @@
             <table class="analytics-table coint-table" id="coint-results-table">
               <thead>
                 <tr>
-                  <th>Dependent</th>
-                  <th>Independent</th>
-                  <th class="text-right">Test Statistic</th>
-                  <th class="text-right">p-value</th>
-                  <th class="text-center">95% Confidence</th>
-                  <th class="text-center">90% Confidence</th>
+                  <th>Dependent <span class="info-tip tip-right" data-tooltip="Dependent variable (Asset Y) in OLS equation: Y = α + β·X + ε.">ℹ️</span></th>
+                  <th>Independent <span class="info-tip tip-right" data-tooltip="Independent variable (Asset X).">ℹ️</span></th>
+                  <th class="text-right">Test Statistic <span class="info-tip" data-tooltip="Augmented Dickey-Fuller t-statistic. Must be more negative than critical value to reject unit root.">ℹ️</span></th>
+                  <th class="text-right">p-value <span class="info-tip" data-tooltip="MacKinnon calibrated p-value. < 0.05 confirms stationarity with 95% confidence.">ℹ️</span></th>
+                  <th class="text-center">95% Confidence <span class="info-tip tip-left" data-tooltip="Stationarity verdict at 95% confidence threshold (-3.37).">ℹ️</span></th>
+                  <th class="text-center">90% Confidence <span class="info-tip tip-left" data-tooltip="Stationarity verdict at 90% confidence threshold (-3.07).">ℹ️</span></th>
                 </tr>
               </thead>
               <tbody id="coint-table-body">

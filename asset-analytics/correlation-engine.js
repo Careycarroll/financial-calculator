@@ -288,3 +288,73 @@ export function calculateRollingCorrelation(xReturns, yReturns, dates, windowMon
     windowMonths
   };
 }
+
+/**
+ * Synthesizes a plain-English executive takeaway from correlation matrix results and focus pair rolling stats.
+ * @param {Array<{ticker: string, name?: string}>} assets - List of assets in matrix
+ * @param {Array<Array<number>>} matrix - Pairwise correlation matrix
+ * @param {Object} [focusPairInfo] - { pairA: string, pairB: string, current: number, mean: number, min: number, max: number, windowMonths: number }
+ * @returns {string} Plain-English HTML narrative
+ */
+export function generateCorrelationTakeaway(assets, matrix, focusPairInfo = null) {
+  if (!assets || assets.length < 2 || !matrix || matrix.length < 2) {
+    return 'Select at least 2 assets to evaluate correlation and diversification benefits.';
+  }
+
+  const n = assets.length;
+  let maxCorr = -2;
+  let minCorr = 2;
+  let highestPair = null;
+  let lowestPair = null;
+
+  // Track average correlation per asset
+  const avgCorrs = assets.map((asset, i) => {
+    let sum = 0;
+    for (let j = 0; j < n; j++) {
+      if (i !== j) {
+        const val = matrix[i][j];
+        sum += val;
+        if (j > i) {
+          if (val > maxCorr) {
+            maxCorr = val;
+            highestPair = [assets[i].ticker, assets[j].ticker, val];
+          }
+          if (val < minCorr) {
+            minCorr = val;
+            lowestPair = [assets[i].ticker, assets[j].ticker, val];
+          }
+        }
+      }
+    }
+    return { ticker: asset.ticker, avg: sum / (n - 1) };
+  });
+
+  avgCorrs.sort((a, b) => a.avg - b.avg);
+  const bestDiversifier = avgCorrs[0];
+
+  let takeaway = `In this <strong>${n}-asset basket</strong>, `;
+
+  if (bestDiversifier.avg < 0.3) {
+    takeaway += `<strong>${bestDiversifier.ticker}</strong> provides the highest diversification benefit (average correlation: <strong>${bestDiversifier.avg.toFixed(2)}</strong>). `;
+  } else {
+    takeaway += `<strong>${bestDiversifier.ticker}</strong> exhibits the lowest relative correlation (avg: <strong>${bestDiversifier.avg.toFixed(2)}</strong>). `;
+  }
+
+  if (highestPair) {
+    const isVeryHigh = highestPair[2] >= 0.85;
+    takeaway += `Highest co-movement is between <strong>${highestPair[0]}</strong> and <strong>${highestPair[1]}</strong> (<strong>${highestPair[2].toFixed(2)}</strong>${isVeryHigh ? ' — near-duplicate sector exposure' : ''}). `;
+  }
+
+  if (lowestPair && (highestPair[0] !== lowestPair[0] || highestPair[1] !== lowestPair[1])) {
+    takeaway += `Strongest counter-balance exists between <strong>${lowestPair[0]}</strong> and <strong>${lowestPair[1]}</strong> (<strong>${lowestPair[2].toFixed(2)}</strong>). `;
+  }
+
+  if (focusPairInfo && focusPairInfo.pairA && focusPairInfo.pairB) {
+    const currStr = focusPairInfo.current != null ? focusPairInfo.current.toFixed(2) : '—';
+    const minStr = focusPairInfo.min != null ? focusPairInfo.min.toFixed(2) : '—';
+    const maxStr = focusPairInfo.max != null ? focusPairInfo.max.toFixed(2) : '—';
+    takeaway += `Focus pair <strong>${focusPairInfo.pairA} vs ${focusPairInfo.pairB}</strong> currently sits at <strong>${currStr}</strong> (historical ${focusPairInfo.windowMonths || 36}M range: <strong>${minStr}</strong> to <strong>${maxStr}</strong>).`;
+  }
+
+  return takeaway;
+}

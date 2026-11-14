@@ -1191,3 +1191,104 @@ select.input-error,.form-group input.input-error,.form-group select.input-error 
     flex-direction: column;
   }
 }
+
+/* ===== ACCESSIBLE EDUCATIONAL INFO TOOLTIP (ℹ️) ===== */
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: help;
+  font-size: 0.68rem;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  color: var(--accent, #2dd4bf);
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  margin-left: 0.35rem;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+  font-weight: 700;
+  font-style: normal;
+  transition: all 0.15s ease;
+}
+
+.info-tip:hover,
+.info-tip:focus-visible {
+  background: var(--accent, #2dd4bf);
+  color: #0f172a;
+  border-color: var(--accent, #2dd4bf);
+  outline: none;
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.4);
+}
+
+.info-tip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0f172a;
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--accent, #2dd4bf);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 400;
+  line-height: 1.45;
+  width: 250px;
+  max-width: 80vw;
+  white-space: normal;
+  text-align: left;
+  z-index: 500;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8), 0 0 10px rgba(45, 212, 191, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.info-tip::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--accent, #2dd4bf);
+  z-index: 501;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.info-tip:hover::after,
+.info-tip:hover::before,
+.info-tip:focus-visible::after,
+.info-tip:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Edge alignment classes */
+.info-tip.tip-right::after {
+  left: -8px;
+  transform: none;
+}
+.info-tip.tip-right::before {
+  left: 3px;
+  transform: none;
+}
+.info-tip.tip-left::after {
+  left: auto;
+  right: -8px;
+  transform: none;
+}
+.info-tip.tip-left::before {
+  left: auto;
+  right: 3px;
+  transform: none;
+}

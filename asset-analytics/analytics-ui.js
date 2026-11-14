@@ -36,13 +36,16 @@ import {
   calculateCovariance,
   alignMultiAssetReturns,
   computeCorrelationMatrix,
-  calculateRollingCorrelation
+  calculateRollingCorrelation,
+  generateCorrelationTakeaway
 } from './correlation-engine.js';
 import {
   calculateSampleAutocorrelation,
   calculateRollingAutocorrelation,
   alignTwoAssetPrices,
-  runCointegrationAnalysis
+  runCointegrationAnalysis,
+  generateAutocorrTakeaway,
+  generateCointegrationTakeaway
 } from './timeseries-engine.js';
 import { formatCurrency, rafThrottle } from '../js/chart-utils.js';
 import { formatPct } from '../js/formatting.js';
@@ -324,6 +327,7 @@ function cacheDOMElements() {
     corrBasketCountLabel: document.getElementById('corr-basket-count-label'),
     corrBasketPreviewLabel: document.getElementById('corr-basket-preview-label'),
     corrActiveChipsWrap: document.getElementById('corr-active-chips-wrap'),
+    corrStoryText: document.getElementById('corr-story-text'),
     btnCorrSelectCore: document.getElementById('btn-corr-select-core'),
     btnCorrClearAll: document.getElementById('btn-corr-clear-all'),
     corrHorizonSelect: document.getElementById('corr-horizon-select'),
@@ -350,6 +354,7 @@ function cacheDOMElements() {
     autocorrPickerName: document.getElementById('autocorr-picker-name'),
     autocorrRollPeriod: document.getElementById('autocorr-roll-period'),
     autocorrStatusText: document.getElementById('autocorr-status-text'),
+    autocorrStoryText: document.getElementById('autocorr-story-text'),
     btnExportAutocorrCsv: document.getElementById('btn-export-autocorr-csv'),
     autocorrDateRangeText: document.getElementById('autocorr-date-range-text'),
     autocorrTitleLag1: document.getElementById('autocorr-title-lag1'),
@@ -386,6 +391,7 @@ function cacheDOMElements() {
     btnRunCointegration: document.getElementById('btn-run-cointegration'),
     btnExportCointCsv: document.getElementById('btn-export-coint-csv'),
     cointStatusText: document.getElementById('coint-status-text'),
+    cointStoryText: document.getElementById('coint-story-text'),
     cointConstraintNote: document.getElementById('coint-constraint-note'),
     cointResultsTable: document.getElementById('coint-results-table'),
     cointTableBody: document.getElementById('coint-table-body'),
@@ -729,7 +735,8 @@ function bindEvents() {
 
   if (elements.screenerTable) {
     elements.screenerTable.querySelectorAll('th[data-sort]').forEach(th => {
-      th.addEventListener('click', () => {
+      th.addEventListener('click', (e) => {
+        if (e.target.closest('.info-tip')) return;
         const col = th.dataset.sort;
         if (state.screenerSortCol === col) {
           state.screenerSortAsc = !state.screenerSortAsc;
@@ -877,6 +884,27 @@ function bindEvents() {
   if (elements.btnExportCointCsv) {
     elements.btnExportCointCsv.addEventListener('click', exportCointegrationCSV);
   }
+
+  // Collapsible Visual Cheat Sheets Accordion
+  document.querySelectorAll('.cheat-sheet-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const card = header.closest('.cheat-sheet-card');
+      if (!card) return;
+      const body = card.querySelector('.cheat-sheet-body');
+      const arrow = card.querySelector('.cheat-sheet-arrow');
+      if (!body) return;
+      const isCurrentlyOpen = header.classList.contains('open');
+      if (isCurrentlyOpen) {
+        body.style.display = 'none';
+        header.classList.remove('open');
+        if (arrow) arrow.classList.remove('open');
+      } else {
+        body.style.display = 'block';
+        header.classList.add('open');
+        if (arrow) arrow.classList.add('open');
+      }
+    });
+  });
 }
 
 /**
@@ -1445,6 +1473,19 @@ function computeAndDrawRollingCorrelation() {
   if (elements.corrStatMean) elements.corrStatMean.textContent = rolling.meanCorrelation.toFixed(2);
   if (elements.corrStatMin) elements.corrStatMin.textContent = rolling.minCorrelation.toFixed(2);
   if (elements.corrStatMax) elements.corrStatMax.textContent = rolling.maxCorrelation.toFixed(2);
+
+  // Update Dynamic Story Takeaway Banner
+  if (elements.corrStoryText && result && result.assets && result.matrix) {
+    const focusStats = {
+      pairA: state.corrFocusPairA,
+      pairB: state.corrFocusPairB,
+      current: rolling.currentCorrelation,
+      min: rolling.minCorrelation,
+      max: rolling.maxCorrelation,
+      windowMonths: state.corrWindowMonths
+    };
+    elements.corrStoryText.innerHTML = generateCorrelationTakeaway(result.assets, result.matrix, focusStats);
+  }
 
   drawCorrelationChart();
 }
@@ -2732,6 +2773,16 @@ function runAutocorrelationAnalysis() {
   if (elements.autocorrLag12Min) elements.autocorrLag12Min.textContent = formatCorrelation(s12.min);
   if (elements.autocorrLag12Max) elements.autocorrLag12Max.textContent = formatCorrelation(s12.max);
 
+  // Update Dynamic Story Takeaway Banner
+  if (elements.autocorrStoryText) {
+    elements.autocorrStoryText.innerHTML = generateAutocorrTakeaway(
+      fund.ticker,
+      s1 ? s1.current : null,
+      s3 ? s3.current : null,
+      s12 ? s12.current : null
+    );
+  }
+
   drawAllAutocorrCharts();
 }
 
@@ -3113,6 +3164,15 @@ function runCointegrationAnalysisUI() {
     ? (-Math.log(2) / Math.log(1 + gamma)).toFixed(1) + ' Mos'
     : 'N/A';
   if (elements.cointStatHalflife) elements.cointStatHalflife.textContent = halfLife;
+
+  // Update Dynamic Story Takeaway Banner
+  if (elements.cointStoryText) {
+    elements.cointStoryText.innerHTML = generateCointegrationTakeaway(
+      state.cointDepTicker,
+      state.cointIndepTicker,
+      result
+    );
+  }
 
   drawCointegrationSpreadChart();
 }

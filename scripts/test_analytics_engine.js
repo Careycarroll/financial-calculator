@@ -16,6 +16,7 @@ import {
   computeMonthlyReturns
 } from '../asset-analytics/analytics-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
+import { FINANCIAL_TERMS } from '../js/financial-terms.js';
 
 console.log('=== RUNNING ASSET ANALYTICS ENGINE TESTS ===\n');
 
@@ -99,5 +100,22 @@ assert(verdict.riskVerdict.includes('Beta'), 'Risk verdict mentions Beta');
 assert(verdict.badge, 'Verdict has classification badge');
 console.log(`✅ PASS: Verdict generated: Badge "${verdict.badge}"`);
 console.log(`   Summary: ${verdict.summary}`);
+
+// TEST 8: Educational Suite Financial Terms Definitions
+console.log('\n--- TEST 8: Financial Terms Glossary Definitions ---');
+const requiredTerms = [
+  'cagr', 'volatility', 'sharpeRatio', 'sortinoRatio', 'calmarRatio',
+  'maxDrawdown', 'ulcerIndex', 'martinRatio', 'omegaRatio', 'gainToPain',
+  'var95', 'cvar95', 'alpha', 'beta', 'rSquared',
+  'upCapture', 'downCapture', 'captureRatio', 'correlation', 'rollingCorrelation',
+  'autocorrelation', 'lag1Momentum', 'lag3Cycle', 'lag12Seasonality',
+  'cointegration', 'adfStatistic', 'hedgeRatio'
+];
+for (const term of requiredTerms) {
+  assert(FINANCIAL_TERMS[term], `Financial term "${term}" must exist in FINANCIAL_TERMS`);
+  assert(FINANCIAL_TERMS[term].term && FINANCIAL_TERMS[term].term.length > 0, `Term "${term}" has title/term`);
+  assert(FINANCIAL_TERMS[term].definition && FINANCIAL_TERMS[term].definition.length > 20, `Term "${term}" has informative definition`);
+}
+console.log(`✅ PASS: All ${requiredTerms.length} educational glossary terms verified with titles and definitions.`);
 
 console.log('\n🎉 ALL ASSET ANALYTICS TESTS PASSED SUCCESSFULLY!');
