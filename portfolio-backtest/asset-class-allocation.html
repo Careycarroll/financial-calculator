@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backtest Asset Class Allocation Studio (1972-Present) | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="portfolio.css" />
+  </head>
+  <body class="portfolio-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="index.html" class="top-nav-link active">💼 Portfolio Studio</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container portfolio-container">
+      <header class="studio-header">
+        <h1>🏛️ Backtest Asset Class Allocation Studio (1972–Present)</h1>
+        <p class="studio-tagline">
+          Backtest multi-asset portfolios over 54+ years using canonical asset class returns. Overcome fund inception limits to analyze allocations across the 1970s stagflation, 1987 crash, 1990s tech expansion, 2008 GFC, and 2022 rate shock.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Portfolio Backtest Suite Pages">
+        <a href="index.html" class="suite-subnav-link">💼 Portfolio Backtest (Tickers)</a>
+        <a href="asset-class-allocation.html" class="suite-subnav-link active">🏛️ Asset Class Allocation (1972–Present)</a>
+      </nav>
+
+      <!-- Dynamic Status & Control Bar -->
+      <section class="status-summary-bar" aria-label="Asset Class Timeline and Status">
+        <div class="status-pill highlight">
+          <span>Active Timeline:</span>
+          <strong id="status-timeline-range">1972-01 to 2026-08</strong>
+          <span class="status-sub" id="status-total-months">(656 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Benchmark:</span>
+          <strong id="status-benchmark-name">Total US Stock Market</strong>
+        </div>
+        <div class="status-pill">
+          <span>Rebalancing:</span>
+          <strong id="status-rebalance-freq">Annual (Dec)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Initial Capital:</span>
+          <strong id="status-initial-amount">$10,000</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Model Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Alerts Container -->
+      <div id="portfolio-alerts-container" class="portfolio-alerts-wrap"></div>
+
+      <!-- PORTFOLIO MODEL CONFIGURATION PANEL -->
+      <section class="config-card" id="config-panel" aria-label="Asset Class Model Configuration">
+        <div class="config-tabs-nav">
+          <button type="button" class="cfg-tab active" data-cfg-tab="assets" id="tab-btn-cfg-assets">
+            <span>📊 Asset Class Allocations</span>
+          </button>
+          <button type="button" class="cfg-tab" data-cfg-tab="settings" id="tab-btn-cfg-settings">
+            <span>⚙️ Rebalancing &amp; Cashflow Settings</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: ASSETS & ALLOCATIONS -->
+        <div class="cfg-pane" id="cfg-pane-assets">
+          <!-- Preset Allocation Bar -->
+          <div class="presets-row">
+            <span class="presets-label">⚡ Canonical Presets:</span>
+            <div class="presets-buttons-wrap">
+              <button type="button" class="btn-preset-chip" data-preset="sixty-forty">Classic 60/40</button>
+              <button type="button" class="btn-preset-chip" data-preset="global-four-asset">Global 4-Asset Balanced</button>
+              <button type="button" class="btn-preset-chip" data-preset="all-weather">Ray Dalio All-Weather</button>
+              <button type="button" class="btn-preset-chip" data-preset="three-fund">Bogleheads Three-Fund</button>
+              <button type="button" class="btn-preset-chip" data-preset="yale-endowment">Yale Endowment</button>
+              <button type="button" class="btn-preset-chip" data-preset="permanent-portfolio">Permanent Portfolio</button>
+              <button type="button" class="btn-preset-chip" data-preset="maximum-diversification">Swedroe Multi-Factor</button>
+            </div>
+          </div>
+
+          <!-- Benchmark Selector Row -->
+          <div class="benchmark-config-row">
+            <div class="bench-label-group">
+              <label for="select-benchmark-asset" class="control-label-bold">Benchmark Comparison:</label>
+              <span class="control-hint">Asset class used as 100% market index reference line</span>
+            </div>
+            <select id="select-benchmark-asset" class="form-select form-select-bench">
+              <!-- Populated dynamically with optgroups -->
+            </select>
+          </div>
+
+          <!-- Allocation Inputs Grid Table -->
+          <div class="allocations-table-wrap">
+            <table class="allocations-table" id="asset-allocations-table">
+              <thead>
+                <tr>
+                  <th style="width: 40%;">Asset Class</th>
+                  <th style="width: 18%; text-align: center;">Portfolio 1 (%)</th>
+                  <th style="width: 18%; text-align: center;">Portfolio 2 (%)</th>
+                  <th style="width: 18%; text-align: center;">Portfolio 3 (%)</th>
+                  <th style="width: 6%; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="asset-rows-body">
+                <!-- Dynamic Asset Rows -->
+              </tbody>
+              <tfoot>
+                <tr class="totals-row">
+                  <td><strong>Total Allocation:</strong></td>
+                  <td id="total-weight-p1" class="total-weight-cell">100%</td>
+                  <td id="total-weight-p2" class="total-weight-cell">0%</td>
+                  <td id="total-weight-p3" class="total-weight-cell">0%</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Add Asset Button -->
+          <div class="add-asset-actions">
+            <button type="button" class="btn-add-asset" id="btn-add-asset-row">
+              <span>➕ Add Asset Class</span>
+            </button>
+            <span class="add-asset-hint">Select from 28 historical asset classes spanning equities, fixed income, real estate, and commodities.</span>
+          </div>
+        </div>
+
+        <!-- TAB 2: REBALANCING & CASHFLOW SETTINGS -->
+        <div class="cfg-pane" id="cfg-pane-settings" style="display: none;">
+          <div class="settings-grid">
+            <!-- Timeline Limits -->
+            <div class="setting-group-card">
+              <h3>📅 Historical Time Horizon (1972–2026)</h3>
+              <p class="setting-subtext">Choose arbitrary sub-periods to stress test historical market regimes.</p>
+              
+              <div class="setting-row">
+                <label for="select-start-year">Start Date:</label>
+                <div class="date-selector-pair">
+                  <select id="select-start-month" class="form-select date-sub-select"></select>
+                  <select id="select-start-year" class="form-select date-sub-select"></select>
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <label for="select-end-year">End Date:</label>
+                <div class="date-selector-pair">
+                  <select id="select-end-month" class="form-select date-sub-select"></select>
+                  <select id="select-end-year" class="form-select date-sub-select"></select>
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <label for="input-initial-amount">Initial Capital ($):</label>
+                <input type="number" id="input-initial-amount" class="form-input" value="10000" min="100" step="1000" />
+              </div>
+            </div>
+
+            <!-- Rebalancing Frequency -->
+            <div class="setting-group-card">
+              <h3>🔄 Rebalancing Frequency</h3>
+              <p class="setting-subtext">Simulate periodic rebalancing back to target asset weights.</p>
+
+              <div class="setting-row">
+                <label for="select-rebalancing-freq">Frequency:</label>
+                <select id="select-rebalancing-freq" class="form-select">
+                  <option value="annual" selected>Annually (December)</option>
+                  <option value="semi-annual">Semi-Annually (June &amp; December)</option>
+                  <option value="quarterly">Quarterly (End of Quarter)</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="none">No Rebalancing (Buy and Hold Drift)</option>
+                </select>
+              </div>
+
+              <div class="setting-row">
+                <label for="input-rf-rate">Risk-Free Rate (%):</label>
+                <input type="number" id="input-rf-rate" class="form-input" value="3.0" min="0" max="15" step="0.1" />
+              </div>
+            </div>
+
+            <!-- Cashflows -->
+            <div class="setting-group-card">
+              <h3>💵 Periodic Cash Flows</h3>
+              <p class="setting-subtext">Model accumulation (dollar-cost averaging) or retirement withdrawals.</p>
+
+              <div class="setting-row">
+                <label for="select-cashflow-type">Cash Flow Type:</label>
+                <select id="select-cashflow-type" class="form-select">
+                  <option value="none" selected>None (Lump Sum Only)</option>
+                  <option value="contribute">Contribute Cash (+)</option>
+                  <option value="withdraw">Withdraw Cash (-)</option>
+                </select>
+              </div>
+
+              <div class="setting-row" id="row-cashflow-amount" style="display: none;">
+                <label for="input-cashflow-amount">Amount ($):</label>
+                <input type="number" id="input-cashflow-amount" class="form-input" value="500" min="0" step="50" />
+              </div>
+
+              <div class="setting-row" id="row-cashflow-freq" style="display: none;">
+                <label for="select-cashflow-freq">Cashflow Frequency:</label>
+                <select id="select-cashflow-freq" class="form-select">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="annual">Annually</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Row -->
+        <div class="config-actions-row">
+          <button type="button" class="btn-calculate-primary" id="btn-run-backtest">
+            <span>🚀 Run Asset Class Backtest</span>
+          </button>
+          <button type="button" class="btn-reset-secondary" id="btn-reset-defaults">
+            <span>↺ Reset to Defaults</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- RESULTS SECTION -->
+      <section class="portfolio-results-section" id="portfolio-results" aria-label="Backtest Results">
+        <!-- Highlight Scorecards -->
+        <div class="scorecard-grid">
+          <div class="scorecard-metric-card" id="card-top-performer">
+            <span class="scorecard-metric-title">Highest Ending Wealth</span>
+            <span class="scorecard-metric-value" id="sc-best-wealth-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-best-wealth-sub">--</span>
+          </div>
+          <div class="scorecard-metric-card" id="card-top-sharpe">
+            <span class="scorecard-metric-title">Best Risk-Adjusted (Sharpe)</span>
+            <span class="scorecard-metric-value" id="sc-best-sharpe-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-best-sharpe-sub">--</span>
+          </div>
+          <div class="scorecard-metric-card" id="card-lowest-risk">
+            <span class="scorecard-metric-title">Lowest Max Drawdown</span>
+            <span class="scorecard-metric-value" id="sc-lowest-dd-val">--</span>
+            <span class="scorecard-metric-sub" id="sc-lowest-dd-sub">--</span>
+          </div>
+          <div class="scorecard-metric-card" id="card-timeline-summary">
+            <span class="scorecard-metric-title">Historical Time Horizon</span>
+            <span class="scorecard-metric-value" id="sc-timeline-val">54.7 Yrs</span>
+            <span class="scorecard-metric-sub" id="sc-timeline-sub">1972-01 to 2026-08 (656M)</span>
+          </div>
+        </div>
+
+        <!-- CHART 1: Cumulative Growth of $10,000 -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📈 Cumulative Portfolio Growth ($10,000 Initial)</h2>
+              <span class="chart-subtitle">Time-weighted portfolio compounding with periodic calendar rebalancing</span>
+            </div>
+            <div class="chart-controls-group">
+              <label class="scale-toggle-label">
+                <input type="checkbox" id="chk-log-scale" />
+                <span>Log Scale (Logarithmic Y-Axis)</span>
+              </label>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 420px; position: relative;">
+            <canvas id="canvas-growth"></canvas>
+            <div id="tooltip-growth" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- CHART 2: Annual Calendar Returns Bar Chart -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📊 Calendar Year Annual Returns (1972–2026)</h2>
+              <span class="chart-subtitle">Side-by-side annual returns comparing models through crashes, stagflation, and bull expansions</span>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 380px; position: relative;">
+            <canvas id="canvas-annual-returns"></canvas>
+            <div id="tooltip-annual" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- CHART 3: Underwater Drawdowns -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>🌊 Underwater Drawdown Time Series</h2>
+              <span class="chart-subtitle">Peak-to-trough relative wealth loss through 1973 OPEC crisis, 1987 crash, 2000-02 bust, 2008 GFC, and 2022 inflation</span>
+            </div>
+          </div>
+          <div class="canvas-container" style="height: 340px; position: relative;">
+            <canvas id="canvas-drawdowns"></canvas>
+            <div id="tooltip-drawdown" class="chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- TABLE 1: Institutional Performance Scorecards Table -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📋 Institutional Performance Summary (1972–Present)</h2>
+              <span class="chart-subtitle">Standardized Modern Portfolio Theory risk &amp; return metrics</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="table-performance-summary">
+              <thead>
+                <tr>
+                  <th>Portfolio</th>
+                  <th style="text-align: right;">Initial Balance</th>
+                  <th style="text-align: right;">Final Balance</th>
+                  <th style="text-align: right;">CAGR</th>
+                  <th style="text-align: right;">Stdev (Vol)</th>
+                  <th style="text-align: right;">Sharpe Ratio</th>
+                  <th style="text-align: right;">Sortino Ratio</th>
+                  <th style="text-align: right;">Max Drawdown</th>
+                  <th style="text-align: right;">Best Year</th>
+                  <th style="text-align: right;">Worst Year</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-performance-summary">
+                <!-- Dynamic Summary Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 2: Trailing Performance Windows -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>⏳ Trailing Performance Horizons</h2>
+              <span class="chart-subtitle">Multi-horizon annualized returns (YTD, 1Y, 3Y, 5Y, 10Y, 20Y, Full Period)</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="table-trailing-returns">
+              <thead>
+                <tr>
+                  <th>Portfolio</th>
+                  <th style="text-align: right;">1 Year</th>
+                  <th style="text-align: right;">3 Year</th>
+                  <th style="text-align: right;">5 Year</th>
+                  <th style="text-align: right;">10 Year</th>
+                  <th style="text-align: right;">15 Year</th>
+                  <th style="text-align: right;">20 Year</th>
+                  <th style="text-align: right;">Full Period (1972+)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-trailing-returns">
+                <!-- Dynamic Trailing Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 3: Calendar Year-by-Year Table with CSV Export -->
+        <div class="chart-panel-card">
+          <div class="chart-header-row">
+            <div>
+              <h2>📅 Year-by-Year Historical Calendar Returns</h2>
+              <span class="chart-subtitle">Full annual return history from 1972 to present</span>
+            </div>
+            <div class="chart-controls-group">
+              <button type="button" class="btn-csv-download" id="btn-download-csv">
+                <span>📥 Download Historical CSV</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+            <table class="data-table" id="table-annual-returns">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th style="text-align: right;">Portfolio 1</th>
+                  <th style="text-align: right;">Portfolio 2</th>
+                  <th style="text-align: right;">Portfolio 3</th>
+                  <th style="text-align: right;">Benchmark</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-annual-returns">
+                <!-- Dynamic Year Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./asset-class-ui.js"></script>
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>
