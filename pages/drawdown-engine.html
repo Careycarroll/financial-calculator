@@ -14,11 +14,11 @@
       <div class="top-nav-inner">
         <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
         <div class="top-nav-links">
-          <a href="../index.html" class="top-nav-link">Calculators</a>
-          <a href="fire.html" class="top-nav-link">FIRE Dashboard</a>
-          <a href="drawdown-engine.html" class="top-nav-link active">Drawdown Engine</a>
-          <a href="market-stress.html" class="top-nav-link">Market Stress</a>
-          <a href="news.html" class="top-nav-link">News Feed</a>
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="fire.html" class="top-nav-link">🔥 FIRE</a>
+          <a href="drawdown-engine.html" class="top-nav-link active">🛡️ Drawdown Engine</a>
+          <a href="market-stress.html" class="top-nav-link">⚡ Market Stress</a>
+          <a href="../fund-regression/index.html" class="top-nav-link nav-bridge-link" title="Jump to Fund Regression Lab">📈 Regression Lab</a>
         </div>
       </div>
     </nav>
@@ -31,6 +31,16 @@
           David Blanchett spending smile, SECURE 2.0 RMD optimization, and 1966 stagflation stress testing.
         </p>
       </header>
+
+      <!-- In-Page Workflow Jump Bar -->
+      <div class="workflow-jump-bar">
+        <span class="workflow-jump-label">Retirement Suite:</span>
+        <a href="fire.html" class="workflow-jump-pill">🔥 FIRE Dashboard</a>
+        <a href="market-stress.html" class="workflow-jump-pill">⚡ Market Stress Simulator</a>
+        <span class="workflow-jump-divider">|</span>
+        <span class="workflow-jump-label">Cross-Analysis:</span>
+        <a href="../fund-regression/index.html" class="workflow-jump-pill bridge-pill">📈 Fund Regression Lab</a>
+      </div>
 
       <!-- Quick Sync from FIRE Calculator -->
       <section class="bridge-sync-bar" id="drawdown-bridge-sync-bar">
@@ -453,7 +463,9 @@
       </footer>
     </div>
 
+    <script src="../js/nav.js"></script>
     <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
     <script type="module" src="../js/drawdown-engine.js"></script>
   </body>
 </html>
