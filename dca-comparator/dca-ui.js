@@ -9,7 +9,8 @@ import {
   resampleToMonthly,
   findCommonDateRange,
   alignSeries,
-  simulateDCA
+  simulateDCA,
+  parseExpenseRatio
 } from './dca-engine.js';
 import {
   initSessionFunds,
@@ -45,7 +46,12 @@ const state = {
   customStart: null,
   customEnd: null,
   hoverIndex: -1,
-  searchQuery: ''
+  searchQuery: '',
+  // Fee modeling configuration
+  includeFees: true,
+  feeMode: 'reconstruct', // 'reconstruct' | 'overlay'
+  customFeePct: null, // null = use fund's stated expense ratio; number = override
+  showGrossCurve: false
 };
 
 // Simulation results cache for rendering
@@ -110,7 +116,19 @@ function cacheDOMElements() {
     chartLegend: document.getElementById('chart-legend'),
     alertsContainer: document.getElementById('dca-alerts-container'),
     detailsTableBody: document.getElementById('details-table-body'),
-    detailsTableHead: document.getElementById('details-table-head')
+    detailsTableHead: document.getElementById('details-table-head'),
+    // Fee drag controls & modal
+    checkFeeModeling: document.getElementById('check-fee-modeling'),
+    feeControlsPanel: document.getElementById('fee-controls-panel'),
+    btnFeeReconstruct: document.getElementById('btn-fee-reconstruct'),
+    btnFeeOverlay: document.getElementById('btn-fee-overlay'),
+    inputCustomFee: document.getElementById('input-custom-fee'),
+    labelFeeRate: document.getElementById('label-fee-rate'),
+    feeModeHint: document.getElementById('fee-mode-hint'),
+    checkShowGrossCurve: document.getElementById('check-show-gross-curve'),
+    modalFeeInspector: document.getElementById('modal-fee-inspector'),
+    btnCloseFeeModal: document.getElementById('btn-close-fee-modal'),
+    feeModalContent: document.getElementById('fee-modal-content')
   };
 }
 
@@ -426,6 +444,73 @@ function attachEventListeners() {
     runComparison();
   });
 
+  // Fee Modeling Controls
+  if (elements.checkFeeModeling) {
+    elements.checkFeeModeling.addEventListener('change', e => {
+      state.includeFees = e.target.checked;
+      if (elements.feeControlsPanel) {
+        elements.feeControlsPanel.style.display = state.includeFees ? 'block' : 'none';
+      }
+      runComparison();
+    });
+  }
+
+  if (elements.btnFeeReconstruct) {
+    elements.btnFeeReconstruct.addEventListener('click', () => {
+      state.feeMode = 'reconstruct';
+      elements.btnFeeReconstruct.classList.add('active');
+      elements.btnFeeOverlay.classList.remove('active');
+      if (elements.labelFeeRate) elements.labelFeeRate.textContent = 'Annual Fee Override (%)';
+      if (elements.feeModeHint) elements.feeModeHint.textContent = 'Reconstructs pre-fee asset performance to reveal exact dollar erosion from stated expense ratios (e.g. QQQ 0.20%, VOO 0.03%).';
+      runComparison();
+    });
+  }
+
+  if (elements.btnFeeOverlay) {
+    elements.btnFeeOverlay.addEventListener('click', () => {
+      state.feeMode = 'overlay';
+      elements.btnFeeOverlay.classList.add('active');
+      elements.btnFeeReconstruct.classList.remove('active');
+      if (elements.labelFeeRate) elements.labelFeeRate.textContent = 'Advisory / Overlay Fee (%)';
+      if (elements.feeModeHint) elements.feeModeHint.textContent = 'Deducts an additional annual management or advisory fee percentage monthly from asset balances.';
+      runComparison();
+    });
+  }
+
+  if (elements.inputCustomFee) {
+    elements.inputCustomFee.addEventListener('input', e => {
+      const val = parseFloat(e.target.value);
+      state.customFeePct = isNaN(val) ? null : Math.max(0, val);
+      runComparison();
+    });
+  }
+
+  if (elements.checkShowGrossCurve) {
+    elements.checkShowGrossCurve.addEventListener('change', e => {
+      state.showGrossCurve = e.target.checked;
+      if (currentSimulationResults) {
+        renderChartLegend(currentSimulationResults.simulations);
+        renderChart(currentSimulationResults);
+      }
+    });
+  }
+
+  if (elements.btnCloseFeeModal) {
+    elements.btnCloseFeeModal.addEventListener('click', closeFeeModal);
+  }
+
+  if (elements.modalFeeInspector) {
+    elements.modalFeeInspector.addEventListener('click', e => {
+      if (e.target === elements.modalFeeInspector) closeFeeModal();
+    });
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && elements.modalFeeInspector && !elements.modalFeeInspector.classList.contains('hidden')) {
+      closeFeeModal();
+    }
+  });
+
   // Mode buttons
   elements.btnModeCalendar.addEventListener('click', () => {
     if (state.viewMode === 'calendar') return;
@@ -685,11 +770,19 @@ export function runComparison() {
 
   // Execute DCA for each aligned fund series
   const simulations = alignment.series.map(s => {
-    // Run active simulation with user's current DRIP setting
+    // Determine effective fee for this fund
+    const fundER = parseExpenseRatio(s.fund.expenseRatio || s.fund.rawFund?.expenseRatio);
+    const effectiveFeePct = state.includeFees
+      ? (state.customFeePct != null && !isNaN(state.customFeePct) ? state.customFeePct : fundER)
+      : 0;
+
+    // Run active simulation with user's current DRIP and Fee settings
     const activeSim = simulateDCA(s.data, {
       initialBalance: state.initialBalance,
       monthlyDeposit: state.monthlyDeposit,
-      useDRIP: state.useDRIP
+      useDRIP: state.useDRIP,
+      feeMode: state.feeMode,
+      annualFeePct: effectiveFeePct
     });
 
     // Also run paired simulation (DRIP ON vs DRIP OFF) to quantify exact dividend contribution
@@ -698,7 +791,9 @@ export function runComparison() {
       : simulateDCA(s.data, {
           initialBalance: state.initialBalance,
           monthlyDeposit: state.monthlyDeposit,
-          useDRIP: true
+          useDRIP: true,
+          feeMode: state.feeMode,
+          annualFeePct: effectiveFeePct
         });
 
     const simNoDRIP = !state.useDRIP
@@ -706,7 +801,9 @@ export function runComparison() {
       : simulateDCA(s.data, {
           initialBalance: state.initialBalance,
           monthlyDeposit: state.monthlyDeposit,
-          useDRIP: false
+          useDRIP: false,
+          feeMode: state.feeMode,
+          annualFeePct: effectiveFeePct
         });
 
     const dripPayback = Math.max(0, simDRIP.metrics.finalBalance - simNoDRIP.metrics.finalBalance);
@@ -717,11 +814,13 @@ export function runComparison() {
     return {
       fund: s.fund,
       trajectory: activeSim.trajectory,
+      grossTrajectory: activeSim.grossTrajectory,
       metrics: activeSim.metrics,
       dripPayback,
       dripPaybackPct,
       dripFinalBalance: simDRIP.metrics.finalBalance,
-      noDripFinalBalance: simNoDRIP.metrics.finalBalance
+      noDripFinalBalance: simNoDRIP.metrics.finalBalance,
+      effectiveFeePct
     };
   });
 
@@ -829,6 +928,19 @@ function renderKPICards(simulations) {
       </div>
     `;
 
+    const isFeeActive = state.includeFees && s.effectiveFeePct > 0;
+    const feePillHtml = `
+      <div class="kpi-fee-pill ${isFeeActive ? '' : 'inactive'}" data-inspect-ticker="${s.fund.ticker || s.fund.name}" title="${isFeeActive ? 'Click to inspect lifetime cost breakdown and fee drag' : 'Fee modeling is currently inactive or 0%'}">
+        <span class="fee-pill-label">
+          🏷️ Fee Drag (${s.effectiveFeePct.toFixed(2)}% ER):
+        </span>
+        <span class="fee-pill-val">
+          -${formatCurrency(s.metrics.compoundedFeeDrag)} (${s.metrics.feeErosionPct.toFixed(1)}% of gain)
+        </span>
+        <span class="fee-pill-btn">Inspect 🔍</span>
+      </div>
+    `;
+
     card.innerHTML = `
       ${isLeader ? '<div class="leader-badge">★ Top Performer</div>' : ''}
       <div class="kpi-card-header">
@@ -845,6 +957,7 @@ function renderKPICards(simulations) {
       </div>
 
       ${dripPillHtml}
+      ${feePillHtml}
 
       <div class="kpi-stats-table">
         <div class="kpi-stat-row">
@@ -874,11 +987,37 @@ function renderKPICards(simulations) {
           </strong>
         </div>
         <div class="kpi-stat-row">
+          <span>Stated Expense Ratio</span>
+          <strong style="color: #cbd5e1;">${s.effectiveFeePct.toFixed(2)}%</strong>
+        </div>
+        ${state.includeFees && s.effectiveFeePct > 0 ? `
+        <div class="kpi-stat-row">
+          <span>Total Direct Fees Paid</span>
+          <strong style="color: #f87171;">-${formatCurrency(s.metrics.totalFeesPaid)}</strong>
+        </div>
+        <div class="kpi-stat-row">
+          <span>Compounded Lost Opportunity</span>
+          <strong style="color: #f87171;">-${formatCurrency(s.metrics.lostOpportunityCost)}</strong>
+        </div>
+        <div class="kpi-stat-row">
+          <span>Zero-Fee Wealth Potential</span>
+          <strong style="color: #38bdf8;">${formatCurrency(s.metrics.grossFinalBalance)}</strong>
+        </div>
+        ` : ''}
+        <div class="kpi-stat-row">
           <span>Accumulated Shares</span>
           <strong>${s.metrics.finalShares.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
         </div>
       </div>
     `;
+
+    // Bind fee inspection trigger
+    const feePill = card.querySelector('.kpi-fee-pill');
+    if (feePill) {
+      feePill.addEventListener('click', () => {
+        openFeeInspectorModal(s.fund.ticker || s.fund.name);
+      });
+    }
 
     elements.kpiCardsContainer.appendChild(card);
   });
@@ -905,6 +1044,16 @@ function renderChartLegend(simulations) {
       <span style="font-weight:700; color:var(--text-primary);">${s.fund.ticker || s.fund.name}</span>
     `;
     elements.chartLegend.appendChild(item);
+
+    if (state.showGrossCurve) {
+      const grossItem = document.createElement('div');
+      grossItem.className = 'legend-item';
+      grossItem.innerHTML = `
+        <span class="legend-color-line dashed" style="background-color: ${s.fund.color}; opacity: 0.6;"></span>
+        <span style="font-size: 0.72rem; color: #94a3b8;">${s.fund.ticker || s.fund.name} (0%-Fee Gross)</span>
+      `;
+      elements.chartLegend.appendChild(grossItem);
+    }
   });
 }
 
@@ -1010,8 +1159,27 @@ function renderChart(data) {
   ctx.stroke();
   ctx.restore();
 
-  // 4. Draw Fund Curves
+  // 4. Draw Fund Curves (Net and optional 0%-Fee Gross)
   data.simulations.forEach(s => {
+    // Optional Gross (0%-Fee) baseline curve
+    if (state.showGrossCurve && s.grossTrajectory && s.grossTrajectory.length > 0) {
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = s.fund.color;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1.75;
+      ctx.beginPath();
+      s.grossTrajectory.forEach((t, i) => {
+        const x = toX(i);
+        const y = toY(t.portfolioValue);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Actual Portfolio Curve
     ctx.strokeStyle = s.fund.color;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -1162,6 +1330,10 @@ function renderDetailsTable(dates, simulations, totalContributedCurve) {
   let headHtml = '<tr><th>Month / Date</th><th>Principal Invested</th>';
   simulations.forEach(s => {
     headHtml += `<th style="color:${s.fund.color}">${s.fund.ticker || s.fund.name} Balance</th>`;
+    if (state.includeFees && s.effectiveFeePct > 0) {
+      headHtml += `<th style="color:#f87171;">${s.fund.ticker || s.fund.name} Fee Paid</th>`;
+      headHtml += `<th style="color:#38bdf8;">${s.fund.ticker || s.fund.name} 0%-Fee Gross</th>`;
+    }
   });
   headHtml += '</tr>';
   elements.detailsTableHead.innerHTML = headHtml;
@@ -1175,10 +1347,150 @@ function renderDetailsTable(dates, simulations, totalContributedCurve) {
     rowsHtml += `<tr><td><strong>${dates[i]}</strong></td><td>${formatCurrency(totalContributedCurve[i])}</td>`;
     simulations.forEach(s => {
       rowsHtml += `<td>${formatCurrency(s.trajectory[i].portfolioValue)}</td>`;
+      if (state.includeFees && s.effectiveFeePct > 0) {
+        rowsHtml += `<td style="color:#f87171;">-${formatCurrency(s.trajectory[i].monthlyFee || 0)}</td>`;
+        rowsHtml += `<td style="color:#38bdf8;">${formatCurrency(s.trajectory[i].grossPortfolioValue || s.trajectory[i].portfolioValue)}</td>`;
+      }
     });
     rowsHtml += '</tr>';
   }
   elements.detailsTableBody.innerHTML = rowsHtml;
+}
+
+/**
+ * Opens interactive Fee Impact Inspector Modal for a selected fund
+ * @param {string} ticker
+ */
+function openFeeInspectorModal(ticker) {
+  if (!currentSimulationResults || !elements.modalFeeInspector || !elements.feeModalContent) return;
+  const sim = currentSimulationResults.simulations.find(s => (s.fund.ticker || s.fund.name) === ticker) || currentSimulationResults.simulations[0];
+  if (!sim) return;
+
+  const fund = sim.fund;
+  const metrics = sim.metrics;
+  const grossFinal = metrics.grossFinalBalance;
+  const netFinal = metrics.finalBalance;
+  const directFees = metrics.totalFeesPaid;
+  const feeDrag = metrics.compoundedFeeDrag;
+  const oppCost = metrics.lostOpportunityCost;
+  const feePct = sim.effectiveFeePct;
+  const months = metrics.totalMonths;
+  const years = (months / 12).toFixed(1);
+
+  // Compute alternative fee tiers for comparison over this exact period
+  const tiers = [
+    { name: 'Ultra-Low Index (VOO tier)', fee: 0.03 },
+    { name: `${fund.ticker || 'Current Fund'} (${feePct.toFixed(2)}%)`, fee: feePct, isCurrent: true },
+    { name: 'Typical Active ETF', fee: 0.50 },
+    { name: 'Financial Advisor (+1% Fee)', fee: feePct + 1.00 }
+  ];
+
+  const tierRowsHtml = tiers.map(t => {
+    // Run quick simulation for this fee tier
+    const tempSim = simulateDCA(sim.trajectory.map(r => ({ date: r.date, close: r.price, adjClose: r.price })), {
+      initialBalance: state.initialBalance,
+      monthlyDeposit: state.monthlyDeposit,
+      useDRIP: state.useDRIP,
+      feeMode: 'reconstruct',
+      annualFeePct: t.fee
+    });
+    const tGross = tempSim.metrics.grossFinalBalance;
+    const tNet = tempSim.metrics.finalBalance;
+    const tDrag = tempSim.metrics.compoundedFeeDrag;
+    const tFees = tempSim.metrics.totalFeesPaid;
+
+    return `
+      <tr class="${t.isCurrent ? 'active-scenario' : ''}">
+        <td><strong>${t.name}</strong></td>
+        <td>${t.fee.toFixed(2)}%</td>
+        <td style="color: #f87171;">-${formatCurrency(tFees)}</td>
+        <td style="color: #f87171; font-weight: 700;">-${formatCurrency(tDrag)}</td>
+        <td style="color: #38bdf8; font-weight: 700;">${formatCurrency(tNet)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Waterfall percentage calculations
+  const totalWealthPotential = Math.max(1, grossFinal);
+  const investedPct = Math.min(100, (metrics.totalInvested / totalWealthPotential) * 100);
+  const netGainsPct = Math.max(0, ((netFinal - metrics.totalInvested) / totalWealthPotential) * 100);
+  const directFeesPct = Math.max(0, (directFees / totalWealthPotential) * 100);
+  const oppCostPct = Math.max(0, (oppCost / totalWealthPotential) * 100);
+
+  elements.feeModalContent.innerHTML = `
+    <!-- Top KPI Cards -->
+    <div class="fee-summary-cards">
+      <div class="fee-stat-card">
+        <div class="fee-stat-title">Direct Cash Fees Collected</div>
+        <div class="fee-stat-value" style="color: #fca5a5;">-${formatCurrency(directFees)}</div>
+        <div class="fee-stat-sub">Sum of monthly management deductions</div>
+      </div>
+      <div class="fee-stat-card">
+        <div class="fee-stat-title">Lost Opportunity Growth</div>
+        <div class="fee-stat-value" style="color: #f87171;">-${formatCurrency(oppCost)}</div>
+        <div class="fee-stat-sub">Compounding forfeited on paid fees</div>
+      </div>
+      <div class="fee-stat-card">
+        <div class="fee-stat-title">Total Lifetime Fee Drag</div>
+        <div class="fee-stat-value" style="color: #ef4444;">-${formatCurrency(feeDrag)}</div>
+        <div class="fee-stat-sub">${metrics.feeErosionPct.toFixed(1)}% of potential gross profit consumed</div>
+      </div>
+    </div>
+
+    <!-- Waterfall Progress Bar -->
+    <div class="fee-waterfall-wrap">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700;">
+        <span>Total Gross Wealth Breakdown (${formatCurrency(grossFinal)})</span>
+        <span style="color: #38bdf8;">Take-Home: ${formatCurrency(netFinal)}</span>
+      </div>
+      <div class="waterfall-bar-container">
+        <div class="waterfall-segment" style="width: ${investedPct}%; background: #64748b;" title="Principal Invested: ${formatCurrency(metrics.totalInvested)}"></div>
+        <div class="waterfall-segment" style="width: ${netGainsPct}%; background: #2dd4bf;" title="Net Capital Gains: ${formatCurrency(netFinal - metrics.totalInvested)}"></div>
+        <div class="waterfall-segment" style="width: ${directFeesPct}%; background: #f59e0b;" title="Direct Fees Paid: ${formatCurrency(directFees)}"></div>
+        <div class="waterfall-segment" style="width: ${oppCostPct}%; background: #ef4444;" title="Compounded Lost Opportunity: ${formatCurrency(oppCost)}"></div>
+      </div>
+      <div class="waterfall-legend">
+        <div class="waterfall-legend-item"><span class="legend-dot" style="background: #64748b;"></span>Principal Invested</div>
+        <div class="waterfall-legend-item"><span class="legend-dot" style="background: #2dd4bf;"></span>Net Profit Retained</div>
+        <div class="waterfall-legend-item"><span class="legend-dot" style="background: #f59e0b;"></span>Direct Fees Paid</div>
+        <div class="waterfall-legend-item"><span class="legend-dot" style="background: #ef4444;"></span>Lost Compounding Opportunity</div>
+      </div>
+    </div>
+
+    <!-- Scenario Comparison Table -->
+    <div style="margin-bottom: 0.5rem; font-size: 0.82rem; font-weight: 700; color: #f8fafc;">
+      📊 Comparison: Same Strategy Under Alternative Fee Tiers (${years} Years)
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="fee-scenario-table">
+        <thead>
+          <tr>
+            <th>Fee Scenario</th>
+            <th>Annual Fee</th>
+            <th>Direct Fees Paid</th>
+            <th>Total Compounded Drag</th>
+            <th>Ending Net Wealth</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tierRowsHtml}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Plain-English Verdict Banner -->
+    <div class="fee-verdict-banner">
+      💡 <strong>Cost Takeaway:</strong> With a stated expense ratio of <strong>${feePct.toFixed(2)}%</strong>, holding <strong>${fund.ticker}</strong> over <strong>${years} years</strong> cost you <strong>${formatCurrency(directFees)}</strong> in direct fees. Because those fee dollars weren't invested and compounding, your total lifetime wealth was reduced by <strong>${formatCurrency(feeDrag)}</strong> (${metrics.feeErosionPct.toFixed(1)}% of your gross gains).
+    </div>
+  `;
+
+  elements.modalFeeInspector.classList.remove('hidden');
+}
+
+function closeFeeModal() {
+  if (elements.modalFeeInspector) {
+    elements.modalFeeInspector.classList.add('hidden');
+  }
 }
 
 function showAlert(message, type = 'info') {

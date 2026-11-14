@@ -798,3 +798,179 @@
 .details-table tr:hover td {
   background: rgba(255, 255, 255, 0.03);
 }
+
+/* Fee Pill & Drag Styling */
+.kpi-fee-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  margin: 0.5rem 0;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kpi-fee-pill:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.kpi-fee-pill.inactive {
+  background: rgba(148, 163, 184, 0.05);
+  border-color: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.fee-pill-label {
+  font-weight: 600;
+  color: #fca5a5;
+}
+
+.fee-pill-val {
+  font-weight: 700;
+  color: #f87171;
+}
+
+.fee-pill-btn {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+  font-weight: 600;
+  margin-left: 0.35rem;
+}
+
+/* Fee Inspector Modal Content */
+.fee-modal-body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  color: var(--text-primary, #f8fafc);
+}
+
+.fee-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .fee-summary-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fee-stat-card {
+  background: #0f172a;
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.fee-stat-title {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #94a3b8);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.fee-stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+
+.fee-stat-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* Waterfall progress bar */
+.fee-waterfall-wrap {
+  background: #0f172a;
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.waterfall-bar-container {
+  display: flex;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0.6rem 0;
+  background: #1e293b;
+}
+
+.waterfall-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.waterfall-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+}
+
+.waterfall-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Scenario table */
+.fee-scenario-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+  text-align: right;
+}
+
+.fee-scenario-table th,
+.fee-scenario-table td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.fee-scenario-table th {
+  background: #1e293b;
+  color: var(--text-secondary, #94a3b8);
+  font-weight: 700;
+}
+
+.fee-scenario-table td:first-child,
+.fee-scenario-table th:first-child {
+  text-align: left;
+}
+
+.fee-scenario-table tr.active-scenario {
+  background: rgba(239, 68, 68, 0.08);
+  font-weight: 700;
+}
+
+.fee-verdict-banner {
+  background: rgba(56, 189, 248, 0.08);
+  border-left: 3px solid #38bdf8;
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #e2e8f0;
+}

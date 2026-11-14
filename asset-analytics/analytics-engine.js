@@ -16,12 +16,14 @@ import {
 
 /**
  * Computes Growth of a fixed principal (e.g. $10,000) over aligned monthly return series.
+ * Supports dividend reinvestment and optional 0%-fee gross curve reconstruction.
  * @param {Array<{date: string, return: number}>} fundReturns - Fund monthly returns
  * @param {Array<{date: string, return: number}>} benchReturns - Benchmark monthly returns (optional)
  * @param {number} [initialAmount=10000] - Starting balance
- * @returns {Array<{date: string, fundGrowth: number, benchGrowth: number|null}>}
+ * @param {object|number} [options={}] - Options object or numeric annual fee %
+ * @returns {Array<{date: string, fundGrowth: number, grossFundGrowth: number, benchGrowth: number|null}>}
  */
-export function calculateGrowthOf10k(fundReturns, benchReturns = [], initialAmount = 10000) {
+export function calculateGrowthOf10k(fundReturns, benchReturns = [], initialAmount = 10000, options = {}) {
   if (!fundReturns || fundReturns.length === 0) return [];
 
   const benchMap = new Map();
@@ -29,20 +31,27 @@ export function calculateGrowthOf10k(fundReturns, benchReturns = [], initialAmou
     benchReturns.forEach(b => benchMap.set(b.date, b.return));
   }
 
+  const rawFee = typeof options === 'number' ? options : (options?.annualExpenseRatio || 0);
+  const er = typeof rawFee === 'string' ? parseFloat(rawFee.replace('%', '')) : rawFee;
+  const mFee = (!isNaN(er) && er > 0) ? (er / 100) / 12 : 0;
+
   const results = [];
   let fundValue = initialAmount;
+  let grossFundValue = initialAmount;
   let benchValue = benchReturns && benchReturns.length > 0 ? initialAmount : null;
 
   // Add initial period (T=0)
   results.push({
     date: fundReturns[0].date,
     fundGrowth: initialAmount,
+    grossFundGrowth: initialAmount,
     benchGrowth: benchValue
   });
 
   for (let i = 0; i < fundReturns.length; i++) {
     const f = fundReturns[i];
     fundValue *= (1 + f.return);
+    grossFundValue *= (1 + f.return + mFee);
 
     if (benchValue !== null && benchMap.has(f.date)) {
       benchValue *= (1 + benchMap.get(f.date));
@@ -51,11 +60,64 @@ export function calculateGrowthOf10k(fundReturns, benchReturns = [], initialAmou
     results.push({
       date: f.date,
       fundGrowth: Math.round(fundValue * 100) / 100,
+      grossFundGrowth: Math.round(grossFundValue * 100) / 100,
       benchGrowth: benchValue !== null ? Math.round(benchValue * 100) / 100 : null
     });
   }
 
   return results;
+}
+
+/**
+ * Calculates cumulative fee drag, cash fees paid, and lost opportunity cost for an asset series.
+ * @param {Array<{date: string, return: number}>} fundReturns
+ * @param {number|string} annualExpenseRatio - e.g. 0.20 or "0.20%"
+ * @param {number} [initialAmount=10000]
+ * @returns {object}
+ */
+export function calculateFundFeeDrag(fundReturns, annualExpenseRatio, initialAmount = 10000) {
+  const er = typeof annualExpenseRatio === 'string' ? parseFloat(annualExpenseRatio.replace('%', '')) : annualExpenseRatio;
+  if (!fundReturns || fundReturns.length === 0 || !er || isNaN(er) || er <= 0) {
+    return {
+      annualExpenseRatio: 0,
+      totalFeesPaid: 0,
+      compoundedFeeDrag: 0,
+      lostOpportunityCost: 0,
+      feeErosionPct: 0,
+      grossFinal: initialAmount,
+      netFinal: initialAmount
+    };
+  }
+
+  const mFee = (er / 100) / 12;
+  let netVal = initialAmount;
+  let grossVal = initialAmount;
+  let totalFees = 0;
+
+  for (let i = 0; i < fundReturns.length; i++) {
+    const rNet = fundReturns[i].return;
+    const rGross = rNet + mFee;
+    const fee = netVal * mFee;
+    totalFees += fee;
+
+    netVal *= (1 + rNet);
+    grossVal *= (1 + rGross);
+  }
+
+  const feeDrag = Math.max(0, grossVal - netVal);
+  const oppCost = Math.max(0, feeDrag - totalFees);
+  const grossProfit = grossVal - initialAmount;
+  const feeErosionPct = grossProfit > 0 ? (feeDrag / grossProfit) * 100 : 0;
+
+  return {
+    annualExpenseRatio: er,
+    totalFeesPaid: Math.round(totalFees * 100) / 100,
+    compoundedFeeDrag: Math.round(feeDrag * 100) / 100,
+    lostOpportunityCost: Math.round(oppCost * 100) / 100,
+    feeErosionPct: Math.round(feeErosionPct * 100) / 100,
+    grossFinal: Math.round(grossVal * 100) / 100,
+    netFinal: Math.round(netVal * 100) / 100
+  };
 }
 
 /**
@@ -416,9 +478,9 @@ export function calculateVaRAndCVaR(returns, confidence = 0.95) {
  * @param {Object} rollingStats - Output from calculateRollingMetrics
  * @returns {{ summary: string, riskVerdict: string, winVerdict: string, badge: string }}
  */
-export function generateSimpleVerdict(fundProfile, benchProfile, topEpisodes, rollingStats) {
+export function generateSimpleVerdict(fundProfile, benchProfile, topEpisodes, rollingStats, feeDragInfo = null) {
   if (!fundProfile) {
-    return { summary: '', riskVerdict: '', winVerdict: '', badge: 'Neutral' };
+    return { summary: '', riskVerdict: '', winVerdict: '', badge: 'Neutral', feeVerdict: '' };
   }
 
   const cagrPct = (fundProfile.cagr * 100).toFixed(1);
@@ -457,6 +519,16 @@ export function generateSimpleVerdict(fundProfile, benchProfile, topEpisodes, ro
     winVerdict = `Outperformed the benchmark in **${rollingStats.winRate}%** of 36-month holding periods (${rollingStats.outperformedWindows} of ${rollingStats.totalWindows} windows).`;
   }
 
+  // Fee drag verdict
+  let feeVerdict = '';
+  if (feeDragInfo && feeDragInfo.annualExpenseRatio > 0 && feeDragInfo.compoundedFeeDrag > 0) {
+    const erStr = feeDragInfo.annualExpenseRatio.toFixed(2);
+    const dragStr = `$${Math.round(feeDragInfo.compoundedFeeDrag).toLocaleString()}`;
+    const paidStr = `$${Math.round(feeDragInfo.totalFeesPaid).toLocaleString()}`;
+    const oppStr = `$${Math.round(feeDragInfo.lostOpportunityCost).toLocaleString()}`;
+    feeVerdict = `Stated **${erStr}% Expense Ratio** cost a total of **${dragStr}** on a $10,000 balance (${paidStr} direct fees + **${oppStr}** lost compounding).`;
+  }
+
   // Overall badge
   let badge = 'Balanced';
   if (fundProfile.sharpe >= 1.0 && fundProfile.alpha > 0.02) {
@@ -471,6 +543,7 @@ export function generateSimpleVerdict(fundProfile, benchProfile, topEpisodes, ro
     summary: summary,
     riskVerdict: riskVerdict,
     winVerdict: winVerdict,
+    feeVerdict: feeVerdict,
     badge: badge
   };
 }

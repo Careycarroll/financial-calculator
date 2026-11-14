@@ -158,6 +158,44 @@
                 When checked, uses dividend-adjusted price (<code>Adj Close</code>). Uncheck to simulate price return only without dividend reinvestment.
               </span>
             </div>
+
+            <!-- Fund Fees & Advisory Cost Section -->
+            <div style="margin-top: 0.75rem; border-top: 1px solid rgba(148, 163, 184, 0.15); padding-top: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <label class="checkbox-row" for="check-fee-modeling" style="margin-bottom: 0;">
+                  <input type="checkbox" id="check-fee-modeling" checked />
+                  <span class="checkbox-label" style="font-weight: 700;">Include Fund Costs &amp; Fee Drag</span>
+                </label>
+                <span class="info-tip tip-right" data-tooltip="Fund expense ratios and advisory fees are deducted over time, causing compounded wealth erosion.">ℹ️</span>
+              </div>
+
+              <div id="fee-controls-panel" style="margin-top: 0.5rem; padding-left: 1.6rem;">
+                <!-- Fee Calculation Mode Segmented Toggle -->
+                <div class="form-field" style="margin-bottom: 0.5rem;">
+                  <label style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Calculation Mode:</label>
+                  <div class="segmented-control">
+                    <button type="button" class="segmented-btn active" id="btn-fee-reconstruct" title="Reconstruct theoretical zero-fee baseline using fund's stated expense ratio">🔬 Gross vs Net (Fund ER)</button>
+                    <button type="button" class="segmented-btn" id="btn-fee-overlay" title="Apply additional custom fee / advisor drag deducted monthly">💼 Fee Drag Overlay</button>
+                  </div>
+                </div>
+
+                <div class="form-grid-2" style="margin-top: 0.5rem;">
+                  <div class="form-field">
+                    <label for="input-custom-fee" id="label-fee-rate" style="font-size: 0.72rem;">Annual Fee Override (%)</label>
+                    <input type="number" id="input-custom-fee" min="0" max="10" step="0.01" placeholder="Default (Fund ER)" />
+                  </div>
+                  <div class="form-field" style="display: flex; flex-direction: column; justify-content: flex-end;">
+                    <label class="checkbox-row" for="check-show-gross-curve" style="font-size: 0.75rem; margin-bottom: 0.35rem;">
+                      <input type="checkbox" id="check-show-gross-curve" />
+                      <span class="checkbox-label">Plot 0%-Fee Curve</span>
+                    </label>
+                  </div>
+                </div>
+                <span style="font-size: 0.71rem; color: #94a3b8; display: block; margin-top: 0.25rem;" id="fee-mode-hint">
+                  Reconstructs pre-fee asset performance to reveal exact dollar erosion from stated expense ratios (e.g. QQQ 0.20%, VOO 0.03%).
+                </span>
+              </div>
+            </div>
           </div>
 
           <!-- 3. Timeline Scrubber & Alignment Mode -->
@@ -237,6 +275,22 @@
       <footer>
         <p>&copy; 2026 Financial Calculator &bull; Client-Side Empirical DCA Comparison Engine</p>
       </footer>
+    </div>
+
+    <!-- Modal: Fee Impact Inspector -->
+    <div class="asset-modal-backdrop hidden" id="modal-fee-inspector" role="dialog" aria-modal="true" aria-labelledby="fee-modal-title">
+      <div class="asset-modal-card fee-modal-card">
+        <div class="asset-modal-header">
+          <div class="asset-modal-title-row">
+            <span class="asset-modal-target-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">Cost Analysis</span>
+            <h3 id="fee-modal-title">🏷️ Fund Cost &amp; Fee Erosion Inspector</h3>
+          </div>
+          <button type="button" class="modal-close-btn" id="btn-close-fee-modal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="fee-modal-body" id="fee-modal-content">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
     </div>
 
     <!-- Scripts -->

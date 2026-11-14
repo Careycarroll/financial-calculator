@@ -808,6 +808,11 @@ function renderSimpleScorecard() {
     }
 
     const tr = document.createElement('tr');
+    const erVal = p.expenseRatio ? parseFloat(String(p.expenseRatio).replace('%', '')) : 0;
+    const grossAlphaText = (!isBench && erVal > 0)
+      ? `<div style="font-size:0.68rem; color:#94a3b8; font-weight: normal;">Gross: ${((p.capm.annualizedAlpha + erVal / 100) * 100).toFixed(2)}% (ER ${p.expenseRatio})</div>`
+      : '';
+
     tr.innerHTML = `
       <td>
         <strong style="color:${p.color}">${p.ticker}</strong>
@@ -815,7 +820,10 @@ function renderSimpleScorecard() {
       </td>
       <td><strong>${(p.fundRisk.cagr * 100).toFixed(2)}%</strong></td>
       <td>${riskDesc}</td>
-      <td style="color:${alphaColor}"><strong>${isBench ? '0.00% (Base)' : `${alphaSign}${(p.capm.annualizedAlpha * 100).toFixed(2)}% / yr`}</strong></td>
+      <td style="color:${alphaColor}">
+        <strong>${isBench ? '0.00% (Base)' : `${alphaSign}${(p.capm.annualizedAlpha * 100).toFixed(2)}% / yr`}</strong>
+        ${grossAlphaText}
+      </td>
       <td>${sharpeDesc}</td>
       <td><strong style="color:${gtpColor}">${p.fundRisk.gainToPainRatio.toFixed(2)}x</strong></td>
       <td style="color:${m2Color}"><strong>${m2Sign}${(p.mSquared * 100).toFixed(2)}%</strong></td>

@@ -7,6 +7,7 @@
 import assert from 'node:assert';
 import {
   calculateGrowthOf10k,
+  calculateFundFeeDrag,
   calculateAnnualReturns,
   calculateDrawdownEpisodes,
   calculateMonthlyCalendarHeatmap,
@@ -117,5 +118,25 @@ for (const term of requiredTerms) {
   assert(FINANCIAL_TERMS[term].definition && FINANCIAL_TERMS[term].definition.length > 20, `Term "${term}" has informative definition`);
 }
 console.log(`✅ PASS: All ${requiredTerms.length} educational glossary terms verified with titles and definitions.`);
+
+// TEST 9: Fund Cost & Fee Drag Suite Modeling
+console.log('\n--- TEST 9: Fund Cost & Fee Drag Suite Modeling ---');
+const feeDrag = calculateFundFeeDrag(vooReturns, '0.03%', 10000);
+assert(feeDrag.annualExpenseRatio === 0.03, 'Expense ratio parsed as 0.03%');
+assert(feeDrag.compoundedFeeDrag > 0, 'Compounded fee drag is greater than $0');
+assert(feeDrag.compoundedFeeDrag >= feeDrag.totalFeesPaid, 'Compounded fee drag includes lost opportunity compounding');
+assert(feeDrag.grossFinal > feeDrag.netFinal, '0%-fee gross final balance exceeds net balance');
+
+// Reconstructed Growth with Fee
+const growthWithFee = calculateGrowthOf10k(vooReturns, null, 10000, { annualExpenseRatio: '0.03%' });
+assert(growthWithFee.length === vooReturns.length + 1, 'Growth series has T=0 plus all return months');
+const lastGrowth = growthWithFee[growthWithFee.length - 1];
+assert(lastGrowth.grossFundGrowth > lastGrowth.fundGrowth, 'Gross fund growth strictly exceeds net fund growth');
+
+// Verdict with Fee Drag Info
+const verdictWithFee = generateSimpleVerdict(dummyProfile, dummyBench, ddResult.topEpisodes, rolling, feeDrag);
+assert(verdictWithFee.feeVerdict.includes('Expense Ratio'), 'Verdict includes expense ratio commentary');
+console.log(`✅ PASS: Fee drag calculated: Direct Fees $${feeDrag.totalFeesPaid} | Total Drag $${feeDrag.compoundedFeeDrag} | Opp Cost $${feeDrag.lostOpportunityCost}`);
+console.log(`   Fee Verdict: ${verdictWithFee.feeVerdict}`);
 
 console.log('\n🎉 ALL ASSET ANALYTICS TESTS PASSED SUCCESSFULLY!');

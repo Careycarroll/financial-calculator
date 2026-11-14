@@ -8,7 +8,8 @@ import {
   findCommonDateRange,
   alignSeries,
   simulateDCA,
-  solveIRR
+  solveIRR,
+  parseExpenseRatio
 } from '../dca-comparator/dca-engine.js';
 
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
@@ -101,5 +102,46 @@ const testCashFlows = [
 ];
 const testIRR = solveIRR(testCashFlows);
 assert(Math.abs(testIRR - 0.10) < 0.0001, 'Simple 1-year 10% cash flow returns exactly 10.00% IRR');
+
+console.log('\n--- TEST 9: Expense Ratio Parsing & Zero-Fee Identity ---');
+assert(parseExpenseRatio('0.20%') === 0.20, 'Parses 0.20% string');
+assert(parseExpenseRatio('0.03%') === 0.03, 'Parses 0.03% string');
+assert(parseExpenseRatio(0.75) === 0.75, 'Handles raw numeric expense ratio');
+assert(parseExpenseRatio(null) === 0, 'Gracefully handles null');
+
+const simZeroFee = simulateDCA(schd.data, {
+  initialBalance: 10000,
+  monthlyDeposit: 500,
+  annualFeePct: 0,
+  feeMode: 'reconstruct'
+});
+assert(simZeroFee.metrics.compoundedFeeDrag === 0, 'Zero-fee simulation yields $0 fee drag');
+assert(simZeroFee.metrics.totalFeesPaid === 0, 'Zero-fee simulation yields $0 fees paid');
+assert(simZeroFee.metrics.grossFinalBalance === simZeroFee.metrics.finalBalance, 'Zero-fee gross equals net balance');
+
+console.log('\n--- TEST 10: Fee Drag Modeling & Compounded Opportunity Cost ---');
+const simReconstruct = simulateDCA(schd.data, {
+  initialBalance: 10000,
+  monthlyDeposit: 500,
+  annualFeePct: 0.06, // SCHD expense ratio 0.06%
+  feeMode: 'reconstruct'
+});
+assert(simReconstruct.metrics.grossFinalBalance > simReconstruct.metrics.finalBalance, 'Gross reconstructed balance exceeds net balance');
+assert(simReconstruct.metrics.totalFeesPaid > 0, 'Positive direct fees calculated');
+assert(simReconstruct.metrics.compoundedFeeDrag > simReconstruct.metrics.totalFeesPaid, 'Compounded fee drag exceeds direct cash fees due to lost compounding');
+assert(simReconstruct.metrics.lostOpportunityCost > 0, 'Lost opportunity cost is positive');
+
+const simOverlay = simulateDCA(schd.data, {
+  initialBalance: 10000,
+  monthlyDeposit: 500,
+  annualFeePct: 1.0, // 1% advisory fee overlay
+  feeMode: 'overlay'
+});
+assert(simOverlay.metrics.grossFinalBalance > simOverlay.metrics.finalBalance, 'Overlay mode reduces net balance below gross baseline');
+assert(simOverlay.metrics.totalFeesPaid > 0, 'Overlay fees collected');
+assert(simOverlay.metrics.compoundedFeeDrag > 1000, '1% fee creates substantial multi-thousand dollar drag');
+
+console.log(`SCHD 0.06% ER: Gross $${simReconstruct.metrics.grossFinalBalance.toLocaleString()} vs Net $${simReconstruct.metrics.finalBalance.toLocaleString()} | Fee Drag: $${simReconstruct.metrics.compoundedFeeDrag.toLocaleString()} (Opportunity: $${simReconstruct.metrics.lostOpportunityCost.toLocaleString()})`);
+console.log(`SCHD 1.00% Advisory: Gross $${simOverlay.metrics.grossFinalBalance.toLocaleString()} vs Net $${simOverlay.metrics.finalBalance.toLocaleString()} | Drag: $${simOverlay.metrics.compoundedFeeDrag.toLocaleString()}`);
 
 console.log('\n🎉 ALL ENGINE TESTS PASSED SUCCESSFULLY!');
