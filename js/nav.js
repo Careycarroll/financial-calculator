@@ -36,6 +36,7 @@
         { id: "rolling-optimization", name: "Rolling Optimization", icon: "🔄", path: "portfolio-optimization/rolling-optimization.html", desc: "Out-of-sample walk-forward portfolio optimization & dynamic rebalancing" },
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
         { id: "manager-performance", name: "Manager Performance", icon: "🏆", path: "fund-regression/manager-performance.html", desc: "Active manager vs benchmark tracking error, Information Ratio & skill test" },
+        { id: "factor-analysis", name: "Factor Analysis", icon: "🔬", path: "fund-regression/factor-analysis.html", desc: "Fama-French & Carhart multi-factor regressions, style drift & attribution" },
         { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
         { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
         { id: "asset-liability", name: "Asset Liability Modeling", icon: "⚖️", path: "monte-carlo/asset-liability.html", desc: "Stress test asset allocation against future liability obligations" },
