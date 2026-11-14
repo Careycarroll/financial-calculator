@@ -333,6 +333,30 @@ export const TOOLS_CATALOG = [
     keywords: ["factor analysis", "fama french", "carhart", "factor regression", "rolling loadings", "style drift", "smb", "hml", "momentum", "attribution"]
   },
   {
+    id: "pca",
+    title: "Principal Component Analysis (PCA)",
+    shortTitle: "Factor PCA",
+    path: "fund-regression/pca.html",
+    icon: "🧠",
+    badge: "STUDIO",
+    desc: "Decompose multi-asset return covariance into orthogonal statistical factors. Analyze Scree plot eigenvalues, variance explained, and asset loadings.",
+    suiteId: "quant",
+    workflowId: "quant-risk",
+    keywords: ["pca", "principal component", "eigenvalue", "eigenvector", "scree plot", "factor loadings", "dimensionality", "orthogonal"]
+  },
+  {
+    id: "factor-matching",
+    title: "Match Factor Exposures & Risk Parity",
+    shortTitle: "Factor Matching",
+    path: "fund-regression/factor-matching.html",
+    icon: "🎯",
+    badge: "STUDIO",
+    desc: "Replicate target factor exposures with low-cost liquid ETFs via quadratic optimization, or solve Equal Risk Contribution across factors.",
+    suiteId: "quant",
+    workflowId: "quant-risk",
+    keywords: ["match factor", "factor matching", "synthetic replication", "risk parity", "erc", "equal risk", "factor allocation", "hedge fund replication"]
+  },
+  {
     id: "options",
     title: "Options Strategy Lab",
     shortTitle: "Options Lab",

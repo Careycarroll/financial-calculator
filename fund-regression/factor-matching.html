@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Match Factor Exposures &amp; Risk Factor Allocation | Financial Tools</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="regression.css" />
+    <style>
+      .scorecard-grid-4 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .target-inputs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+      }
+      .target-input-box {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+      }
+      .target-input-box label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 0.25rem;
+      }
+      .target-input-box input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 700;
+        outline: none;
+      }
+      .candidate-checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
+      .candidate-check-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0.45rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        transition: all 0.15s ease;
+      }
+      .candidate-check-item:hover {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.1);
+      }
+      .candidate-check-item input[type="checkbox"] {
+        accent-color: #38bdf8;
+      }
+      .preset-chip-btn {
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid #334155;
+        color: #cbd5e1;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.15s ease;
+      }
+      .preset-chip-btn:hover, .preset-chip-btn.active {
+        background: rgba(56, 189, 248, 0.18);
+        border-color: #38bdf8;
+        color: #38bdf8;
+      }
+    </style>
+  </head>
+  <body class="regression-page">
+    <!-- Top Global Navigation Bar -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="index.html" class="top-nav-link active">📈 Factor &amp; Regressions</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="regression-container">
+      <!-- Studio Header -->
+      <header class="regression-header">
+        <h1>🎯 Match Factor Exposures &amp; Risk Parity</h1>
+        <p class="regression-tagline">
+          Replicate target factor exposures using a liquid basket of low-cost ETFs via constrained quadratic optimization, or allocate equal risk across economic risk factors.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Factor & Performance Suite Pages">
+        <a href="index.html" class="suite-subnav-link">📈 Factor Regression &amp; SML Lab</a>
+        <a href="manager-performance.html" class="suite-subnav-link">🏆 Manager Performance Analysis</a>
+        <a href="factor-analysis.html" class="suite-subnav-link">🔬 Factor Analysis Studio</a>
+        <a href="pca.html" class="suite-subnav-link">🧠 Principal Component Analysis (PCA)</a>
+        <a href="factor-matching.html" class="suite-subnav-link active">🎯 Match Factor Exposures &amp; Risk Parity</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-matching">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Synthetic Factor Replication &amp; Fee Arbitrage</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🎯 Executive Purpose</div>
+              <strong>Fee Arbitrage &amp; Synthetic Portfolios</strong>
+              <p>Why pay 1.5%–2.0% active management fees when you can replicate a hedge fund's multi-factor exposure using 3–5 low-cost index ETFs at 0.05% expense ratio? Replicate target risk profiles with mathematical precision.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">📋 How to Use</div>
+              <strong>3-Step Rapid Workflow</strong>
+              <p>1. Choose a target fund profile or enter custom factor betas (&beta;_MKT, &beta;_SMB, &beta;_HML).<br>2. Check candidate replicating ETFs.<br>3. Run optimizer to solve optimal long-only weights (\sum w_i = 1, w_i &ge; 0).</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🔍 What to Expect</div>
+              <strong>Replication Dynamics</strong>
+              <p>• Value &amp; Size Targets: The optimizer blends Large Value (VTV) and Small Value (IJS).<br>• Factor Risk Parity: Equities receive lower capital weights while Bonds receive higher capital weights to equalize risk contribution.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">💡 Executive Output Decoder</div>
+              <strong>Replication Fit R² &amp; Tracking Error</strong>
+              <p>• Replication Fit &gt; 90%: Near-perfect factor replication; active returns are driven by systematic beta tilts rather than unique stock picking.<br>• RMSE &lt; 0.10: Tight factor alignment across cycles.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Workflow Mode Switcher -->
+      <section class="config-card mb-4">
+        <div class="config-card-inner">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <label class="control-label-bold" style="display: block; margin-bottom: 0.35rem;">
+                Select Quantitative Optimization Mode:
+              </label>
+              <div class="mode-segmented-control" id="matching-mode-control" style="display: inline-flex;">
+                <button type="button" class="mode-btn active" data-mode="match">
+                  <span>🎯 Match Target Factor Exposures</span>
+                  <span class="mode-desc">Synthetic ETF Replication</span>
+                </button>
+                <button type="button" class="mode-btn" data-mode="risk-parity">
+                  <span>⚖️ Risk Factor Allocation</span>
+                  <span class="mode-desc">Equal Risk Contribution (ERC)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Target Profile Presets -->
+            <div id="target-presets-section">
+              <label class="control-label-bold" style="display: block; margin-bottom: 0.35rem;">
+                Target Exposure Presets:
+              </label>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="preset-buttons-container">
+                <button type="button" class="preset-chip-btn active" data-preset="berkshire">
+                  🏛️ Berkshire Hathaway (Value Tilt)
+                </button>
+                <button type="button" class="preset-chip-btn" data-preset="small-value">
+                  🔬 Small-Cap Pure Value
+                </button>
+                <button type="button" class="preset-chip-btn" data-preset="tech-momentum">
+                  🚀 High-Beta Tech Momentum
+                </button>
+                <button type="button" class="preset-chip-btn" data-preset="defensive-lowbeta">
+                  🛡️ Low-Beta Quality Dividend
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Target Factor Loadings Inputs (Mode: Match) -->
+          <div id="target-inputs-section" style="margin-top: 1.25rem;">
+            <label class="control-label-bold" style="display: block;">
+              Target Factor Beta Loadings (&beta;*):
+            </label>
+            <div class="target-inputs-grid">
+              <div class="target-input-box">
+                <label for="input-beta-mkt">Market (&beta;_MKT)</label>
+                <input type="number" id="input-beta-mkt" value="0.80" step="0.05" />
+              </div>
+              <div class="target-input-box">
+                <label for="input-beta-smb">Size (&beta;_SMB)</label>
+                <input type="number" id="input-beta-smb" value="-0.20" step="0.05" />
+              </div>
+              <div class="target-input-box">
+                <label for="input-beta-hml">Value (&beta;_HML)</label>
+                <input type="number" id="input-beta-hml" value="0.45" step="0.05" />
+              </div>
+              <div class="target-input-box">
+                <label for="input-beta-rmw">Profitability (&beta;_RMW)</label>
+                <input type="number" id="input-beta-rmw" value="0.30" step="0.05" />
+              </div>
+              <div class="target-input-box">
+                <label for="input-beta-cma">Investment (&beta;_CMA)</label>
+                <input type="number" id="input-beta-cma" value="0.25" step="0.05" />
+              </div>
+              <div class="target-input-box">
+                <label for="input-beta-mom">Momentum (&beta;_MOM)</label>
+                <input type="number" id="input-beta-mom" value="0.05" step="0.05" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Candidate Replicating ETFs Pool -->
+          <div style="margin-top: 1.25rem;">
+            <label class="control-label-bold" style="display: block;">
+              Candidate Replicating ETFs Pool (Long-Only, No Shorting):
+            </label>
+            <div class="candidate-checkbox-grid" id="candidate-checkboxes-container">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" class="btn-primary" id="btn-run-matching-opt">
+              ⚡ Optimize Allocation
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Key Optimization Metric Scorecards -->
+      <section class="scorecard-grid-4" id="scorecard-section">
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Factor Replication Fit (R²)</div>
+          <div class="scorecard-metric-value" id="card-fit-r2">--%</div>
+          <div class="scorecard-metric-sub">
+            <span>Goodness of Factor Match</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Tracking Error (RMSE)</div>
+          <div class="scorecard-metric-value" id="card-rmse">--</div>
+          <div class="scorecard-metric-sub">
+            <span>Factor Deviation Distance</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Active Replicating Funds</div>
+          <div class="scorecard-metric-value" id="card-active-funds">-- Funds</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-active-sub">Allocations &gt; 1%</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Max Single Fund Weight</div>
+          <div class="scorecard-metric-value" id="card-max-weight">--%</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-max-weight-sub">Portfolio Concentration</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Chart 1: Target vs Synthetic Matched Factor Loadings -->
+      <section class="chart-container-card">
+        <div class="chart-header-row">
+          <div>
+            <h3 id="chart-comparison-title">⚖️ Target vs. Replicated Synthetic Factor Exposures</h3>
+            <p class="chart-subtitle" id="chart-comparison-subtitle">
+              Side-by-side comparison of target factor beta loadings vs. the optimized synthetic portfolio beta loadings.
+            </p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="container-matching-chart">
+          <canvas id="matching-chart-canvas"></canvas>
+          <div class="canvas-tooltip" id="tooltip-matching-chart"></div>
+        </div>
+      </section>
+
+      <!-- Section 3: Optimal Allocation Weights Table -->
+      <section class="card mb-4">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h3 id="table-allocation-title">📋 Optimal Replicating ETF Portfolio Allocations</h3>
+            <p class="chart-subtitle">Calculated capital weights (\sum w_i = 100%) to match target exposures with minimal tracking error.</p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-weights-csv">
+            ⬇️ Export Allocations (CSV)
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="opt-data-table" id="allocation-table">
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Fund Name / Asset Class</th>
+                <th class="num">Optimal Capital Weight</th>
+                <th class="num">Risk Contribution</th>
+                <th class="num">Expense Ratio</th>
+                <th>Role in Factor Replication</th>
+              </tr>
+            </thead>
+            <tbody id="allocation-table-body">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Pre-existing shared scripts -->
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script src="../js/nav.js"></script>
+    <script type="module" src="factor-matching-ui.js"></script>
+  </body>
+</html>

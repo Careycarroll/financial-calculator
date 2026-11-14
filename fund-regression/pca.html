@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Principal Component Analysis (PCA) | Financial Tools</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="regression.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <style>
+      .scorecard-grid-4 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .asset-chip-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .asset-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #f8fafc;
+        transition: all 0.15s ease;
+      }
+      .asset-chip:hover {
+        border-color: #38bdf8;
+      }
+      .asset-chip-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .asset-chip-remove {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+      }
+      .asset-chip-remove:hover {
+        color: #ef4444;
+      }
+      .preset-chip-btn {
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid #334155;
+        color: #cbd5e1;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.15s ease;
+      }
+      .preset-chip-btn:hover, .preset-chip-btn.active {
+        background: rgba(56, 189, 248, 0.18);
+        border-color: #38bdf8;
+        color: #38bdf8;
+      }
+    </style>
+  </head>
+  <body class="regression-page">
+    <!-- Top Global Navigation Bar -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="index.html" class="top-nav-link active">📈 Factor &amp; Regressions</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="regression-container">
+      <!-- Studio Header -->
+      <header class="regression-header">
+        <h1>🧠 Principal Component Analysis (PCA)</h1>
+        <p class="regression-tagline">
+          Decompose multi-asset return covariance into orthogonal statistical factors. Uncover the true dimensionality of portfolio risk, quantify broad market dominance, and identify independent risk drivers.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Factor & Performance Suite Pages">
+        <a href="index.html" class="suite-subnav-link">📈 Factor Regression &amp; SML Lab</a>
+        <a href="manager-performance.html" class="suite-subnav-link">🏆 Manager Performance Analysis</a>
+        <a href="factor-analysis.html" class="suite-subnav-link">🔬 Factor Analysis Studio</a>
+        <a href="pca.html" class="suite-subnav-link active">🧠 Principal Component Analysis (PCA)</a>
+        <a href="factor-matching.html" class="suite-subnav-link">🎯 Match Factor Exposures &amp; Risk Parity</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-pca">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: How Many Real Bets Are You Taking?</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🎯 Executive Purpose</div>
+              <strong>True Risk Dimensionality</strong>
+              <p>Cutting through the "illusion of diversification". A portfolio with 20 equity funds may look diversified on paper, but if 1 component drives 85% of returns, it is effectively a single concentrated market bet.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">📋 How to Use</div>
+              <strong>3-Step Rapid Workflow</strong>
+              <p>1. Select a fund universe or preset.<br>2. Choose Correlation Matrix (standard) or Covariance.<br>3. Inspect the Scree Plot elbow and review PC1/PC2 asset loadings.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🔍 What to Expect</div>
+              <strong>Macro Factor Dynamics</strong>
+              <p>• Equities: PC1 typically explains 75–90% of variance (the market tide).<br>• Multi-Asset: PC1 drops to 40–55%, with PC2 capturing duration/interest rate risk and PC3 capturing inflation/commodities.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">💡 Executive Output Decoder</div>
+              <strong>Kaiser Rule (&ge; 1.0) &amp; Loadings</strong>
+              <p>• Eigenvalue &ge; 1.0: Statistically significant independent risk driver.<br>• PC1 Dominance &gt; 80%: High vulnerability to systemic shocks.<br>• Loadings: Positive on PC1 and opposite on PC2 indicates true hedging.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status & Universe Bar -->
+      <section class="regression-status-bar" id="pca-status-bar">
+        <div class="status-pill highlight">
+          <span>Active Universe:</span>
+          <strong id="status-universe-name">Multi-Asset All-Weather</strong>
+        </div>
+        <div class="status-pill">
+          <span>Asset Count:</span>
+          <strong id="status-asset-count">5 Assets</strong>
+        </div>
+        <div class="status-pill">
+          <span>Sample Period:</span>
+          <strong id="status-timeline">1972–2026</strong>
+          <span class="status-sub" id="status-sample-months">(656 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Matrix Basis:</span>
+          <strong id="status-matrix-basis">Correlation Matrix</strong>
+        </div>
+      </section>
+
+      <!-- Configuration Card -->
+      <section class="config-card mb-4" id="pca-config-card">
+        <div class="config-card-inner">
+          <!-- Row 1: Presets & Matrix Basis -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+            <div>
+              <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+                Select Asset Universe Preset:
+              </label>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="preset-container">
+                <button type="button" class="preset-chip-btn active" data-preset="all-weather">
+                  🏛️ Multi-Asset All-Weather (Stocks, Treasuries, Gold, REITs, Commodities)
+                </button>
+                <button type="button" class="preset-chip-btn" data-preset="us-styles">
+                  📈 US Equity Styles (Large, Small, Value, Growth)
+                </button>
+                <button type="button" class="preset-chip-btn" data-preset="factor-etfs">
+                  🔬 Small-Cap Factor ETFs (IJS, IWN, RZV, VBR)
+                </button>
+                <button type="button" class="preset-chip-btn" data-preset="global-macro">
+                  🌍 Global Macro (US, Intl, Emerging, Bonds, Dollar)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+                Decomposition Matrix:
+              </label>
+              <div class="mode-segmented-control" id="matrix-mode-control" style="width: 100%; display: flex;">
+                <button type="button" class="mode-btn active" data-mode="correlation">
+                  <span>Correlation</span>
+                  <span class="mode-desc">Standardized (Equal Vol)</span>
+                </button>
+                <button type="button" class="mode-btn" data-mode="covariance">
+                  <span>Covariance</span>
+                  <span class="mode-desc">Volatility-Weighted</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Asset Chips Selector -->
+          <div>
+            <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+              Current Assets in Universe:
+            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <div class="asset-chip-container" id="asset-chips-container">
+                <!-- Dynamically populated via JS -->
+              </div>
+              <button type="button" class="btn-secondary btn-sm" id="btn-add-asset-pca">
+                ➕ Add Fund / Asset
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Key PCA Metric Scorecards -->
+      <section class="scorecard-grid-4" id="scorecard-section">
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Principal Component 1 (PC1)</div>
+          <div class="scorecard-metric-value" id="card-pc1-var">--%</div>
+          <div class="scorecard-metric-sub">
+            <span>Primary Market / Systemic Driver</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Principal Component 2 (PC2)</div>
+          <div class="scorecard-metric-value" id="card-pc2-var">--%</div>
+          <div class="scorecard-metric-sub">
+            <span>Secondary Style / Duration Driver</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Top 3 Components Cumulative</div>
+          <div class="scorecard-metric-value" id="card-top3-cum">--%</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-top3-sub">Total Variance Explained</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Kaiser Meaningful Components</div>
+          <div class="scorecard-metric-value" id="card-kaiser-count">--</div>
+          <div class="scorecard-metric-sub">
+            <span>Eigenvalues &ge; 1.0 (True Independent Factors)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Chart 1: Scree Plot & Cumulative Variance -->
+      <section class="chart-container-card">
+        <div class="chart-header-row">
+          <div>
+            <h3>📊 Scree Plot: Explained Variance by Principal Component</h3>
+            <p class="chart-subtitle">
+              Bar chart of individual component variance explained (%) and cumulative variance curve (&bull;). Look for the "elbow" where additional components yield diminishing explanatory value.
+            </p>
+          </div>
+          <div>
+            <button type="button" class="btn-secondary btn-sm" id="btn-export-scree-csv">
+              ⬇️ Export Scree Data (CSV)
+            </button>
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="container-scree-plot">
+          <canvas id="scree-plot-canvas"></canvas>
+          <div class="canvas-tooltip" id="tooltip-scree-plot"></div>
+        </div>
+      </section>
+
+      <!-- Chart 2: Asset Factor Loadings / Sensitivities -->
+      <section class="chart-container-card">
+        <div class="chart-header-row">
+          <div>
+            <h3>⚖️ Asset Factor Loadings on PC1 &amp; PC2</h3>
+            <p class="chart-subtitle">
+              Correlation / loading of each asset onto the first two statistical factors. Assets with similar loadings cluster together; opposing signs signify hedging relationships.
+            </p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="container-pca-loadings">
+          <canvas id="pca-loadings-canvas"></canvas>
+          <div class="canvas-tooltip" id="tooltip-pca-loadings"></div>
+        </div>
+      </section>
+
+      <!-- Section 3: Eigenvalues & Variance Table -->
+      <section class="card mb-4">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h3>🔬 Eigenvalues &amp; Statistical Significance</h3>
+            <p class="chart-subtitle">Eigenvalues, proportion of variance explained, cumulative variance, and Kaiser criterion significance.</p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-eigen-csv">
+            ⬇️ Export Eigenvalues (CSV)
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="opt-data-table" id="eigenvalue-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th class="num">Eigenvalue (&lambda;)</th>
+                <th class="num">% of Variance</th>
+                <th class="num">Cumulative %</th>
+                <th>Kaiser Criterion (&ge; 1.0)</th>
+                <th>Interpretation</th>
+              </tr>
+            </thead>
+            <tbody id="eigenvalue-table-body">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 4: Asset Factor Loadings Matrix Table -->
+      <section class="card mb-4">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h3>📋 Asset Factor Loadings Matrix (Eigenvectors)</h3>
+            <p class="chart-subtitle">Sensitivities of each asset to each principal component. Values range from -1.0 to +1.0 for correlation matrix.</p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-loadings-csv">
+            ⬇️ Export Loadings (CSV)
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="opt-data-table" id="loadings-table">
+            <thead>
+              <tr id="loadings-table-header-row">
+                <!-- Injected via JS -->
+              </tr>
+            </thead>
+            <tbody id="loadings-table-body">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 5: Return Correlation Matrix Heatmap Table -->
+      <section class="card mb-4">
+        <div class="card-header">
+          <h3>🔗 Asset Return Correlation Matrix</h3>
+          <p class="chart-subtitle">Pairwise Pearson correlation matrix decomposed by the Principal Component solver.</p>
+        </div>
+        <div class="table-responsive">
+          <table class="correlation-table" id="pca-correlation-table">
+            <!-- Injected via JS -->
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Pre-existing shared scripts -->
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script src="../js/nav.js"></script>
+    <script type="module" src="pca-ui.js"></script>
+  </body>
+</html>

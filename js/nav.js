@@ -38,6 +38,8 @@
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
         { id: "manager-performance", name: "Manager Performance", icon: "🏆", path: "fund-regression/manager-performance.html", desc: "Active manager vs benchmark tracking error, Information Ratio & skill test" },
         { id: "factor-analysis", name: "Factor Analysis", icon: "🔬", path: "fund-regression/factor-analysis.html", desc: "Fama-French & Carhart multi-factor regressions, style drift & attribution" },
+        { id: "pca", name: "Principal Component Analysis", icon: "🧠", path: "fund-regression/pca.html", desc: "Eigenvalue decomposition, scree plot & asset factor loadings" },
+        { id: "factor-matching", name: "Match Factor Exposures", icon: "🎯", path: "fund-regression/factor-matching.html", desc: "Replicate target factor exposures with liquid ETFs & factor risk parity" },
         { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
         { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
         { id: "asset-liability", name: "Asset Liability Modeling", icon: "⚖️", path: "monte-carlo/asset-liability.html", desc: "Stress test asset allocation against future liability obligations" },
