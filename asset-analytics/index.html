@@ -466,14 +466,48 @@
         <section class="screener-controls-bar" aria-label="Screener Filter Controls">
           <div class="screener-controls-grid">
             <div class="control-item">
+              <label for="screener-fund-type">Fund Type</label>
+              <select id="screener-fund-type" class="control-select">
+                <option value="all" selected>All Fund Types</option>
+                <option value="ETF">ETF</option>
+                <option value="Mutual Fund">Mutual Fund</option>
+                <option value="Closed-End Fund">Closed-End Fund</option>
+              </select>
+            </div>
+
+            <div class="control-item">
               <label for="screener-asset-class">Asset Class</label>
               <select id="screener-asset-class" class="control-select">
                 <option value="all" selected>All Asset Classes</option>
-                <option value="Large Cap">Large Cap Equity</option>
-                <option value="Growth">Growth / Tech</option>
-                <option value="Dividend">Dividend Equity</option>
-                <option value="Bond">Fixed Income / Bonds</option>
-                <option value="Custom">Custom Session Funds</option>
+                <option value="U.S. Equity">U.S. Equity</option>
+                <option value="International Equity">International Equity</option>
+                <option value="Taxable Bond">Taxable Bond</option>
+                <option value="Municipal Bond">Municipal Bond</option>
+                <option value="Sector Equity">Sector Equity</option>
+                <option value="Allocation">Allocation</option>
+                <option value="Alternative">Alternative</option>
+                <option value="Commodities">Commodities</option>
+                <option value="Money Market">Money Market</option>
+                <option value="Miscellaneous">Miscellaneous</option>
+                <option value="Nontraditional Equity">Nontraditional Equity</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="screener-sub-category">Category / Style</label>
+              <select id="screener-sub-category" class="control-select">
+                <option value="all" selected>All Categories</option>
+                <!-- Populated dynamically based on selected Asset Class -->
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="screener-expense-ratio">Expense Ratio</label>
+              <select id="screener-expense-ratio" class="control-select">
+                <option value="all" selected>All Expense Ratios</option>
+                <option value="0.002">&lt; 0.20% (Ultra-Low Cost)</option>
+                <option value="0.005">&lt; 0.50% (Low Cost)</option>
+                <option value="0.010">&lt; 1.00% (Moderate)</option>
               </select>
             </div>
 
@@ -549,6 +583,7 @@
                   <th data-sort="ticker">Ticker <span class="sort-icon">↕</span></th>
                   <th data-sort="name">Fund Name <span class="sort-icon">↕</span></th>
                   <th data-sort="assetClass">Asset Class <span class="sort-icon">↕</span></th>
+                  <th data-sort="category">Category <span class="sort-icon">↕</span></th>
                   <th data-sort="ytd" class="num-col">YTD <span class="sort-icon">↕</span></th>
                   <th data-sort="return1y" class="num-col">1Y <span class="sort-icon">↕</span></th>
                   <th data-sort="return3y" class="num-col">3Y <span class="sort-icon">↕</span></th>
@@ -620,11 +655,17 @@
               <label for="rankings-asset-class">Asset Class Filter</label>
               <select id="rankings-asset-class" class="control-select">
                 <option value="all" selected>All Asset Classes</option>
-                <option value="Large Cap">Large Cap Equity</option>
-                <option value="Growth">Growth / Tech</option>
-                <option value="Dividend">Dividend Equity</option>
-                <option value="Bond">Fixed Income / Bonds</option>
-                <option value="Custom">Custom Session Funds</option>
+                <option value="U.S. Equity">U.S. Equity</option>
+                <option value="International Equity">International Equity</option>
+                <option value="Taxable Bond">Taxable Bond</option>
+                <option value="Municipal Bond">Municipal Bond</option>
+                <option value="Sector Equity">Sector Equity</option>
+                <option value="Allocation">Allocation</option>
+                <option value="Alternative">Alternative</option>
+                <option value="Commodities">Commodities</option>
+                <option value="Money Market">Money Market</option>
+                <option value="Miscellaneous">Miscellaneous</option>
+                <option value="Nontraditional Equity">Nontraditional Equity</option>
               </select>
             </div>
 

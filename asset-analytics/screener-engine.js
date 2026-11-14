@@ -13,6 +13,230 @@ import {
 } from '../fund-regression/regression-engine.js';
 
 /**
+ * Canonical 11 Asset Classes from Portfolio Visualizer
+ */
+export const CANONICAL_ASSET_CLASSES = [
+  'U.S. Equity',
+  'International Equity',
+  'Taxable Bond',
+  'Municipal Bond',
+  'Sector Equity',
+  'Allocation',
+  'Alternative',
+  'Commodities',
+  'Money Market',
+  'Miscellaneous',
+  'Nontraditional Equity'
+];
+
+/**
+ * Sub-Categories mapped to each Canonical Asset Class
+ */
+export const SUB_CATEGORIES_BY_ASSET_CLASS = {
+  'U.S. Equity': [
+    'Large Blend',
+    'Large Growth',
+    'Large Value',
+    'Mid-Cap Blend',
+    'Mid-Cap Growth',
+    'Mid-Cap Value',
+    'Small Blend',
+    'Small Growth',
+    'Small Value',
+    'High Dividend'
+  ],
+  'International Equity': [
+    'Foreign Large Blend',
+    'Foreign Large Growth',
+    'Foreign Large Value',
+    'Emerging Markets',
+    'Global Equity',
+    'Europe',
+    'Pacific/Asia'
+  ],
+  'Taxable Bond': [
+    'Intermediate Core Bond',
+    'Short-Term Bond',
+    'Ultrashort Bond',
+    'Long-Term Treasury',
+    'Corporate Bond',
+    'High Yield Bond',
+    'Securitized Bond Focus'
+  ],
+  'Municipal Bond': [
+    'National Muni',
+    'Single State Muni',
+    'High Yield Muni',
+    'Short-Term Muni'
+  ],
+  'Sector Equity': [
+    'Technology',
+    'Healthcare',
+    'Financials',
+    'Consumer Cyclical',
+    'Consumer Defensive',
+    'Energy',
+    'Industrials',
+    'Utilities',
+    'Real Estate Sector'
+  ],
+  'Allocation': [
+    'Target-Date Retirement',
+    'Conservative Allocation',
+    'Moderate Allocation',
+    'Moderately Aggressive Allocation',
+    'Aggressive Allocation',
+    'Tactical Allocation'
+  ],
+  'Alternative': [
+    'Long-Short Equity',
+    'Market Neutral',
+    'Managed Futures',
+    'Commodity Focused',
+    'Private Debt - General',
+    'Real Estate Focus'
+  ],
+  'Commodities': [
+    'Precious Metals (Gold/Silver)',
+    'Energy (Oil/Gas)',
+    'Agriculture',
+    'Broad Commodity Focused'
+  ],
+  'Money Market': [
+    'Treasury Money Market',
+    'Prime Money Market',
+    'Tax-Free Money Market'
+  ],
+  'Nontraditional Equity': [
+    'Leveraged 2x/3x Long',
+    'Inverse / Short',
+    'Derivative Income / Covered Call',
+    'Defined Outcome / Buffer'
+  ],
+  'Miscellaneous': [
+    'General Session Upload',
+    'Other'
+  ]
+};
+
+/**
+ * Infers Fund Type (ETF, Mutual Fund, Closed-End Fund) based on ticker conventions and metadata.
+ * @param {object} fund
+ * @returns {'ETF' | 'Mutual Fund' | 'Closed-End Fund'}
+ */
+export function inferFundType(fund) {
+  if (fund.fundType) return fund.fundType;
+  const name = (fund.name || '').toLowerCase();
+  const ticker = (fund.ticker || '').toUpperCase();
+
+  if (name.includes('closed-end') || name.includes('cef') || (fund.category && fund.category.toLowerCase().includes('closed-end'))) {
+    return 'Closed-End Fund';
+  }
+  // US Mutual funds have 5-letter tickers ending in 'X' (e.g. VTSAX, FXAIX, AAAAX)
+  if (ticker.length === 5 && ticker.endsWith('X')) {
+    return 'Mutual Fund';
+  }
+  if (name.includes('mutual fund') || name.includes('investor shares') || name.includes('admiral shares')) {
+    return 'Mutual Fund';
+  }
+  return 'ETF';
+}
+
+/**
+ * Classifies a fund into Portfolio Visualizer's Two-Tier Taxonomy (Asset Class + Sub-Category).
+ * @param {object} fund
+ * @returns {{ fundType: string, assetClass: string, category: string }}
+ */
+export function classifyFundTaxonomy(fund) {
+  const fundType = inferFundType(fund);
+  const rawClass = (fund.assetClass || '').trim();
+  const rawCat = (fund.category || '').trim();
+  const rawName = (fund.name || '').toLowerCase();
+  const ticker = (fund.ticker || '').toUpperCase();
+
+  // If already matches canonical asset class directly
+  if (CANONICAL_ASSET_CLASSES.includes(rawClass)) {
+    return {
+      fundType,
+      assetClass: rawClass,
+      category: rawCat || SUB_CATEGORIES_BY_ASSET_CLASS[rawClass]?.[0] || 'General'
+    };
+  }
+
+  let assetClass = 'U.S. Equity';
+  let category = 'Large Blend';
+
+  // 1. Bond classification
+  if (rawClass.includes('Bond') || rawClass.includes('Fixed Income') || rawName.includes('bond') || rawName.includes('treasury') || ticker === 'BND') {
+    if (rawName.includes('muni') || rawName.includes('municipal') || rawClass.includes('Muni')) {
+      assetClass = 'Municipal Bond';
+      category = 'National Muni';
+    } else {
+      assetClass = 'Taxable Bond';
+      category = rawClass.includes('Total') || ticker === 'BND' ? 'Intermediate Core Bond' : 'Corporate Bond';
+    }
+  }
+  // 2. Commodities
+  else if (rawClass.includes('Commodit') || rawName.includes('gold') || rawName.includes('silver') || rawName.includes('commodity') || ticker === 'GLD' || ticker === 'IAU') {
+    assetClass = 'Commodities';
+    category = 'Precious Metals (Gold/Silver)';
+  }
+  // 3. International Equity
+  else if (rawClass.includes('International') || rawClass.includes('Emerging') || rawClass.includes('Global') || rawName.includes('msci') || rawName.includes('international') || rawName.includes('emerging') || ticker === 'EWA' || ticker === 'EWC') {
+    assetClass = 'International Equity';
+    category = ticker === 'EWA' ? 'Pacific/Asia' : (ticker === 'EWC' ? 'Global Equity' : 'Foreign Large Blend');
+  }
+  // 4. Sector Equity
+  else if (rawName.includes('sector') || rawName.includes('tech') || rawName.includes('health') || rawName.includes('financial') || rawName.includes('energy') || ticker === 'XLK') {
+    assetClass = 'Sector Equity';
+    category = (rawName.includes('tech') || ticker === 'XLK') ? 'Technology' : (rawName.includes('energy') ? 'Energy' : 'Sector Equity');
+  }
+  // 5. Allocation
+  else if (rawClass.includes('Allocation') || rawName.includes('balanced') || rawName.includes('target-date') || rawName.includes('target date') || rawName.includes('allocation')) {
+    assetClass = 'Allocation';
+    category = rawName.includes('aggressive') ? 'Moderately Aggressive Allocation' : 'Target-Date Retirement';
+  }
+  // 6. Alternative
+  else if (rawClass.includes('Alternative') || rawName.includes('reit') || rawName.includes('real estate') || rawName.includes('hedge') || rawName.includes('private debt')) {
+    assetClass = 'Alternative';
+    category = rawName.includes('private debt') ? 'Private Debt - General' : 'Real Estate Focus';
+  }
+  // 7. Money Market
+  else if (rawClass.includes('Money Market') || rawName.includes('money market') || rawName.includes('t-bill') || rawName.includes('cash')) {
+    assetClass = 'Money Market';
+    category = 'Treasury Money Market';
+  }
+  // 8. Nontraditional Equity
+  else if (rawName.includes('2x') || rawName.includes('3x') || rawName.includes('leveraged') || rawName.includes('inverse') || rawName.includes('covered call') || rawName.includes('buffer') || ticker === 'TQQQ' || ticker === 'SQQQ' || ticker === 'JEPI') {
+    assetClass = 'Nontraditional Equity';
+    category = rawName.includes('covered call') || ticker === 'JEPI' ? 'Derivative Income / Covered Call' : 'Leveraged 2x/3x Long';
+  }
+  // 9. U.S. Equity (default for VOO, SPY, QQQ, SCHD)
+  else {
+    assetClass = 'U.S. Equity';
+    if (ticker === 'QQQ' || rawClass.includes('Growth') || rawName.includes('growth')) {
+      category = 'Large Growth';
+    } else if (ticker === 'SCHD' || rawClass.includes('Dividend') || rawName.includes('dividend')) {
+      category = 'High Dividend';
+    } else if (rawClass.includes('Value') || rawName.includes('value')) {
+      category = 'Large Value';
+    } else if (rawClass.includes('Small') || rawName.includes('small')) {
+      category = 'Small Blend';
+    } else if (rawClass.includes('Mid') || rawName.includes('mid')) {
+      category = 'Mid-Cap Blend';
+    } else {
+      category = 'Large Blend';
+    }
+  }
+
+  return {
+    fundType,
+    assetClass,
+    category
+  };
+}
+
+/**
  * Calculates trailing returns (YTD, 1Y, 3Y, 5Y, 10Y, and Inception CAGR) from monthly series.
  * @param {Array<{date: string, close: number, adjClose?: number}>} data
  * @param {boolean} [useDRIP=true]
@@ -134,13 +358,14 @@ export function buildFundScreenerProfile(fund, benchmarkFund, options = {}) {
   const capm = regression?.capm;
   const dualBeta = regression?.dualBeta;
 
-  const assetClass = fund.assetClass || fund.category || 'Broad Index';
+  const taxonomy = classifyFundTaxonomy(fund);
 
   return {
     ticker: fund.ticker.toUpperCase(),
     name: fund.name || fund.ticker,
-    assetClass,
-    category: fund.category || assetClass,
+    fundType: taxonomy.fundType,
+    assetClass: taxonomy.assetClass,
+    category: taxonomy.category,
     color: fund.color || '#38bdf8',
     isPreset: !!fund.isPreset,
     expenseRatio: fund.expenseRatio || '—',
@@ -198,40 +423,64 @@ export function screenAndProfileFunds(fundsList, benchmarkFund, options = {}) {
 }
 
 /**
- * Filters fund profiles based on search query, asset class, history length, and metric thresholds.
+ * Filters fund profiles based on search query, fund type, asset class, sub-category, history length,
+ * expense ratio, and metric thresholds.
  */
 export function filterFundProfiles(profiles, filters = {}) {
   if (!Array.isArray(profiles)) return [];
 
   const query = (filters.searchQuery || '').trim().toLowerCase();
+  const fundType = filters.fundType || 'all';
   const assetClass = filters.assetClass || 'all';
+  const subCategory = filters.subCategory || 'all';
   const minHistoryYears = filters.minHistoryYears ? parseInt(filters.minHistoryYears, 10) : 0;
+  const maxExpenseRatio = filters.maxExpenseRatio != null && filters.maxExpenseRatio !== 'all'
+    ? parseFloat(filters.maxExpenseRatio)
+    : null;
   const minSharpe = filters.minSharpe != null ? parseFloat(filters.minSharpe) : null;
   const maxVol = filters.maxVol != null ? parseFloat(filters.maxVol) : null;
   const maxDrawdown = filters.maxDrawdown != null ? parseFloat(filters.maxDrawdown) : null;
 
   return profiles.filter(p => {
-    // 1. Text Search (Ticker, Name, Category)
+    // 1. Text Search (Ticker, Name, Asset Class, Category, Fund Type)
     if (query) {
       const match = p.ticker.toLowerCase().includes(query) ||
                     p.name.toLowerCase().includes(query) ||
-                    p.assetClass.toLowerCase().includes(query);
+                    p.assetClass.toLowerCase().includes(query) ||
+                    p.category.toLowerCase().includes(query) ||
+                    p.fundType.toLowerCase().includes(query);
       if (!match) return false;
     }
 
-    // 2. Asset Class Filter
-    if (assetClass !== 'all') {
-      const pClass = p.assetClass.toLowerCase();
-      const targetClass = assetClass.toLowerCase();
-      if (!pClass.includes(targetClass)) return false;
+    // 2. Fund Type Filter (ETF, Mutual Fund, Closed-End Fund)
+    if (fundType !== 'all') {
+      if (p.fundType.toLowerCase() !== fundType.toLowerCase()) return false;
     }
 
-    // 3. Minimum History Years (12 months per year)
+    // 3. Asset Class Filter (11 Canonical PV Asset Classes)
+    if (assetClass !== 'all') {
+      if (p.assetClass.toLowerCase() !== assetClass.toLowerCase()) return false;
+    }
+
+    // 4. Sub-Category Filter (Drill-down Category)
+    if (subCategory !== 'all') {
+      if (!p.category.toLowerCase().includes(subCategory.toLowerCase())) return false;
+    }
+
+    // 5. Expense Ratio Threshold Filter
+    if (maxExpenseRatio != null && !isNaN(maxExpenseRatio)) {
+      if (p.expenseRatio && p.expenseRatio !== '—') {
+        const erNum = parseFloat(p.expenseRatio.replace('%', '')) / 100;
+        if (!isNaN(erNum) && erNum > maxExpenseRatio) return false;
+      }
+    }
+
+    // 6. Minimum History Years (12 months per year)
     if (minHistoryYears > 0) {
       if (p.monthsCount < minHistoryYears * 12) return false;
     }
 
-    // 4. Metric Thresholds
+    // 7. Metric Thresholds
     if (minSharpe != null && !isNaN(minSharpe)) {
       if (p.sharpe == null || p.sharpe < minSharpe) return false;
     }
