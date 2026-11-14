@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Factor Analysis Studio (Fama-French & Carhart) | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="regression.css" />
+    <style>
+      /* Factor Analysis Specific Styles */
+      .factor-model-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .badge-ff5 { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+      .badge-ff3 { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+      .badge-carhart { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+      .badge-capm { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+      .badge-ff6 { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+      .preset-pill-btn {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        padding: 0.45rem 0.85rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .preset-pill-btn:hover {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.3);
+      }
+      .preset-pill-btn.active {
+        background: rgba(56, 189, 248, 0.2);
+        color: #38bdf8;
+        border-color: #38bdf8;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+      }
+
+      .asset-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .asset-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #f8fafc;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .asset-chip:hover {
+        border-color: #38bdf8;
+        background: rgba(30, 41, 59, 0.9);
+      }
+      .asset-chip.active-focus {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        box-shadow: 0 0 6px rgba(56, 189, 248, 0.2);
+      }
+      .asset-chip-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .asset-chip-remove {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 0.15rem;
+        transition: color 0.15s ease;
+      }
+      .asset-chip-remove:hover {
+        color: #ef4444;
+      }
+
+      .scorecard-grid-5 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .factor-legend-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+        margin-bottom: 0.85rem;
+      }
+      .factor-filter-chip {
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #94a3b8;
+        padding: 0.3rem 0.7rem;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .factor-filter-chip:hover {
+        color: #f1f5f9;
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+      .factor-filter-chip.active {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border-color: #38bdf8;
+      }
+
+      .chart-container-card {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+      }
+
+      .chart-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      .canvas-wrapper {
+        position: relative;
+        width: 100%;
+        height: 380px;
+        background: #0f172a;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+      }
+      .canvas-wrapper canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .canvas-tooltip {
+        position: absolute;
+        display: none;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid #38bdf8;
+        border-radius: 6px;
+        padding: 0.6rem 0.8rem;
+        color: #f8fafc;
+        font-size: 0.78rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        z-index: 20;
+        white-space: nowrap;
+      }
+
+      .correlation-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .correlation-table th, .correlation-table td {
+        padding: 0.55rem 0.75rem;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .correlation-table th {
+        background: #0f172a;
+        color: #94a3b8;
+        font-weight: 600;
+      }
+      .correlation-table td:first-child {
+        text-align: left;
+        font-weight: 600;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .corr-cell {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+
+      .stars-sig {
+        color: #fbbf24;
+        font-weight: 800;
+        margin-left: 2px;
+      }
+    </style>
+  </head>
+  <body class="regression-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="../portfolio-optimization/index.html" class="top-nav-link">📈 Efficient Frontier</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Portfolio Optimization</a>
+          <a href="../portfolio-optimization/black-litterman.html" class="top-nav-link">🧠 Black-Litterman Model</a>
+          <a href="../portfolio-optimization/rolling-optimization.html" class="top-nav-link">🔄 Rolling Optimization</a>
+          <a href="index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="manager-performance.html" class="top-nav-link">🏆 Manager Performance</a>
+          <a href="factor-analysis.html" class="top-nav-link active">🔬 Factor Analysis</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="regression-container">
+      <!-- Header -->
+      <header class="regression-header">
+        <h1>🔬 Factor Analysis Studio</h1>
+        <p class="regression-tagline">
+          Run multivariate econometric regressions using Fama-French and Carhart multi-factor models.
+          Analyze returns against Market (Beta), Size (SMB), Value (HML), Profitability (RMW), Investment (CMA), and Momentum (MOM) factors.
+          Evaluate style exposures, examine 36-month rolling style drift across cycles, and decompose returns.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Factor & Performance Suite Pages">
+        <a href="index.html" class="suite-subnav-link">📈 Factor Regression &amp; SML Lab</a>
+        <a href="manager-performance.html" class="suite-subnav-link">🏆 Manager Performance Analysis</a>
+        <a href="factor-analysis.html" class="suite-subnav-link active">🔬 Factor Analysis Studio</a>
+      </nav>
+
+      <!-- Status Bar -->
+      <section class="regression-status-bar" id="factor-status-bar">
+        <div class="status-pill highlight">
+          <span>Active Model:</span>
+          <strong id="status-model-name">Fama-French 5-Factor</strong>
+        </div>
+        <div class="status-pill">
+          <span>Active Funds:</span>
+          <strong id="status-assets-count">4 Assets</strong>
+        </div>
+        <div class="status-pill">
+          <span>Focus Asset:</span>
+          <strong id="status-focus-asset">IJS</strong>
+        </div>
+        <div class="status-pill">
+          <span>Rolling Window:</span>
+          <strong id="status-rolling-window">36 Months</strong>
+        </div>
+        <div class="status-pill">
+          <span>Common Sample:</span>
+          <strong id="status-timeline">-- to --</strong>
+          <span class="status-sub" id="status-sample-months">(0 M)</span>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Model Settings</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Model Configuration Card -->
+      <section class="config-card" id="config-card">
+        <div class="config-card-inner">
+          <!-- Row 1: Factor Model Selection & Rolling Window -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+            <div>
+              <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+                Multi-Factor Econometric Model:
+              </label>
+              <div class="mode-segmented-control" id="model-selector-control" style="width: 100%; display: flex; flex-wrap: wrap;">
+                <button type="button" class="mode-btn" data-model="capm">
+                  <span>CAPM</span>
+                  <span class="mode-desc">1-Factor (Mkt-RF)</span>
+                </button>
+                <button type="button" class="mode-btn" data-model="ff3">
+                  <span>FF 3-Factor</span>
+                  <span class="mode-desc">Mkt, Size, Value</span>
+                </button>
+                <button type="button" class="mode-btn" data-model="carhart4">
+                  <span>Carhart 4-Factor</span>
+                  <span class="mode-desc">+ Momentum</span>
+                </button>
+                <button type="button" class="mode-btn active" data-model="ff5">
+                  <span>FF 5-Factor</span>
+                  <span class="mode-desc">+ Profit &amp; Invest</span>
+                </button>
+                <button type="button" class="mode-btn" data-model="ff6">
+                  <span>FF 6-Factor</span>
+                  <span class="mode-desc">FF5 + Momentum</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+                Rolling Regression Window:
+              </label>
+              <div class="mode-segmented-control" id="rolling-window-control" style="width: 100%; display: flex;">
+                <button type="button" class="mode-btn" data-window="24">
+                  <span>24M</span>
+                  <span class="mode-desc">2 Years</span>
+                </button>
+                <button type="button" class="mode-btn active" data-window="36">
+                  <span>36M</span>
+                  <span class="mode-desc">3 Years</span>
+                </button>
+                <button type="button" class="mode-btn" data-window="48">
+                  <span>48M</span>
+                  <span class="mode-desc">4 Years</span>
+                </button>
+                <button type="button" class="mode-btn" data-window="60">
+                  <span>60M</span>
+                  <span class="mode-desc">5 Years</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Quick Presets -->
+          <div style="margin-bottom: 1.25rem;">
+            <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+              Quick Asset Baskets &amp; Factor Styles:
+            </label>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              <button type="button" class="preset-pill-btn active" id="preset-scv">
+                🎯 Small-Cap Value Basket (IJS, IWN, RZV, VBR)
+              </button>
+              <button type="button" class="preset-pill-btn" id="preset-core">
+                🏛️ Core Blend vs Growth (VOO, QQQ, SCHD, BND)
+              </button>
+              <button type="button" class="preset-pill-btn" id="preset-extremes">
+                ⚖️ Size &amp; Value Extremes (IWM, IJS, VTV, VUG)
+              </button>
+            </div>
+          </div>
+
+          <!-- Row 3: Active Funds & Asset Modal -->
+          <div>
+            <label class="control-label-bold" style="display: block; margin-bottom: 0.5rem;">
+              Active Assets for Factor Regression:
+            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <div class="asset-chip-list" id="asset-chip-list">
+                <!-- Injected via JS -->
+              </div>
+              <button type="button" class="btn-secondary btn-sm" id="btn-add-asset">
+                ➕ Add Fund / ETF
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Key Scorecards (for Active Focus Asset) -->
+      <section class="scorecard-grid-5" id="scorecard-section">
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Model Goodness of Fit</div>
+          <div class="scorecard-metric-value" id="card-r-squared">--%</div>
+          <div class="scorecard-metric-sub">
+            <span>Adjusted R²:</span>
+            <strong id="card-adj-r-squared" style="color:#e2e8f0;">--%</strong>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Annualized Alpha (α)</div>
+          <div class="scorecard-metric-value" id="card-alpha">--%</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-alpha-sub">t = -- (p = --)</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Market Exposure (β_MKT)</div>
+          <div class="scorecard-metric-value" id="card-beta-mkt">--</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-beta-mkt-sub">Beta to broad equity</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Size Tilt (β_SMB)</div>
+          <div class="scorecard-metric-value" id="card-beta-smb">--</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-beta-smb-sub">Small vs Large tilt</span>
+          </div>
+        </div>
+
+        <div class="scorecard-metric-card">
+          <div class="scorecard-metric-title">Value Tilt (β_HML)</div>
+          <div class="scorecard-metric-value" id="card-beta-hml">--</div>
+          <div class="scorecard-metric-sub">
+            <span id="card-beta-hml-sub">Value vs Growth tilt</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 1: Multi-Asset Factor Regression Summary Table -->
+      <section class="card mb-4">
+        <div class="card-header rebalance-header-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h3>📊 Multi-Factor Regression Econometric Summary</h3>
+            <p class="chart-subtitle">
+              Multivariate OLS factor loadings (β), statistical significance stars (*** p&lt;0.001, ** p&lt;0.01, * p&lt;0.05, • p&lt;0.10), annualized alpha, and explanatory power.
+            </p>
+          </div>
+          <div>
+            <button type="button" class="btn-secondary btn-sm" id="btn-export-summary-csv">
+              ⬇️ Export Summary (CSV)
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="opt-data-table" id="regression-summary-table">
+            <thead>
+              <tr id="summary-table-header-row">
+                <!-- Injected via JS based on active model factors -->
+              </tr>
+            </thead>
+            <tbody id="regression-summary-table-body">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 2: Detailed Parameter Estimates for Active Focus Asset -->
+      <section class="card mb-4">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>🔬 Detailed Factor Parameter Estimates: <span id="detail-asset-name" style="color: #38bdf8;">IJS</span></h3>
+            <p class="chart-subtitle">Coefficients, Standard Errors, Student's t-statistics, p-values, and 95% Confidence Intervals.</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="select-focus-asset" style="font-size: 0.85rem; color: #94a3b8;">Focus Fund:</label>
+            <select id="select-focus-asset" class="form-select" style="background:#0f172a; color:#f8fafc; border:1px solid #334155; padding:0.35rem 0.65rem; border-radius:6px; font-weight:600;">
+              <!-- Injected via JS -->
+            </select>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="opt-data-table" id="parameter-detail-table">
+            <thead>
+              <tr>
+                <th>Factor Parameter</th>
+                <th class="num">Loading (β)</th>
+                <th class="num">Std Error</th>
+                <th class="num">t-Statistic</th>
+                <th class="num">p-Value</th>
+                <th class="num">95% Confidence Interval</th>
+                <th>Significance</th>
+              </tr>
+            </thead>
+            <tbody id="parameter-detail-table-body">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 3: Visual Canvas Charts -->
+      <!-- Chart A: Grouped Factor Exposures -->
+      <section class="chart-container-card">
+        <div class="chart-header-row">
+          <div>
+            <h3>⚖️ Factor Loadings Exposure Comparison</h3>
+            <p class="chart-subtitle">Side-by-side comparison of factor sensitivities across all loaded assets.</p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="container-factor-exposure">
+          <canvas id="factor-exposure-canvas"></canvas>
+          <div class="canvas-tooltip" id="tooltip-factor-exposure"></div>
+        </div>
+      </section>
+
+      <!-- Chart B: 36-Month Rolling Factor Loadings (Style Drift) -->
+      <section class="chart-container-card">
+        <div class="chart-header-row">
+          <div>
+            <h3>📈 Walk-Forward Rolling Factor Loadings (<span id="label-rolling-window">36-Month</span> Window)</h3>
+            <p class="chart-subtitle">Detect style drift, changing market sensitivity, and factor exposure evolution over time.</p>
+          </div>
+          <div class="factor-legend-bar" id="rolling-factor-filters">
+            <!-- Filter chips injected via JS -->
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="container-rolling-loadings">
+          <canvas id="rolling-loadings-canvas"></canvas>
+          <div class="canvas-tooltip" id="tooltip-rolling-loadings"></div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:0.75rem;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-rolling-csv">
+            ⬇️ Export Rolling Betas (CSV)
+          </button>
+        </div>
+      </section>
+
+      <!-- Chart C: Return Attribution Decomposition -->
+      <section class="chart-container-card">
+        <div class="chart-header-row">
+          <div>
+            <h3>🎯 Performance Return Attribution (Decomposition)</h3>
+            <p class="chart-subtitle">Decomposing annualized excess return into factor premia contributions and manager alpha.</p>
+          </div>
+        </div>
+        <div class="canvas-wrapper" id="container-attribution">
+          <canvas id="attribution-canvas"></canvas>
+          <div class="canvas-tooltip" id="tooltip-attribution"></div>
+        </div>
+      </section>
+
+      <!-- Section 4: Factor Statistics & Pairwise Correlation Matrix -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" id="factor-stats-grid">
+        <!-- Factor Risk/Return Statistics -->
+        <div class="card">
+          <div class="card-header">
+            <h3>📈 Empirical Factor Performance &amp; Risk</h3>
+            <p class="chart-subtitle">Historical statistics across the aligned sample window.</p>
+          </div>
+          <div class="table-responsive">
+            <table class="opt-data-table" id="factor-stats-table">
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th class="num">Annualized Return</th>
+                  <th class="num">Annualized Volatility</th>
+                  <th class="num">Sharpe Ratio</th>
+                </tr>
+              </thead>
+              <tbody id="factor-stats-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Factor Correlation Matrix -->
+        <div class="card">
+          <div class="card-header">
+            <h3>🔗 Factor Pairwise Correlation Matrix</h3>
+            <p class="chart-subtitle">Linear correlation between factor returns over the sample period.</p>
+          </div>
+          <div class="table-responsive">
+            <table class="correlation-table" id="factor-correlation-table">
+              <!-- Injected via JS -->
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5: Style Diagnostics Narrative -->
+      <section class="card mb-4" id="diagnostics-card" style="border-left: 4px solid #38bdf8;">
+        <div class="card-header">
+          <h3>💡 Econometric Style Diagnostics &amp; Risk Insights</h3>
+        </div>
+        <div style="padding: 1.25rem; font-size: 0.92rem; line-height: 1.6; color: #cbd5e1;" id="diagnostics-content">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+    </div>
+
+    <!-- Asset Modal Container -->
+    <div id="asset-modal-container"></div>
+
+    <!-- Scripts -->
+    <script type="module" src="./factor-ui.js"></script>
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>

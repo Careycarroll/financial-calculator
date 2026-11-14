@@ -309,6 +309,18 @@ export const TOOLS_CATALOG = [
     keywords: ["manager performance", "tracking error", "information ratio", "excess return", "active risk", "relative drawdown", "skill", "t-test", "benchmark", "alpha", "up capture"]
   },
   {
+    id: "factor-analysis",
+    title: "Factor Analysis Studio",
+    shortTitle: "Factor Analysis",
+    path: "fund-regression/factor-analysis.html",
+    icon: "🔬",
+    badge: "STUDIO",
+    desc: "Multivariate econometric factor regression using Fama-French 3-Factor, Carhart 4-Factor, FF 5-Factor, and 6-Factor models. Analyze style exposures, 36-month rolling loadings, and return attribution.",
+    suiteId: "quant",
+    workflowId: "quant-risk",
+    keywords: ["factor analysis", "fama french", "carhart", "factor regression", "rolling loadings", "style drift", "smb", "hml", "momentum", "attribution"]
+  },
+  {
     id: "options",
     title: "Options Strategy Lab",
     shortTitle: "Options Lab",
