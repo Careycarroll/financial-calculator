@@ -1,7 +1,8 @@
 /**
  * Searchable Asset Modal & Selector Component
  * Reusable modal for instant live searching across pre-bundled benchmarks and custom session funds,
- * category filtering, quick preset selection, and in-modal drag-and-drop file ingestion.
+ * category filtering, quick preset selection, in-modal drag-and-drop file ingestion,
+ * and multi-asset basket configuration (for Correlation Matrix & Portfolio Blends).
  */
 
 import {
@@ -14,6 +15,7 @@ import {
 let currentOptions = null;
 let activeCategoryFilter = 'all'; // 'all' | 'preset' | 'custom'
 let isSubscribed = false;
+let multiSelectedSet = new Set();
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -54,6 +56,15 @@ function ensureModalDOM() {
           <button type="button" class="modal-close-btn" id="btn-close-asset-modal" aria-label="Close modal">✕</button>
         </div>
 
+        <!-- Multi-Asset Basket Bar (visible only in multi-select mode) -->
+        <div class="asset-modal-basket-bar hidden" id="asset-modal-basket-bar">
+          <div class="basket-bar-title">
+            <span>Selected for Matrix (<strong id="asset-modal-basket-count">0</strong>/<span id="asset-modal-basket-max">15</span>):</span>
+            <span style="font-size: 0.7rem; color: var(--text-secondary, #94a3b8);">Min <span id="asset-modal-basket-min">2</span>, Max <span id="asset-modal-basket-max-sub">15</span> assets</span>
+          </div>
+          <div class="basket-chips-wrap" id="asset-modal-basket-chips"></div>
+        </div>
+
         <div class="asset-modal-search-box">
           <span class="search-icon">🔍</span>
           <input type="text" id="asset-modal-search-input" class="modal-search-input" placeholder="Search by ticker (QQQ, VOO) or name (Dividend, Tech, Bond)..." autocomplete="off" />
@@ -82,6 +93,17 @@ function ensureModalDOM() {
 
         <div class="asset-modal-list" id="asset-modal-list"></div>
 
+        <!-- Multi-Asset Footer Action (visible only in multi-select mode) -->
+        <div class="asset-modal-footer hidden" id="asset-modal-footer">
+          <div class="footer-left">
+            <span class="footer-summary" id="asset-modal-footer-summary">5 assets in active matrix</span>
+          </div>
+          <div class="footer-actions">
+            <button type="button" class="btn-modal-cancel" id="btn-asset-modal-cancel">Cancel</button>
+            <button type="button" class="btn-modal-apply" id="btn-asset-modal-apply">Apply &amp; Update Matrix ✓</button>
+          </div>
+        </div>
+
         <div class="asset-modal-dropzone" id="asset-modal-dropzone">
           <input type="file" id="asset-modal-file-input" multiple accept=".csv,.txt" style="display:none;" />
           <div class="dropzone-inner" id="asset-modal-dropzone-inner">
@@ -109,6 +131,7 @@ function ensureModalDOM() {
       if (overlay && !overlay.classList.contains('hidden')) {
         updateCounts();
         renderAssetList();
+        if (currentOptions?.isMulti) renderBasketBar();
       }
     });
     isSubscribed = true;
@@ -128,6 +151,8 @@ function attachModalListeners() {
   const dropzoneInner = document.getElementById('asset-modal-dropzone-inner');
   const fileInput = document.getElementById('asset-modal-file-input');
   const browseBtn = document.getElementById('btn-asset-modal-browse-files');
+  const applyBtn = document.getElementById('btn-asset-modal-apply');
+  const cancelBtn = document.getElementById('btn-asset-modal-cancel');
 
   // Close handlers
   if (closeBtn) closeBtn.addEventListener('click', closeAssetModal);
@@ -143,6 +168,20 @@ function attachModalListeners() {
         closeAssetModal();
       }
     });
+  }
+
+  // Multi-select actions
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      if (currentOptions?.isMulti && typeof currentOptions.onApply === 'function') {
+        currentOptions.onApply(Array.from(multiSelectedSet));
+      }
+      closeAssetModal();
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeAssetModal);
   }
 
   // Search input
@@ -172,7 +211,12 @@ function attachModalListeners() {
   document.querySelectorAll('[data-modal-preset]').forEach(chip => {
     chip.addEventListener('click', () => {
       const ticker = chip.dataset.modalPreset;
-      if (ticker) selectFund(ticker);
+      if (!ticker) return;
+      if (currentOptions?.isMulti) {
+        toggleMultiFund(ticker);
+      } else {
+        selectFund(ticker);
+      }
     });
   });
 
@@ -194,6 +238,10 @@ function attachModalListeners() {
         await resetSessionToDefault();
         updateCounts();
         renderAssetList();
+        if (currentOptions?.isMulti) {
+          multiSelectedSet = new Set(['VOO', 'QQQ', 'SCHD', 'BND', 'SPY']);
+          renderBasketBar();
+        }
         if (currentOptions && typeof currentOptions.onReset === 'function') {
           currentOptions.onReset();
         }
@@ -269,12 +317,18 @@ async function handleFilesImport(files) {
       currentOptions.onImport(result);
     }
 
-    // If exactly 1 fund was uploaded, automatically select it!
-    if (files.length === 1) {
+    // If exactly 1 fund was uploaded in single-select mode, automatically select it
+    if (files.length === 1 && !currentOptions?.isMulti) {
       const allFunds = getAllFundsSync();
       const lastUploaded = allFunds[allFunds.length - 1];
       if (lastUploaded && !lastUploaded.isPreset) {
         selectFund(lastUploaded.ticker);
+      }
+    } else if (currentOptions?.isMulti && files.length === 1) {
+      const allFunds = getAllFundsSync();
+      const lastUploaded = allFunds[allFunds.length - 1];
+      if (lastUploaded && !lastUploaded.isPreset) {
+        toggleMultiFund(lastUploaded.ticker);
       }
     }
   } else if (result.errors.length > 0) {
@@ -300,6 +354,79 @@ function updateCounts() {
 }
 
 /**
+ * Toggles a ticker into/out of multiSelectedSet
+ */
+function toggleMultiFund(ticker) {
+  const sym = ticker.toUpperCase();
+  const min = currentOptions?.minSelected || 2;
+  const max = currentOptions?.maxSelected || 15;
+
+  if (multiSelectedSet.has(sym)) {
+    if (multiSelectedSet.size <= min) {
+      alert(`At least ${min} assets are required for the correlation matrix.`);
+      return;
+    }
+    multiSelectedSet.delete(sym);
+  } else {
+    if (multiSelectedSet.size >= max) {
+      alert(`A maximum of ${max} assets can be included in the correlation matrix at once for numerical stability.`);
+      return;
+    }
+    multiSelectedSet.add(sym);
+  }
+
+  renderBasketBar();
+  renderAssetList();
+}
+
+/**
+ * Renders the top active basket bar inside the modal
+ */
+function renderBasketBar() {
+  const chipsContainer = document.getElementById('asset-modal-basket-chips');
+  const countLabel = document.getElementById('asset-modal-basket-count');
+  const maxLabel = document.getElementById('asset-modal-basket-max');
+  const maxSubLabel = document.getElementById('asset-modal-basket-max-sub');
+  const minLabel = document.getElementById('asset-modal-basket-min');
+  const footerSummary = document.getElementById('asset-modal-footer-summary');
+
+  const max = currentOptions?.maxSelected || 15;
+  const min = currentOptions?.minSelected || 2;
+
+  if (countLabel) countLabel.textContent = multiSelectedSet.size;
+  if (maxLabel) maxLabel.textContent = max;
+  if (maxSubLabel) maxSubLabel.textContent = max;
+  if (minLabel) minLabel.textContent = min;
+  if (footerSummary) footerSummary.textContent = `${multiSelectedSet.size} assets selected for matrix (min ${min}, max ${max})`;
+
+  if (!chipsContainer) return;
+
+  const allFunds = getAllFundsSync();
+  let html = '';
+
+  Array.from(multiSelectedSet).forEach(sym => {
+    const f = allFunds.find(fund => fund.ticker.toUpperCase() === sym) || { ticker: sym, color: '#38bdf8' };
+    html += `
+      <span class="basket-pill">
+        <span class="picker-dot" style="background: ${f.color || '#38bdf8'};"></span>
+        <span>${escapeHtml(sym)}</span>
+        <button type="button" class="basket-pill-remove" data-remove-ticker="${escapeHtml(sym)}" title="Remove ${escapeHtml(sym)} from matrix">✕</button>
+      </span>
+    `;
+  });
+
+  chipsContainer.innerHTML = html;
+
+  chipsContainer.querySelectorAll('[data-remove-ticker]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sym = btn.dataset.removeTicker;
+      if (sym) toggleMultiFund(sym);
+    });
+  });
+}
+
+/**
  * Renders the scrollable list of funds based on active filter and query
  */
 function renderAssetList() {
@@ -309,6 +436,7 @@ function renderAssetList() {
 
   const allFunds = getAllFundsSync();
   const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+  const isMulti = Boolean(currentOptions?.isMulti);
   const currentActive = currentOptions?.activeTicker ? currentOptions.activeTicker.toUpperCase() : '';
 
   // 1. Filter by category tab
@@ -329,8 +457,14 @@ function renderAssetList() {
     });
   }
 
-  // 3. Sort: Presets first, then alphabetical by ticker
+  // 3. Sort: In multi mode, active items first, then presets, then alphabetical
   filtered.sort((a, b) => {
+    if (isMulti) {
+      const aIn = multiSelectedSet.has(a.ticker.toUpperCase());
+      const bIn = multiSelectedSet.has(b.ticker.toUpperCase());
+      if (aIn && !bIn) return -1;
+      if (!aIn && bIn) return 1;
+    }
     if (a.isPreset && !b.isPreset) return -1;
     if (!a.isPreset && b.isPreset) return 1;
     return a.ticker.localeCompare(b.ticker);
@@ -351,7 +485,8 @@ function renderAssetList() {
 
   let html = '';
   filtered.forEach(f => {
-    const isSelected = f.ticker.toUpperCase() === currentActive;
+    const sym = f.ticker.toUpperCase();
+    const isSelected = isMulti ? multiSelectedSet.has(sym) : sym === currentActive;
     const dateRange = f.data && f.data.length > 0
       ? `${f.data[0].date} &rarr; ${f.data[f.data.length - 1].date} (${f.data.length} months)`
       : 'Historical series loaded';
@@ -368,25 +503,40 @@ function renderAssetList() {
             </span>
           </div>
         </div>
-        <button type="button" class="item-select-btn" data-select-ticker="${f.ticker}">
-          ${isSelected ? 'Active ✓' : 'Select'}
-        </button>
+        ${isMulti ? `
+          <button type="button" class="item-select-btn ${isSelected ? 'is-added' : ''}" data-toggle-ticker="${escapeHtml(f.ticker)}">
+            ${isSelected ? '✓ Added' : '+ Add'}
+          </button>
+        ` : `
+          <button type="button" class="item-select-btn" data-select-ticker="${escapeHtml(f.ticker)}">
+            ${isSelected ? 'Active ✓' : 'Select'}
+          </button>
+        `}
       </div>
     `;
   });
 
   listContainer.innerHTML = html;
 
-  listContainer.querySelectorAll('[data-select-ticker]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const ticker = btn.dataset.selectTicker;
-      if (ticker) selectFund(ticker);
+  if (isMulti) {
+    listContainer.querySelectorAll('[data-toggle-ticker]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ticker = btn.dataset.toggleTicker;
+        if (ticker) toggleMultiFund(ticker);
+      });
     });
-  });
+  } else {
+    listContainer.querySelectorAll('[data-select-ticker]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ticker = btn.dataset.selectTicker;
+        if (ticker) selectFund(ticker);
+      });
+    });
+  }
 }
 
 /**
- * Handles selection of a fund
+ * Handles selection of a fund (single-select mode)
  */
 function selectFund(ticker) {
   const sym = ticker.toUpperCase();
@@ -405,8 +555,13 @@ function selectFund(ticker) {
  * @param {string} [options.title] - Modal title
  * @param {string} [options.badgeText] - Modal header badge label
  * @param {string} [options.badgeColor] - Badge color
- * @param {string} [options.activeTicker] - Currently selected ticker to highlight
- * @param {Function} [options.onSelect] - Callback when fund is selected (ticker, fund) => void
+ * @param {boolean} [options.isMulti] - Whether in multi-asset basket mode
+ * @param {Iterable<string>} [options.selectedTickers] - Currently selected tickers (for multi mode)
+ * @param {number} [options.minSelected] - Minimum number of selected assets (default 2)
+ * @param {number} [options.maxSelected] - Maximum number of selected assets (default 15)
+ * @param {string} [options.activeTicker] - Currently selected ticker (for single mode)
+ * @param {Function} [options.onSelect] - Callback when fund is selected in single mode (ticker, fund) => void
+ * @param {Function} [options.onApply] - Callback when basket is applied in multi mode (tickerArray) => void
  * @param {Function} [options.onImport] - Callback when files are imported (result) => void
  * @param {Function} [options.onReset] - Callback when session is reset to default 5
  */
@@ -417,23 +572,43 @@ export function openAssetModal(options = {}) {
     title: options.title || 'Select Asset / Benchmark',
     badgeText: options.badgeText || 'Asset',
     badgeColor: options.badgeColor || '#2dd4bf',
+    isMulti: Boolean(options.isMulti),
+    selectedTickers: options.selectedTickers || [],
+    minSelected: options.minSelected != null ? options.minSelected : 2,
+    maxSelected: options.maxSelected != null ? options.maxSelected : 15,
     activeTicker: options.activeTicker || '',
     onSelect: options.onSelect || (() => {}),
+    onApply: options.onApply || (() => {}),
     onImport: options.onImport || null,
     onReset: options.onReset || null
   };
+
+  if (typeof document === 'undefined') return;
 
   const titleEl = document.getElementById('asset-modal-title');
   const badgeEl = document.getElementById('asset-modal-badge');
   const searchInput = document.getElementById('asset-modal-search-input');
   const clearSearchBtn = document.getElementById('btn-clear-asset-modal-search');
   const overlay = document.getElementById('asset-modal-overlay');
+  const basketBar = document.getElementById('asset-modal-basket-bar');
+  const footerBar = document.getElementById('asset-modal-footer');
 
   if (titleEl) titleEl.textContent = currentOptions.title;
   if (badgeEl) {
     badgeEl.textContent = currentOptions.badgeText;
     badgeEl.style.color = currentOptions.badgeColor;
     badgeEl.style.background = `${currentOptions.badgeColor}25`;
+  }
+
+  // Handle multi mode vs single mode UI visibility
+  if (currentOptions.isMulti) {
+    multiSelectedSet = new Set(Array.from(currentOptions.selectedTickers || []).map(t => t.toUpperCase()));
+    if (basketBar) basketBar.classList.remove('hidden');
+    if (footerBar) footerBar.classList.remove('hidden');
+    renderBasketBar();
+  } else {
+    if (basketBar) basketBar.classList.add('hidden');
+    if (footerBar) footerBar.classList.add('hidden');
   }
 
   // Reset category tabs to 'all'
@@ -461,6 +636,7 @@ export function openAssetModal(options = {}) {
  * Closes the asset modal
  */
 export function closeAssetModal() {
+  if (typeof document === 'undefined') return;
   const overlay = document.getElementById('asset-modal-overlay');
   if (overlay) overlay.classList.add('hidden');
 }

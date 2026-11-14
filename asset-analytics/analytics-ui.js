@@ -46,6 +46,7 @@ import {
 } from './timeseries-engine.js';
 import { formatCurrency, rafThrottle } from '../js/chart-utils.js';
 import { formatPct } from '../js/formatting.js';
+import { openAssetModal } from '../js/asset-modal.js';
 
 // App Reactive State
 const state = {
@@ -110,10 +111,6 @@ const state = {
   benchObj: null
 };
 
-// Searchable Modal State
-let modalMode = 'target'; // 'target' | 'benchmark' | 'autocorr' | 'coint-dep' | 'coint-indep'
-let activeCategoryFilter = 'all'; // 'all' | 'preset' | 'custom'
-
 // DOM Elements Cache
 let elements = {};
 
@@ -142,7 +139,6 @@ async function init() {
   updatePickerButtons();
   updateAutocorrPickerButton();
   updateCointPickerButtons();
-  updateCategoryCounts();
   updateSubCategoryDropdown();
   renderCorrelationChips();
   updateViewModeUI();
@@ -150,13 +146,9 @@ async function init() {
 
   // Subscribe to changes in the session fund repository
   subscribeSessionFunds(() => {
-    updateCategoryCounts();
     updatePickerButtons();
     updateAutocorrPickerButton();
     updateCointPickerButtons();
-    if (elements.assetModalOverlay && !elements.assetModalOverlay.classList.contains('hidden')) {
-      renderModalAssetList();
-    }
     if (state.activeTab === 'screener') {
       runScreener();
     } else if (state.activeTab === 'rankings') {
@@ -213,27 +205,6 @@ function cacheDOMElements() {
     targetPickerName: document.getElementById('target-picker-name'),
     benchPickerTicker: document.getElementById('bench-picker-ticker'),
     benchPickerName: document.getElementById('bench-picker-name'),
-
-    // Searchable Modal
-    assetModalOverlay: document.getElementById('asset-modal-overlay'),
-    modalTitle: document.getElementById('modal-title'),
-    modalTargetTypeBadge: document.getElementById('modal-target-type-badge'),
-    btnCloseModal: document.getElementById('btn-close-modal'),
-    modalSearchInput: document.getElementById('modal-search-input'),
-    btnClearSearch: document.getElementById('btn-clear-search'),
-    modalAssetList: document.getElementById('modal-asset-list'),
-    countAll: document.getElementById('count-all'),
-    countPreset: document.getElementById('count-preset'),
-    countCustom: document.getElementById('count-custom'),
-    btnResetSessionFunds: document.getElementById('btn-reset-session-funds'),
-    presetChips: document.querySelectorAll('.preset-chip'),
-    catTabs: document.querySelectorAll('.cat-tab'),
-    modalDropzone: document.getElementById('modal-dropzone'),
-    modalFileInput: document.getElementById('modal-file-input'),
-    btnBrowseFiles: document.getElementById('btn-browse-files'),
-    dropzoneProgress: document.getElementById('dropzone-progress'),
-    dropzoneProgressBar: document.getElementById('dropzone-progress-bar'),
-    dropzoneProgressText: document.getElementById('dropzone-progress-text'),
 
     // Performance Tab Controls
     rangeSelect: document.getElementById('range-select'),
@@ -349,9 +320,11 @@ function cacheDOMElements() {
     rankingsColMetricHeader: document.getElementById('rankings-col-metric-header'),
 
     // Correlation Elements
-    corrUniverseChips: document.getElementById('corr-universe-chips'),
+    btnCorrOpenModal: document.getElementById('btn-corr-open-modal'),
+    corrBasketCountLabel: document.getElementById('corr-basket-count-label'),
+    corrBasketPreviewLabel: document.getElementById('corr-basket-preview-label'),
+    corrActiveChipsWrap: document.getElementById('corr-active-chips-wrap'),
     btnCorrSelectCore: document.getElementById('btn-corr-select-core'),
-    btnCorrSelectAll: document.getElementById('btn-corr-select-all'),
     btnCorrClearAll: document.getElementById('btn-corr-clear-all'),
     corrHorizonSelect: document.getElementById('corr-horizon-select'),
     corrWindowSelect: document.getElementById('corr-window-select'),
@@ -467,16 +440,6 @@ function updateCointPickerButtons() {
   }
 }
 
-function updateCategoryCounts() {
-  const allFunds = getAllFundsSync();
-  const presets = allFunds.filter(f => f.isPreset).length;
-  const custom = allFunds.filter(f => !f.isPreset).length;
-
-  if (elements.countAll) elements.countAll.textContent = allFunds.length;
-  if (elements.countPreset) elements.countPreset.textContent = presets;
-  if (elements.countCustom) elements.countCustom.textContent = custom;
-}
-
 function bindEvents() {
   // Studio Sub-Navigation Tabs
   if (elements.tabBtnPerformance) {
@@ -498,155 +461,84 @@ function bindEvents() {
     elements.tabBtnCointegration.addEventListener('click', () => switchStudioTab('cointegration'));
   }
 
-  // Modal Triggers
+  // Modal Triggers (Searchable Asset & Benchmark Modal)
   if (elements.btnOpenTargetModal) {
-    elements.btnOpenTargetModal.addEventListener('click', () => openAssetModal('target'));
+    elements.btnOpenTargetModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Target Asset / Fund',
+        badgeText: 'Target Asset',
+        badgeColor: '#2dd4bf',
+        activeTicker: state.fundTicker,
+        onSelect: (ticker) => {
+          state.fundTicker = ticker;
+          updatePickerButtons();
+          runAnalysis();
+        }
+      });
+    });
   }
+
   if (elements.btnOpenBenchModal) {
-    elements.btnOpenBenchModal.addEventListener('click', () => openAssetModal('benchmark'));
+    elements.btnOpenBenchModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Benchmark Reference',
+        badgeText: 'Benchmark Reference',
+        badgeColor: '#c084fc',
+        activeTicker: state.benchTicker,
+        onSelect: (ticker) => {
+          state.benchTicker = ticker;
+          updatePickerButtons();
+          runAnalysis();
+        }
+      });
+    });
   }
+
   if (elements.btnOpenAutocorrModal) {
-    elements.btnOpenAutocorrModal.addEventListener('click', () => openAssetModal('autocorr'));
+    elements.btnOpenAutocorrModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Autocorrelation Asset',
+        badgeText: 'Autocorrelation Asset',
+        badgeColor: '#2dd4bf',
+        activeTicker: state.autocorrTicker,
+        onSelect: (ticker) => {
+          state.autocorrTicker = ticker;
+          updateAutocorrPickerButton();
+          runAutocorrelationAnalysis();
+        }
+      });
+    });
   }
+
   if (elements.btnOpenCointDepModal) {
-    elements.btnOpenCointDepModal.addEventListener('click', () => openAssetModal('coint-dep'));
+    elements.btnOpenCointDepModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Dependent Asset (Y)',
+        badgeText: 'Dependent (Y)',
+        badgeColor: '#2dd4bf',
+        activeTicker: state.cointDepTicker,
+        onSelect: (ticker) => {
+          state.cointDepTicker = ticker;
+          updateCointPickerButtons();
+          runCointegrationAnalysisUI();
+        }
+      });
+    });
   }
+
   if (elements.btnOpenCointIndepModal) {
-    elements.btnOpenCointIndepModal.addEventListener('click', () => openAssetModal('coint-indep'));
-  }
-
-  // Modal Close Handlers
-  if (elements.btnCloseModal) {
-    elements.btnCloseModal.addEventListener('click', closeAssetModal);
-  }
-  if (elements.assetModalOverlay) {
-    elements.assetModalOverlay.addEventListener('click', (e) => {
-      if (e.target === elements.assetModalOverlay) {
-        closeAssetModal();
-      }
-    });
-  }
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && elements.assetModalOverlay && !elements.assetModalOverlay.classList.contains('hidden')) {
-      closeAssetModal();
-    }
-  });
-
-  // Modal Search Filter
-  if (elements.modalSearchInput) {
-    elements.modalSearchInput.addEventListener('input', (e) => {
-      const val = e.target.value.trim();
-      if (elements.btnClearSearch) {
-        if (val.length > 0) {
-          elements.btnClearSearch.classList.remove('hidden');
-        } else {
-          elements.btnClearSearch.classList.add('hidden');
-        }
-      }
-      renderModalAssetList();
-    });
-  }
-
-  if (elements.btnClearSearch) {
-    elements.btnClearSearch.addEventListener('click', () => {
-      if (elements.modalSearchInput) {
-        elements.modalSearchInput.value = '';
-        elements.modalSearchInput.focus();
-      }
-      elements.btnClearSearch.classList.add('hidden');
-      renderModalAssetList();
-    });
-  }
-
-  // Category Tabs Filter
-  if (elements.catTabs) {
-    elements.catTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        elements.catTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        activeCategoryFilter = tab.dataset.cat || 'all';
-        renderModalAssetList();
-      });
-    });
-  }
-
-  // Quick Preset Chips
-  if (elements.presetChips) {
-    elements.presetChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        const ticker = chip.dataset.ticker;
-        if (ticker) {
-          selectFund(ticker);
+    elements.btnOpenCointIndepModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Select Independent Asset (X)',
+        badgeText: 'Independent (X)',
+        badgeColor: '#c084fc',
+        activeTicker: state.cointIndepTicker,
+        onSelect: (ticker) => {
+          state.cointIndepTicker = ticker;
+          updateCointPickerButtons();
+          runCointegrationAnalysisUI();
         }
       });
-    });
-  }
-
-  // Reset Session Funds Button
-  if (elements.btnResetSessionFunds) {
-    elements.btnResetSessionFunds.addEventListener('click', async () => {
-      if (confirm('Reset temporary uploads and revert to the default 5 core benchmarks?')) {
-        await resetSessionToDefault();
-
-        const all = getAllFundsSync();
-        if (!all.some(f => f.ticker === state.fundTicker)) {
-          state.fundTicker = 'QQQ';
-        }
-        if (!all.some(f => f.ticker === state.benchTicker)) {
-          state.benchTicker = 'VOO';
-        }
-
-        updatePickerButtons();
-        updateCategoryCounts();
-        renderModalAssetList();
-        renderCorrelationChips();
-
-        if (state.activeTab === 'performance') runAnalysis();
-        else if (state.activeTab === 'screener') runScreener();
-        else if (state.activeTab === 'rankings') runRankings();
-        else if (state.activeTab === 'correlations') runCorrelationAnalysis();
-      }
-    });
-  }
-
-  // Modal File Dropzone & Browse Handlers
-  if (elements.btnBrowseFiles && elements.modalFileInput) {
-    elements.btnBrowseFiles.addEventListener('click', (e) => {
-      e.stopPropagation();
-      elements.modalFileInput.click();
-    });
-  }
-
-  if (elements.modalFileInput) {
-    elements.modalFileInput.addEventListener('change', async (e) => {
-      if (e.target.files && e.target.files.length > 0) {
-        await handleFilesImport(e.target.files);
-        elements.modalFileInput.value = '';
-      }
-    });
-  }
-
-  if (elements.modalDropzone) {
-    ['dragenter', 'dragover'].forEach(eventName => {
-      elements.modalDropzone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        elements.modalDropzone.querySelector('.dropzone-inner')?.classList.add('dragover');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-      elements.modalDropzone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        elements.modalDropzone.querySelector('.dropzone-inner')?.classList.remove('dragover');
-      });
-    });
-
-    elements.modalDropzone.addEventListener('drop', async (e) => {
-      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        await handleFilesImport(e.dataTransfer.files);
-      }
     });
   }
 
@@ -884,6 +776,25 @@ function bindEvents() {
   }
 
   // Correlation Event Handlers
+  if (elements.btnCorrOpenModal) {
+    elements.btnCorrOpenModal.addEventListener('click', () => {
+      openAssetModal({
+        title: 'Configure Correlation Basket',
+        badgeText: 'Correlation Matrix',
+        badgeColor: '#2dd4bf',
+        isMulti: true,
+        selectedTickers: Array.from(state.corrTickers),
+        minSelected: 2,
+        maxSelected: 15,
+        onApply: (selectedArr) => {
+          state.corrTickers = new Set(selectedArr);
+          renderCorrelationChips();
+          runCorrelationAnalysis();
+        }
+      });
+    });
+  }
+
   if (elements.btnCorrSelectCore) {
     elements.btnCorrSelectCore.addEventListener('click', () => {
       state.corrTickers = new Set(['VOO', 'SPY', 'QQQ', 'SCHD', 'BND']);
@@ -892,18 +803,9 @@ function bindEvents() {
     });
   }
 
-  if (elements.btnCorrSelectAll) {
-    elements.btnCorrSelectAll.addEventListener('click', () => {
-      const all = getAllFundsSync();
-      state.corrTickers = new Set(all.map(f => f.ticker));
-      renderCorrelationChips();
-      runCorrelationAnalysis();
-    });
-  }
-
   if (elements.btnCorrClearAll) {
     elements.btnCorrClearAll.addEventListener('click', () => {
-      state.corrTickers = new Set(['QQQ', 'VOO']); // Minimum 2 assets
+      state.corrTickers = new Set(['VOO', 'QQQ']); // Minimum 2 assets
       renderCorrelationChips();
       runCorrelationAnalysis();
     });
@@ -1324,41 +1226,47 @@ function formatRankValue(metric, val) {
  * Correlation Studio Logic
  */
 function renderCorrelationChips() {
-  if (!elements.corrUniverseChips) return;
+  const tickerList = Array.from(state.corrTickers);
 
-  const allFunds = getAllFundsSync();
-  let html = '';
+  if (elements.corrBasketCountLabel) {
+    elements.corrBasketCountLabel.textContent = `${tickerList.length} Assets`;
+  }
+  if (elements.corrBasketPreviewLabel) {
+    elements.corrBasketPreviewLabel.textContent = tickerList.join(', ');
+  }
 
-  allFunds.forEach(fund => {
-    const isSelected = state.corrTickers.has(fund.ticker);
-    html += `
-      <button type="button" class="corr-chip ${isSelected ? 'active' : ''}" data-ticker="${fund.ticker}">
-        <span class="picker-dot" style="background: ${fund.color || '#38bdf8'};"></span>
-        <span>${fund.ticker}</span>
-      </button>
-    `;
-  });
+  if (elements.corrActiveChipsWrap) {
+    const allFundsMap = new Map(getAllFundsSync().map(f => [f.ticker, f]));
+    let html = '';
 
-  elements.corrUniverseChips.innerHTML = html;
+    tickerList.forEach(ticker => {
+      const fund = allFundsMap.get(ticker) || { ticker, color: '#2dd4bf' };
+      html += `
+        <span class="corr-active-pill" data-ticker="${escapeHtml(ticker)}">
+          <span class="picker-dot" style="background: ${fund.color || '#2dd4bf'};"></span>
+          <span>${escapeHtml(ticker)}</span>
+          <button type="button" class="corr-pill-remove" data-remove-corr="${escapeHtml(ticker)}" title="Remove ${escapeHtml(ticker)} from matrix" aria-label="Remove ${escapeHtml(ticker)}">✕</button>
+        </span>
+      `;
+    });
 
-  // Bind Chip Toggles
-  elements.corrUniverseChips.querySelectorAll('.corr-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const ticker = chip.dataset.ticker;
-      if (state.corrTickers.has(ticker)) {
-        if (state.corrTickers.size > 2) {
-          state.corrTickers.delete(ticker);
-        } else {
+    elements.corrActiveChipsWrap.innerHTML = html;
+
+    // Bind remove button handlers
+    elements.corrActiveChipsWrap.querySelectorAll('[data-remove-corr]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ticker = btn.dataset.removeCorr;
+        if (state.corrTickers.size <= 2) {
           alert('At least 2 assets are required for correlation analysis.');
           return;
         }
-      } else {
-        state.corrTickers.add(ticker);
-      }
-      renderCorrelationChips();
-      runCorrelationAnalysis();
+        state.corrTickers.delete(ticker);
+        renderCorrelationChips();
+        runCorrelationAnalysis();
+      });
     });
-  });
+  }
 
   populatePairSelectors();
 }
@@ -1763,251 +1671,6 @@ function downloadCSV(csvContent, filename) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-}
-
-/**
- * Opens Searchable Asset / Benchmark Modal
- * @param {'target' | 'benchmark'} mode
- */
-function openAssetModal(mode) {
-  modalMode = mode;
-
-  if (elements.modalTitle) {
-    if (mode === 'target') elements.modalTitle.textContent = 'Select Target Asset / Fund';
-    else if (mode === 'benchmark') elements.modalTitle.textContent = 'Select Benchmark Reference';
-    else if (mode === 'autocorr') elements.modalTitle.textContent = 'Select Autocorrelation Asset';
-    else if (mode === 'coint-dep') elements.modalTitle.textContent = 'Select Dependent Asset (Y)';
-    else if (mode === 'coint-indep') elements.modalTitle.textContent = 'Select Independent Asset (X)';
-  }
-
-  if (elements.modalTargetTypeBadge) {
-    if (mode === 'target') {
-      elements.modalTargetTypeBadge.textContent = 'Target Asset';
-      elements.modalTargetTypeBadge.style.background = 'rgba(45, 212, 191, 0.15)';
-      elements.modalTargetTypeBadge.style.color = '#2dd4bf';
-    } else if (mode === 'benchmark') {
-      elements.modalTargetTypeBadge.textContent = 'Benchmark Reference';
-      elements.modalTargetTypeBadge.style.background = 'rgba(168, 85, 247, 0.15)';
-      elements.modalTargetTypeBadge.style.color = '#c084fc';
-    } else if (mode === 'autocorr') {
-      elements.modalTargetTypeBadge.textContent = 'Autocorrelation Asset';
-      elements.modalTargetTypeBadge.style.background = 'rgba(45, 212, 191, 0.15)';
-      elements.modalTargetTypeBadge.style.color = '#2dd4bf';
-    } else if (mode === 'coint-dep') {
-      elements.modalTargetTypeBadge.textContent = 'Dependent (Y)';
-      elements.modalTargetTypeBadge.style.background = 'rgba(45, 212, 191, 0.15)';
-      elements.modalTargetTypeBadge.style.color = '#2dd4bf';
-    } else if (mode === 'coint-indep') {
-      elements.modalTargetTypeBadge.textContent = 'Independent (X)';
-      elements.modalTargetTypeBadge.style.background = 'rgba(168, 85, 247, 0.15)';
-      elements.modalTargetTypeBadge.style.color = '#c084fc';
-    }
-  }
-
-  // Reset category tabs to 'all'
-  activeCategoryFilter = 'all';
-  if (elements.catTabs) {
-    elements.catTabs.forEach(t => {
-      if (t.dataset.cat === 'all') t.classList.add('active');
-      else t.classList.remove('active');
-    });
-  }
-
-  // Clear search input
-  if (elements.modalSearchInput) {
-    elements.modalSearchInput.value = '';
-  }
-  if (elements.btnClearSearch) {
-    elements.btnClearSearch.classList.add('hidden');
-  }
-
-  updateCategoryCounts();
-  renderModalAssetList();
-
-  if (elements.assetModalOverlay) {
-    elements.assetModalOverlay.classList.remove('hidden');
-  }
-
-  setTimeout(() => {
-    if (elements.modalSearchInput) elements.modalSearchInput.focus();
-  }, 50);
-}
-
-function closeAssetModal() {
-  if (elements.assetModalOverlay) {
-    elements.assetModalOverlay.classList.add('hidden');
-  }
-}
-
-function selectFund(ticker) {
-  const sym = ticker.toUpperCase();
-  if (modalMode === 'target') {
-    state.fundTicker = sym;
-    updatePickerButtons();
-    closeAssetModal();
-    runAnalysis();
-  } else if (modalMode === 'benchmark') {
-    state.benchTicker = sym;
-    updatePickerButtons();
-    closeAssetModal();
-    runAnalysis();
-  } else if (modalMode === 'autocorr') {
-    state.autocorrTicker = sym;
-    updateAutocorrPickerButton();
-    closeAssetModal();
-    runAutocorrelationAnalysis();
-  } else if (modalMode === 'coint-dep') {
-    state.cointDepTicker = sym;
-    updateCointPickerButtons();
-    closeAssetModal();
-    runCointegrationAnalysisUI();
-  } else if (modalMode === 'coint-indep') {
-    state.cointIndepTicker = sym;
-    updateCointPickerButtons();
-    closeAssetModal();
-    runCointegrationAnalysisUI();
-  }
-}
-
-/**
- * Handles batch file import via Drag & Drop or File Input
- */
-async function handleFilesImport(files) {
-  if (!files || files.length === 0) return;
-
-  if (elements.dropzoneProgress) {
-    elements.dropzoneProgress.classList.remove('hidden');
-  }
-  if (elements.dropzoneProgressBar) {
-    elements.dropzoneProgressBar.style.width = '0%';
-  }
-  if (elements.dropzoneProgressText) {
-    elements.dropzoneProgressText.textContent = `Importing ${files.length} file(s)...`;
-  }
-
-  const result = await importFilesToSession(files, (processed, total) => {
-    if (elements.dropzoneProgressBar) {
-      elements.dropzoneProgressBar.style.width = `${Math.round((processed / total) * 100)}%`;
-    }
-    if (elements.dropzoneProgressText) {
-      elements.dropzoneProgressText.textContent = `Parsed ${processed} of ${total} files...`;
-    }
-  });
-
-  if (elements.dropzoneProgress) {
-    elements.dropzoneProgress.classList.add('hidden');
-  }
-
-  if (result.errors && result.errors.length > 0) {
-    console.warn('Import warnings:', result.errors);
-  }
-
-  if (result.importedCount > 0) {
-    updateCategoryCounts();
-    renderModalAssetList();
-    renderCorrelationChips();
-
-    if (state.activeTab === 'screener') runScreener();
-    else if (state.activeTab === 'rankings') runRankings();
-    else if (state.activeTab === 'correlations') runCorrelationAnalysis();
-
-    // If exactly 1 fund was uploaded in target mode, automatically select it!
-    if (files.length === 1 && modalMode === 'target') {
-      const allFunds = getAllFundsSync();
-      const lastUploaded = allFunds[allFunds.length - 1];
-      if (lastUploaded && !lastUploaded.isPreset) {
-        selectFund(lastUploaded.ticker);
-      }
-    }
-  } else if (result.errors.length > 0) {
-    alert(`Import failed: ${result.errors[0]}`);
-  }
-}
-
-/**
- * Renders the scrollable fund list inside the modal with live search & tab filters
- */
-function renderModalAssetList() {
-  if (!elements.modalAssetList) return;
-
-  const allFunds = getAllFundsSync();
-  const query = (elements.modalSearchInput ? elements.modalSearchInput.value : '').trim().toLowerCase();
-  const currentActiveTicker = modalMode === 'target' ? state.fundTicker : state.benchTicker;
-
-  // Filter by active category tab
-  let filtered = allFunds;
-  if (activeCategoryFilter === 'preset') {
-    filtered = filtered.filter(f => f.isPreset);
-  } else if (activeCategoryFilter === 'custom') {
-    filtered = filtered.filter(f => !f.isPreset);
-  }
-
-  // Filter by search query
-  if (query.length > 0) {
-    filtered = filtered.filter(f => {
-      const t = f.ticker.toLowerCase();
-      const n = (f.name || '').toLowerCase();
-      const c = (f.category || '').toLowerCase();
-      return t.includes(query) || n.includes(query) || c.includes(query);
-    });
-  }
-
-  // Sort: Presets first, then alphabetical by ticker
-  filtered.sort((a, b) => {
-    if (a.isPreset && !b.isPreset) return -1;
-    if (!a.isPreset && b.isPreset) return 1;
-    return a.ticker.localeCompare(b.ticker);
-  });
-
-  if (filtered.length === 0) {
-    elements.modalAssetList.innerHTML = `
-      <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-secondary); font-size: 0.85rem;">
-        <span style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;">🔍</span>
-        No matching funds found for "<strong>${escapeHtml(query)}</strong>".
-        <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
-          Try searching another ticker or drop CSV files below to import custom funds.
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  let html = '';
-  filtered.forEach(fund => {
-    const isSelected = fund.ticker === currentActiveTicker;
-    const tagBadge = fund.isPreset
-      ? '<span style="font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-weight: 600;">Core</span>'
-      : '<span style="font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 4px; background: rgba(168, 85, 247, 0.15); color: #c084fc; font-weight: 600;">Session</span>';
-
-    const rangeStr = fund.start && fund.end
-      ? `${fund.start.substring(0, 7)} → ${fund.end.substring(0, 7)} (${fund.monthsCount} mos)`
-      : `${fund.monthsCount} data points`;
-
-    html += `
-      <div class="asset-list-item ${isSelected ? 'is-selected' : ''}" data-ticker="${fund.ticker}">
-        <div class="item-left">
-          <span class="item-ticker-badge" style="border-left: 3px solid ${fund.color || '#38bdf8'};">${fund.ticker}</span>
-          <div class="item-info">
-            <span class="item-name" title="${escapeHtml(fund.name)}">${escapeHtml(fund.name)}</span>
-            <span class="item-meta">${escapeHtml(fund.category)} &bull; ${rangeStr} &bull; ${tagBadge}</span>
-          </div>
-        </div>
-        <button type="button" class="item-select-btn" data-ticker="${fund.ticker}">
-          ${isSelected ? '✓ Active' : 'Select'}
-        </button>
-      </div>
-    `;
-  });
-
-  elements.modalAssetList.innerHTML = html;
-
-  // Bind click on items and select buttons
-  elements.modalAssetList.querySelectorAll('.asset-list-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const ticker = item.dataset.ticker;
-      if (ticker) selectFund(ticker);
-    });
-  });
 }
 
 function escapeHtml(str) {

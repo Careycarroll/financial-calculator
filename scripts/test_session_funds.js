@@ -53,4 +53,22 @@ assert.strictEqual(typeof assetModalModule.openAssetModal, 'function', 'openAsse
 assert.strictEqual(typeof assetModalModule.closeAssetModal, 'function', 'closeAssetModal is exported as function');
 console.log('✅ PASS: Shared Asset Modal controller exports validated');
 
+// TEST 5: Multi-Asset Basket Configuration & Options
+console.log('\n--- TEST 5: Multi-Asset Basket Options & Guardrails ---');
+// Verify invoking in headless/node context does not throw
+assert.doesNotThrow(() => {
+  assetModalModule.openAssetModal({
+    title: 'Configure Correlation Basket',
+    isMulti: true,
+    selectedTickers: ['VOO', 'QQQ', 'SPY'],
+    minSelected: 2,
+    maxSelected: 15,
+    onApply: (selected) => {
+      assert.strictEqual(selected.length, 3);
+    }
+  });
+  assetModalModule.closeAssetModal();
+}, 'Multi-asset modal invocation succeeds gracefully in test environment');
+console.log('✅ PASS: Multi-asset basket modal options & headless safety validated');
+
 console.log('\n🎉 ALL SESSION FUNDS TESTS PASSED SUCCESSFULLY!');
