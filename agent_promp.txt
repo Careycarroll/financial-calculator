@@ -222,6 +222,7 @@ Phase 9: DCA Comparator & Multi-Asset Backtest -- Completed November 2026. Multi
 Phase 10: Fund Regression & Factor Analysis Lab -- Completed November 2026. CAPM OLS solver (Alpha, Beta, R², Tracking Error), Dual-Beta (Up/Down Capture), 36M/60M rolling regressions, interactive SML chart with pan/zoom.
 Phase 10.1: Scale Optimization & UX Polish -- Completed November 2026. Batch async chunk ingestion for 900+ fund files, spatial collision culling, granular zoom step ladder, and responsive viewport containment.
 Phase 11: Dynamic Suite Navigation & Contextual Jump Architecture -- Completed November 2026. Auto-detecting breadcrumb and category jump dropdown (js/nav.js), cross-suite bridge links (Retirement <-> Regression, DCA <-> Stress), in-page workflow jump bars, and uncluttered global homepage.
+Phase 12: Asset Analytics Studio & Fund Performance Deep-Dive -- Completed November 2026. Standalone studio (asset-analytics/), cumulative $10k growth (linear/log), underwater drawdown crash identification table, 12M Jan-Dec calendar heatmap matrix, rolling multi-year performance/Sharpe bands, 20-metric institutional scorecard, and simple/quant diagnostic toggle.
 
 ## Prompt Maintenance
 
