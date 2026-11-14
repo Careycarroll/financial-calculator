@@ -6,7 +6,9 @@ import {
   testAugmentedDickeyFuller,
   calculateCointegrationCriticalValues,
   calculateMacKinnonPValue,
-  runCointegrationAnalysis
+  runCointegrationAnalysis,
+  generateAutocorrTakeaway,
+  generateCointegrationTakeaway
 } from '../asset-analytics/timeseries-engine.js';
 
 console.log('=== RUNNING ASSET TIME-SERIES ENGINE TESTS ===\n');
@@ -153,5 +155,41 @@ assert.strictEqual(cointResult.confidence95, 'Cointegrated', 'Confidence 95% ver
 assert(cointResult.spreadSeries.length === 100, 'Spread series generated for all 100 months');
 
 console.log(`✅ PASS: Cointegration confirmed! Hedge ratio: ${cointResult.cointegratingEquation.beta.toFixed(3)} | ADF t-stat: ${cointResult.adfTest.testStatistic.toFixed(3)} | p-value: ${cointResult.pValue.toFixed(4)} | Verdict: ${cointResult.confidence95}\n`);
+
+// -------------------------------------------------------------
+// TEST 7: Dynamic Autocorrelation Narrative Takeaway
+// -------------------------------------------------------------
+console.log('--- TEST 7: Dynamic Autocorrelation Narrative Takeaway ---');
+const autocorrStoryMomentum = generateAutocorrTakeaway('QQQ', 0.22, 0.05, 0.18);
+assert(autocorrStoryMomentum.includes('short-term momentum persistence'), 'Identifies momentum persistence for lag1 > 0.15');
+assert(autocorrStoryMomentum.includes('annual seasonality'), 'Identifies annual seasonality for lag12 > 0.15');
+
+const autocorrStoryReversion = generateAutocorrTakeaway('VIX', -0.28, -0.10, 0.02);
+assert(autocorrStoryReversion.includes('short-term mean-reversion'), 'Identifies mean reversion for lag1 < -0.15');
+assert(autocorrStoryReversion.includes('minimal annual calendar seasonality'), 'Identifies minimal seasonality');
+
+const autocorrStoryRandom = generateAutocorrTakeaway('SPY', 0.04, -0.02, 0.01);
+assert(autocorrStoryRandom.includes('random walk efficiency'), 'Identifies random walk efficiency for near-zero lag1');
+console.log(`✅ PASS: Autocorrelation stories verified:\nMomentum: ${autocorrStoryMomentum}\nReversion: ${autocorrStoryReversion}\n`);
+
+// -------------------------------------------------------------
+// TEST 8: Dynamic Cointegration Narrative Takeaway
+// -------------------------------------------------------------
+console.log('--- TEST 8: Dynamic Cointegration Narrative Takeaway ---');
+const cointStorySuccess = generateCointegrationTakeaway('ASSET_B', 'ASSET_A', cointResult);
+assert(cointStorySuccess.includes('Statistically Cointegrated'), 'Identifies cointegrated pair in story narrative');
+assert(cointStorySuccess.includes('hedge ratio'), 'Mentions hedge ratio');
+
+const nonCointResult = {
+  isCointegrated: false,
+  adfTest: { testStatistic: -1.25 },
+  criticalValues: { crit95: -3.37 },
+  pValue: 0.62,
+  cointegratingEquation: { beta: 0.85 }
+};
+const cointStoryFail = generateCointegrationTakeaway('VOO', 'GLD', nonCointResult);
+assert(cointStoryFail.includes('No Stationary Equilibrium'), 'Identifies non-cointegrated pair');
+assert(cointStoryFail.includes('not cointegrated'), 'Contains not cointegrated warning');
+console.log(`✅ PASS: Cointegration stories verified:\nCointegrated: ${cointStorySuccess}\nNon-Cointegrated: ${cointStoryFail}\n`);
 
 console.log('🎉 ALL ASSET TIME-SERIES ENGINE TESTS PASSED SUCCESSFULLY!');

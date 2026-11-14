@@ -1853,3 +1853,199 @@ th.active-sort .sort-icon {
   border: 1px solid rgba(100, 116, 139, 0.3);
 }
 
+/* ===== EDUCATIONAL CHEAT SHEET ACCORDION CARDS ===== */
+.cheat-sheet-card {
+  background: var(--bg-secondary, #1e293b);
+  border: 1px solid var(--border, #334155);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+.cheat-sheet-header {
+  padding: 0.75rem 1.15rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: rgba(30, 41, 59, 0.5);
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.cheat-sheet-header:hover {
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.cheat-sheet-header.open {
+  border-bottom-color: var(--border, #334155);
+}
+
+.cheat-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent, #2dd4bf);
+}
+
+.cheat-sheet-sub {
+  font-size: 0.74rem;
+  font-weight: normal;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.cheat-sheet-arrow {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+  transition: transform 0.2s ease;
+}
+
+.cheat-sheet-arrow.open {
+  transform: rotate(180deg);
+}
+
+.cheat-sheet-body {
+  padding: 1rem 1.15rem;
+  background: #0f172a;
+}
+
+.cheat-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 1024px) {
+  .cheat-sheet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .cheat-sheet-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cheat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: rgba(30, 41, 59, 0.4);
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  transition: border-color 0.15s ease;
+}
+
+.cheat-item:hover {
+  border-color: rgba(45, 212, 191, 0.3);
+}
+
+.cheat-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cheat-badge.scale-overlap {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.cheat-badge.scale-moderate {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.cheat-badge.scale-uncorr {
+  background: rgba(45, 212, 191, 0.15);
+  color: #2dd4bf;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
+.cheat-badge.scale-hedge {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.cheat-badge.cagr-badge {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.cheat-badge.dd-badge {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.cheat-badge.sharpe-badge {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.cheat-badge.var-badge {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.cheat-item strong {
+  font-size: 0.82rem;
+  color: var(--text-primary, #f8fafc);
+  font-weight: 600;
+}
+
+.cheat-item p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.45;
+}
+
+/* ===== DYNAMIC STORY TAKEAWAY BANNER ===== */
+.story-takeaway-banner {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-left: 4px solid var(--accent, #2dd4bf);
+  border-radius: 8px;
+  padding: 0.75rem 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  margin-top: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.story-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.story-text {
+  font-size: 0.84rem;
+  color: var(--text-primary, #f8fafc);
+  line-height: 1.5;
+}
+
+.story-text strong {
+  color: var(--accent, #2dd4bf);
+}
+

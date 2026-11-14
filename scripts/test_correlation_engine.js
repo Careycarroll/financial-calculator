@@ -10,7 +10,8 @@ import {
   calculateCovariance,
   alignMultiAssetReturns,
   computeCorrelationMatrix,
-  calculateRollingCorrelation
+  calculateRollingCorrelation,
+  generateCorrelationTakeaway
 } from '../asset-analytics/correlation-engine.js';
 
 console.log('=== RUNNING ASSET CORRELATION ENGINE TESTS ===\n');
@@ -87,5 +88,20 @@ assert(rolling.meanCorrelation > 0.80, 'Rolling mean correlation is > 0.80');
 assert(rolling.minCorrelation > 0.50, 'Rolling min correlation is > 0.50');
 assert(rolling.maxCorrelation <= 1.0, 'Rolling max correlation <= 1.00');
 console.log(`✅ PASS: Rolling 36M: Mean=${rolling.meanCorrelation.toFixed(2)}, Min=${rolling.minCorrelation.toFixed(2)}, Max=${rolling.maxCorrelation.toFixed(2)}, Current=${rolling.currentCorrelation.toFixed(2)}`);
+
+// TEST 5: Dynamic Correlation Narrative Synthesizer
+console.log('\n--- TEST 5: Dynamic Correlation Story Narrative ---');
+const takeaway = generateCorrelationTakeaway(result.assets, result.matrix, {
+  pairA: 'VOO',
+  pairB: 'QQQ',
+  current: rolling.currentCorrelation,
+  min: rolling.minCorrelation,
+  max: rolling.maxCorrelation,
+  windowMonths: 36
+});
+assert(takeaway.includes('diversification benefit'), 'Narrative includes diversification benefit');
+assert(takeaway.includes('Highest co-movement'), 'Narrative includes Highest co-movement');
+assert(takeaway.includes('BND'), 'BND is identified in diversification analysis');
+console.log(`✅ PASS: Generated Story Banner narrative:\n${takeaway}`);
 
 console.log('\n🎉 ALL ASSET CORRELATION TESTS PASSED SUCCESSFULLY!');
