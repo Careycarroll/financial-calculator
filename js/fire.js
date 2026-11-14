@@ -2796,6 +2796,7 @@ const PAIRED_SLIDERS = [
 ];
 
 const triggerLiveCalculation = rafThrottle(() => {
+  updateFireSummaryChips();
   if (!coastFireTab.classList.contains("hidden")) {
     handleCoastCalculate({ scroll: false });
   } else {
@@ -3709,6 +3710,89 @@ function initAssetSplitControls() {
   loadAssetSplit();
 }
 
+// ===== COLLAPSIBLE FORM SECTIONS & LIVE SUMMARY CHIPS =====
+function formatShortDollar(val) {
+  if (val >= 1000000) return `$${(val / 1000000).toFixed(2).replace(/\.00$/, "")}M`;
+  if (val >= 1000) return `$${Math.round(val / 1000)}k`;
+  return `$${Math.round(val)}`;
+}
+
+function updateFireSummaryChips() {
+  const profileChipsEl = document.getElementById("fire-summary-chips-profile");
+  const expensesChipsEl = document.getElementById("fire-summary-chips-expenses");
+  const coastChipsEl = document.getElementById("fire-summary-chips-coast");
+
+  const curAge = document.getElementById("fire-current-age")?.value || "32";
+  const retAge = document.getElementById("fire-retire-age")?.value || "55";
+  const lifeExp = document.getElementById("fire-life-expectancy")?.value || "90";
+  const port = safeParseFloat(document.getElementById("fire-current-portfolio")?.value, 0);
+  const monthly = safeParseFloat(document.getElementById("fire-monthly-contribution")?.value, 0);
+  const ret = document.getElementById("fire-annual-return")?.value || "7";
+  const infl = document.getElementById("fire-inflation")?.value || "3";
+
+  if (profileChipsEl) {
+    profileChipsEl.innerHTML = `
+      <span class="fire-chip">Age <strong class="fire-chip-val">${curAge} → ${retAge}</strong> (Life ${lifeExp})</span>
+      <span class="fire-chip">Portfolio <strong class="fire-chip-val">${formatShortDollar(port)}</strong> (+${formatShortDollar(monthly)}/mo)</span>
+      <span class="fire-chip">Return <strong class="fire-chip-val">${ret}%</strong> (Infl ${infl}%)</span>
+    `;
+  }
+
+  const exp = safeParseFloat(document.getElementById("fire-annual-expenses")?.value, 0);
+  const swr = document.getElementById("fire-withdrawal-rate")?.value || "4";
+  const otherInc = safeParseFloat(document.getElementById("fire-other-income")?.value, 0);
+
+  if (expensesChipsEl) {
+    let html = `
+      <span class="fire-chip">Expenses <strong class="fire-chip-val">${formatShortDollar(exp)}/yr</strong></span>
+      <span class="fire-chip">SWR <strong class="fire-chip-val">${swr}%</strong></span>
+    `;
+    if (otherInc > 0) {
+      html += `<span class="fire-chip">Other Inc <strong class="fire-chip-val">${formatShortDollar(otherInc)}/yr</strong></span>`;
+    }
+    expensesChipsEl.innerHTML = html;
+  }
+
+  if (coastChipsEl) {
+    const coastTarget = safeParseFloat(document.getElementById("coast-fire-number")?.value, 0);
+    coastChipsEl.innerHTML = `
+      <span class="fire-chip">Target FIRE <strong class="fire-chip-val">${formatShortDollar(coastTarget)}</strong></span>
+    `;
+  }
+}
+
+function initCollapsibleSections() {
+  const sections = [
+    { sectionId: "fire-section-profile", headerId: "header-fire-profile" },
+    { sectionId: "fire-section-expenses", headerId: "header-fire-expenses" },
+    { sectionId: "fire-section-coast", headerId: "header-fire-coast" }
+  ];
+
+  sections.forEach(({ sectionId, headerId }) => {
+    const section = document.getElementById(sectionId);
+    const header = document.getElementById(headerId);
+    if (!section || !header) return;
+
+    header.addEventListener("click", (e) => {
+      if (e.target.closest("button:not(.btn-fire-section-toggle), input, a, select")) return;
+
+      const isCollapsed = section.classList.toggle("is-collapsed");
+      header.setAttribute("aria-expanded", String(!isCollapsed));
+      const label = header.querySelector(".toggle-action-label");
+      const icon = header.querySelector(".toggle-icon");
+      if (label) label.textContent = isCollapsed ? "Edit ✎" : "Collapse";
+      if (icon) icon.textContent = isCollapsed ? "▼" : "▲";
+    });
+
+    header.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        header.click();
+      }
+    });
+  });
+}
+
 // ===== INITIALIZATION ON PAGE LOAD =====
 loadFireInputs();
 initAmortizationControls();
@@ -3717,6 +3801,8 @@ initMilestonesControls();
 initExpenseMilestonesControls();
 initExpenseModal();
 initAssetSplitControls();
+initCollapsibleSections();
+updateFireSummaryChips();
 
 // Auto-calculate on initial load if inputs exist
 if (
