@@ -40,150 +40,179 @@
 
       <main>
         <!-- Shared Profile -->
-        <div class="calc-form">
-          <h2 class="form-section-title">Your Profile</h2>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="fire-current-age">Current Age</label>
-              <input
-                type="number"
-                id="fire-current-age" aria-required="true"
-                placeholder="e.g. 32"
-                value="32"
-                min="18"
-                max="80"
-                step="1"
-              />
-              <input
-                type="range"
-                id="fire-current-age-slider"
-                class="fire-slider"
-                value="32"
-                min="18"
-                max="75"
-                step="1"
-                aria-label="Adjust current age"
-              />
+        <div class="calc-form fire-collapsible-section" id="fire-section-profile">
+          <div class="fire-collapsible-header" id="header-fire-profile" role="button" tabindex="0" aria-expanded="true">
+            <div class="fire-header-title-wrap">
+              <h2 class="form-section-title">Your Profile</h2>
+              <div class="fire-summary-chips" id="fire-summary-chips-profile"></div>
             </div>
-            <div class="form-group">
-              <label for="fire-retire-age">Target Retirement Age</label>
-              <input
-                type="number"
-                id="fire-retire-age" aria-required="true"
-                placeholder="e.g. 55"
-                value="55"
-                min="25"
-                max="90"
-                step="1"
-              />
-              <input
-                type="range"
-                id="fire-retire-age-slider"
-                class="fire-slider"
-                value="55"
-                min="25"
-                max="85"
-                step="1"
-                aria-label="Adjust target retirement age"
-              />
-            </div>
+            <button type="button" class="btn-fire-section-toggle" aria-label="Toggle Your Profile section">
+              <span class="toggle-action-label">Collapse</span>
+              <span class="toggle-icon">▲</span>
+            </button>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="fire-life-expectancy">Life Expectancy</label>
-              <input
-                type="number"
-                id="fire-life-expectancy"
-                placeholder="e.g. 90"
-                min="50"
-                max="120"
-                step="1"
-                value="90"
-              />
-              <input
-                type="range"
-                id="fire-life-expectancy-slider"
-                class="fire-slider"
-                min="60"
-                max="105"
-                step="1"
-                value="90"
-                aria-label="Adjust life expectancy"
-              />
-              <span class="form-hint">Used to project portfolio through retirement.</span>
+
+          <div class="fire-collapsible-body" id="body-fire-profile">
+            <div class="form-row">
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-current-age">Current Age</label>
+                  <input
+                    type="number"
+                    id="fire-current-age"
+                    class="compact-input"
+                    aria-required="true"
+                    placeholder="e.g. 32"
+                    value="32"
+                    min="18"
+                    max="80"
+                    step="1"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-current-age-slider"
+                  class="fire-slider compact-slider"
+                  value="32"
+                  min="18"
+                  max="75"
+                  step="1"
+                  aria-label="Adjust current age"
+                />
+              </div>
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-retire-age">Target Retirement Age</label>
+                  <input
+                    type="number"
+                    id="fire-retire-age"
+                    class="compact-input"
+                    aria-required="true"
+                    placeholder="e.g. 55"
+                    value="55"
+                    min="25"
+                    max="90"
+                    step="1"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-retire-age-slider"
+                  class="fire-slider compact-slider"
+                  value="55"
+                  min="25"
+                  max="85"
+                  step="1"
+                  aria-label="Adjust target retirement age"
+                />
+              </div>
             </div>
-            <div class="form-group">
-              <label for="fire-contrib-growth">Annual Contribution Growth (%)</label>
-              <input
-                type="number"
-                id="fire-contrib-growth"
-                placeholder="e.g. 0"
-                min="0"
-                max="15"
-                step="0.25"
-                value="0"
-              />
-              <input
-                type="range"
-                id="fire-contrib-growth-slider"
-                class="fire-slider"
-                min="0"
-                max="10"
-                step="0.25"
-                value="0"
-                aria-label="Adjust annual contribution growth percentage"
-              />
-              <span class="form-hint">Annual % increase in savings (e.g. 2–3% to match salary raises).</span>
+
+            <div class="form-row">
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-life-expectancy">Life Expectancy</label>
+                  <input
+                    type="number"
+                    id="fire-life-expectancy"
+                    class="compact-input"
+                    placeholder="e.g. 90"
+                    min="50"
+                    max="120"
+                    step="1"
+                    value="90"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-life-expectancy-slider"
+                  class="fire-slider compact-slider"
+                  min="60"
+                  max="105"
+                  step="1"
+                  value="90"
+                  aria-label="Adjust life expectancy"
+                />
+                <span class="form-hint">Used to project portfolio through retirement.</span>
+              </div>
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-contrib-growth">Annual Contribution Growth (%)</label>
+                  <input
+                    type="number"
+                    id="fire-contrib-growth"
+                    class="compact-input"
+                    placeholder="e.g. 0"
+                    min="0"
+                    max="15"
+                    step="0.25"
+                    value="0"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-contrib-growth-slider"
+                  class="fire-slider compact-slider"
+                  min="0"
+                  max="10"
+                  step="0.25"
+                  value="0"
+                  aria-label="Adjust annual contribution growth percentage"
+                />
+                <span class="form-hint">Annual % increase in savings (e.g. 2–3% to match salary raises).</span>
+              </div>
             </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="fire-current-portfolio"
-                >Current Portfolio Value ($)</label
-              >
-              <input
-                type="number"
-                id="fire-current-portfolio"
-                placeholder="e.g. 50000"
-                value="50000"
-                min="0"
-                step="any"
-              />
-              <input
-                type="range"
-                id="fire-current-portfolio-slider"
-                class="fire-slider"
-                value="50000"
-                min="0"
-                max="1000000"
-                step="5000"
-                aria-label="Adjust current portfolio value"
-              />
+
+            <div class="form-row">
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-current-portfolio">Current Portfolio Value ($)</label>
+                  <input
+                    type="number"
+                    id="fire-current-portfolio"
+                    class="compact-input"
+                    placeholder="e.g. 50000"
+                    value="50000"
+                    min="0"
+                    step="any"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-current-portfolio-slider"
+                  class="fire-slider compact-slider"
+                  value="50000"
+                  min="0"
+                  max="1000000"
+                  step="5000"
+                  aria-label="Adjust current portfolio value"
+                />
+              </div>
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-monthly-contribution">Monthly Contribution ($)</label>
+                  <input
+                    type="number"
+                    id="fire-monthly-contribution"
+                    class="compact-input"
+                    placeholder="e.g. 2000"
+                    value="2000"
+                    min="0"
+                    step="100"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-monthly-contribution-slider"
+                  class="fire-slider compact-slider"
+                  value="2000"
+                  min="0"
+                  max="10000"
+                  step="100"
+                  aria-label="Adjust monthly contribution by $100"
+                />
+              </div>
             </div>
-            <div class="form-group">
-              <label for="fire-monthly-contribution"
-                >Monthly Contribution ($)</label
-              >
-              <input
-                type="number"
-                id="fire-monthly-contribution"
-                placeholder="e.g. 2000"
-                value="2000"
-                min="0"
-                step="100"
-              />
-              <input
-                type="range"
-                id="fire-monthly-contribution-slider"
-                class="fire-slider"
-                value="2000"
-                min="0"
-                max="10000"
-                step="100"
-                aria-label="Adjust monthly contribution by $100"
-              />
-            </div>
-          </div>
 
           <!-- Asset Location Split Toggle -->
           <div class="asset-split-toggle-container">
@@ -286,65 +315,74 @@
               </div>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="fire-annual-return">Expected Annual Return (%)</label>
-              <input
-                type="number"
-                id="fire-annual-return" aria-required="true"
-                placeholder="e.g. 7"
-                min="0"
-                max="20"
-                step="any"
-                value="7"
-              />
-              <input
-                type="range"
-                id="fire-annual-return-slider"
-                class="fire-slider"
-                min="1"
-                max="15"
-                step="0.25"
-                value="7"
-                aria-label="Adjust expected annual return"
-              />
-            </div>
-            <div class="form-group">
-              <label for="fire-inflation">Expected Inflation Rate (%)</label>
-              <input
-                type="number"
-                id="fire-inflation" aria-required="true"
-                placeholder="e.g. 3"
-                min="0"
-                max="10"
-                step="any"
-                value="3"
-              />
-              <input
-                type="range"
-                id="fire-inflation-slider"
-                class="fire-slider"
-                min="0"
-                max="10"
-                step="0.25"
-                value="3"
-                aria-label="Adjust expected inflation rate"
-              />
-            </div>
-          </div>
-
-          <!-- Career Milestones & Contribution Injections -->
-          <div class="milestones-section">
-            <div class="milestones-header">
-              <div>
-                <h3 class="milestones-title">🎯 Career Milestones & Contribution Injections</h3>
-                <p class="milestones-subtitle">Account for promotions, savings boosts, or lump-sum injections (bonuses, equity vests) at specific ages.</p>
+            <div class="form-row">
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-annual-return">Expected Annual Return (%)</label>
+                  <input
+                    type="number"
+                    id="fire-annual-return"
+                    class="compact-input"
+                    aria-required="true"
+                    placeholder="e.g. 7"
+                    min="0"
+                    max="20"
+                    step="any"
+                    value="7"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-annual-return-slider"
+                  class="fire-slider compact-slider"
+                  min="1"
+                  max="15"
+                  step="0.25"
+                  value="7"
+                  aria-label="Adjust expected annual return"
+                />
               </div>
-              <button type="button" id="fire-add-milestone-btn" class="btn-add">
-                + Add Career Milestone
-              </button>
+              <div class="form-group compact-group">
+                <div class="compact-label-row">
+                  <label for="fire-inflation">Expected Inflation Rate (%)</label>
+                  <input
+                    type="number"
+                    id="fire-inflation"
+                    class="compact-input"
+                    aria-required="true"
+                    placeholder="e.g. 3"
+                    min="0"
+                    max="10"
+                    step="any"
+                    value="3"
+                  />
+                </div>
+                <input
+                  type="range"
+                  id="fire-inflation-slider"
+                  class="fire-slider compact-slider"
+                  min="0"
+                  max="10"
+                  step="0.25"
+                  value="3"
+                  aria-label="Adjust expected inflation rate"
+                />
+              </div>
             </div>
-            <div id="fire-milestones-list" class="milestones-list"></div>
+
+            <!-- Career Milestones & Contribution Injections -->
+            <div class="milestones-section">
+              <div class="milestones-header">
+                <div>
+                  <h3 class="milestones-title">🎯 Career Milestones &amp; Contribution Injections</h3>
+                  <p class="milestones-subtitle">Account for promotions, savings boosts, or lump-sum injections (bonuses, equity vests) at specific ages.</p>
+                </div>
+                <button type="button" id="fire-add-milestone-btn" class="btn-add">
+                  + Add Career Milestone
+                </button>
+              </div>
+              <div id="fire-milestones-list" class="milestones-list"></div>
+            </div>
           </div>
         </div>
 
@@ -395,149 +433,169 @@
 
         <!-- ==================== TAB 1: FIRE NUMBER ==================== -->
         <div id="fire-number-tab">
-          <div class="calc-form">
-            <h2 class="form-section-title">Retirement Expenses & Income</h2>
-            <div class="form-row">
-              <div class="form-group">
-                <div class="label-with-action">
-                  <label for="fire-annual-expenses">Annual Expenses in Retirement ($)</label>
-                  <button type="button" id="fire-open-expenses-calculator-btn" class="btn-text-action" title="Open Retirement Expenses Estimator">
-                    🧮 Estimate Expenses
+          <div class="calc-form fire-collapsible-section" id="fire-section-expenses">
+            <div class="fire-collapsible-header" id="header-fire-expenses" role="button" tabindex="0" aria-expanded="true">
+              <div class="fire-header-title-wrap">
+                <h2 class="form-section-title">Retirement Expenses &amp; Income</h2>
+                <div class="fire-summary-chips" id="fire-summary-chips-expenses"></div>
+              </div>
+              <button type="button" class="btn-fire-section-toggle" aria-label="Toggle Retirement Expenses section">
+                <span class="toggle-action-label">Collapse</span>
+                <span class="toggle-icon">▲</span>
+              </button>
+            </div>
+
+            <div class="fire-collapsible-body" id="body-fire-expenses">
+              <div class="form-row">
+                <div class="form-group compact-group">
+                  <div class="compact-label-row">
+                    <div class="label-with-action">
+                      <label for="fire-annual-expenses">Annual Expenses in Retirement ($)</label>
+                      <button type="button" id="fire-open-expenses-calculator-btn" class="btn-text-action" title="Open Retirement Expenses Estimator">
+                        🧮 Estimate
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      id="fire-annual-expenses"
+                      class="compact-input"
+                      aria-required="true"
+                      placeholder="e.g. 60000"
+                      value="60000"
+                      min="0"
+                      step="any"
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    id="fire-annual-expenses-slider"
+                    class="fire-slider compact-slider"
+                    value="60000"
+                    min="10000"
+                    max="200000"
+                    step="1000"
+                    aria-label="Adjust annual expenses in retirement"
+                  />
+                  <span class="form-hint"
+                    >What you expect to spend per year in retirement (today's dollars).</span
+                  >
+                </div>
+                <div class="form-group compact-group">
+                  <div class="compact-label-row">
+                    <label for="fire-withdrawal-rate">Safe Withdrawal Rate (%)</label>
+                    <input
+                      type="number"
+                      id="fire-withdrawal-rate"
+                      class="compact-input"
+                      aria-required="true"
+                      placeholder="e.g. 4"
+                      min="1"
+                      max="10"
+                      step="any"
+                      value="4"
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    id="fire-withdrawal-rate-slider"
+                    class="fire-slider compact-slider"
+                    min="1"
+                    max="8"
+                    step="0.1"
+                    value="4"
+                    aria-label="Adjust safe withdrawal rate"
+                  />
+                  <span class="form-hint"
+                    >The percentage you'll withdraw annually. 4% is the traditional rule.</span
+                  >
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group compact-group">
+                  <div class="compact-label-row">
+                    <label for="fire-other-income">Other Annual Retirement Income ($)</label>
+                    <input
+                      type="number"
+                      id="fire-other-income"
+                      class="compact-input"
+                      placeholder="e.g. 0"
+                      value="0"
+                      min="0"
+                      step="any"
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    id="fire-other-income-slider"
+                    class="fire-slider compact-slider"
+                    value="0"
+                    min="0"
+                    max="80000"
+                    step="1000"
+                    aria-label="Adjust other annual retirement income"
+                  />
+                  <span class="form-hint"
+                    >Social Security, pension, rental income, etc.</span
+                  >
+                </div>
+                <div class="form-group compact-group">
+                  <div class="compact-label-row">
+                    <label for="fire-income-type">Income Value Type</label>
+                    <select id="fire-income-type" class="compact-input" style="width: auto; min-width: 140px;">
+                      <option value="pv">Today's Dollars (PV)</option>
+                      <option value="fv">Future Dollars (FV)</option>
+                    </select>
+                  </div>
+                  <span class="form-hint"
+                    >Select whether your estimate is in future or today's dollars.</span
+                  >
+                </div>
+              </div>
+              <div id="fire-fv-options" class="form-row hidden">
+                <div class="form-group compact-group">
+                  <div class="compact-label-row">
+                    <label for="fire-income-start-age">Income Start Age</label>
+                    <input
+                      type="number"
+                      id="fire-income-start-age"
+                      class="compact-input"
+                      placeholder="e.g. 67"
+                      min="0"
+                      max="100"
+                      step="1"
+                    />
+                  </div>
+                  <span class="form-hint"
+                    >Age when you expect to start receiving this income.</span
+                  >
+                </div>
+                <div class="form-group compact-group">
+                  <label>Present Value Equivalent</label>
+                  <span id="fire-income-pv-display" class="result-value">—</span>
+                  <span class="form-hint"
+                    >Estimated today's dollar value of your future income.</span
+                  >
+                </div>
+              </div>
+
+              <!-- Life-Stage Expense Milestones -->
+              <div class="milestones-section expense-milestones-section">
+                <div class="milestones-header">
+                  <div>
+                    <h3 class="milestones-title">📉 Life-Stage Expense Milestones</h3>
+                    <p class="milestones-subtitle">Account for future spending changes (e.g. kids moving out at 49, mortgage paid off, Medicare at 65).</p>
+                  </div>
+                  <button type="button" id="fire-add-expense-milestone-btn" class="btn-add">
+                    + Add Expense Milestone
                   </button>
                 </div>
-                <input
-                  type="number"
-                  id="fire-annual-expenses" aria-required="true"
-                  placeholder="e.g. 60000"
-                  value="60000"
-                  min="0"
-                  step="any"
-                />
-                <input
-                  type="range"
-                  id="fire-annual-expenses-slider"
-                  class="fire-slider"
-                  value="60000"
-                  min="10000"
-                  max="200000"
-                  step="1000"
-                  aria-label="Adjust annual expenses in retirement"
-                />
-                <span class="form-hint"
-                  >What you expect to spend per year in retirement (today's
-                  dollars).</span
-                >
+                <div id="fire-expense-milestones-list" class="milestones-list"></div>
               </div>
-              <div class="form-group">
-                <label for="fire-withdrawal-rate"
-                  >Safe Withdrawal Rate (%)</label
-                >
-                <input
-                  type="number"
-                  id="fire-withdrawal-rate" aria-required="true"
-                  placeholder="e.g. 4"
-                  min="1"
-                  max="10"
-                  step="any"
-                  value="4"
-                />
-                <input
-                  type="range"
-                  id="fire-withdrawal-rate-slider"
-                  class="fire-slider"
-                  min="1"
-                  max="8"
-                  step="0.1"
-                  value="4"
-                  aria-label="Adjust safe withdrawal rate"
-                />
-                <span class="form-hint"
-                  >The percentage you'll withdraw annually. 4% is the
-                  traditional rule.</span
-                >
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="fire-other-income"
-                  >Other Annual Retirement Income ($)</label
-                >
-                <input
-                  type="number"
-                  id="fire-other-income"
-                  placeholder="e.g. 0"
-                  value="0"
-                  min="0"
-                  step="any"
-                />
-                <input
-                  type="range"
-                  id="fire-other-income-slider"
-                  class="fire-slider"
-                  value="0"
-                  min="0"
-                  max="80000"
-                  step="1000"
-                  aria-label="Adjust other annual retirement income"
-                />
-                <span class="form-hint"
-                  >Social Security, pension, rental income, etc.</span
-                >
-              </div>
-              <div class="form-group">
-                <label for="fire-income-type">Income Value Type</label>
-                <select id="fire-income-type">
-                  <option value="pv">Today's Dollars (Present Value)</option>
-                  <option value="fv">Future Dollars (Nominal)</option>
-                </select>
-                <span class="form-hint"
-                  >If your estimate is what you'll actually receive in the
-                  future, select Future Dollars.</span
-                >
-              </div>
-            </div>
-            <div id="fire-fv-options" class="form-row hidden">
-              <div class="form-group">
-                <label for="fire-income-start-age">Income Start Age</label>
-                <input
-                  type="number"
-                  id="fire-income-start-age"
-                  placeholder="e.g. 67"
-                  min="0"
-                  max="100"
-                  step="1"
-                />
-                <span class="form-hint"
-                  >Age when you expect to start receiving this income.</span
-                >
-              </div>
-              <div class="form-group">
-                <label>Present Value Equivalent</label>
-                <span id="fire-income-pv-display" class="result-value">—</span>
-                <span class="form-hint"
-                  >Estimated today's dollar value of your future income.</span
-                >
-              </div>
-            </div>
-            
 
-            <!-- Life-Stage Expense Milestones -->
-            <div class="milestones-section expense-milestones-section">
-              <div class="milestones-header">
-                <div>
-                  <h3 class="milestones-title">📉 Life-Stage Expense Milestones</h3>
-                  <p class="milestones-subtitle">Account for future spending changes (e.g. kids moving out at 49, mortgage paid off, Medicare at 65).</p>
-                </div>
-                <button type="button" id="fire-add-expense-milestone-btn" class="btn-add">
-                  + Add Expense Milestone
-                </button>
-              </div>
-              <div id="fire-expense-milestones-list" class="milestones-list"></div>
+              <button id="fire-calculate-btn" class="btn-primary" aria-label="Calculate FIRE Number">
+                Calculate FIRE Number
+              </button>
             </div>
-
-            <button id="fire-calculate-btn" class="btn-primary" aria-label="Calculate FIRE Number">
-              Calculate FIRE Number
-            </button>
           </div>
 
           <!-- FIRE Results -->
@@ -778,29 +836,42 @@
 
         <!-- ==================== TAB 2: COAST FIRE ==================== -->
         <div id="coast-fire-tab" class="hidden">
-          <div class="calc-form">
-            <h2 class="form-section-title">Coast FIRE Settings</h2>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="coast-fire-number">FIRE Number Target ($)</label>
-                <input
-                  type="number"
-                  id="coast-fire-number"
-                  placeholder="Auto-filled from Tab 1"
-                  min="0"
-                  step="any"
-                />
-                <span class="form-hint"
-                  >Auto-filled from your FIRE Number calculation. You can
-                  override it.</span
-                >
+          <div class="calc-form fire-collapsible-section" id="fire-section-coast">
+            <div class="fire-collapsible-header" id="header-fire-coast" role="button" tabindex="0" aria-expanded="true">
+              <div class="fire-header-title-wrap">
+                <h2 class="form-section-title">Coast FIRE Settings</h2>
+                <div class="fire-summary-chips" id="fire-summary-chips-coast"></div>
               </div>
-              <div class="form-group"></div>
+              <button type="button" class="btn-fire-section-toggle" aria-label="Toggle Coast FIRE Settings section">
+                <span class="toggle-action-label">Collapse</span>
+                <span class="toggle-icon">▲</span>
+              </button>
             </div>
+            <div class="fire-collapsible-body" id="body-fire-coast">
+              <div class="form-row">
+                <div class="form-group compact-group">
+                  <div class="compact-label-row">
+                    <label for="coast-fire-number">FIRE Number Target ($)</label>
+                    <input
+                      type="number"
+                      id="coast-fire-number"
+                      class="compact-input"
+                      placeholder="Auto-filled from Tab 1"
+                      min="0"
+                      step="any"
+                    />
+                  </div>
+                  <span class="form-hint"
+                    >Auto-filled from your FIRE Number calculation. You can override it.</span
+                  >
+                </div>
+                <div class="form-group compact-group"></div>
+              </div>
 
-            <button id="coast-calculate-btn" class="btn-primary" aria-label="Calculate Coast FIRE Number">
-              Calculate Coast FIRE
-            </button>
+              <button id="coast-calculate-btn" class="btn-primary" aria-label="Calculate Coast FIRE Number">
+                Calculate Coast FIRE
+              </button>
+            </div>
           </div>
 
           <!-- Coast FIRE Results -->
