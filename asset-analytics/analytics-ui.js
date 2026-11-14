@@ -2,7 +2,7 @@
  * Asset Analytics Studio UI Controller
  * Manages reactive UI state, Canvas charts, underwater drawdown tables,
  * monthly return heatmaps, rolling metric diagnostics, searchable asset selector modal,
- * multi-factor fund screening, and weighted performance rankings leaderboards.
+ * multi-factor fund screening, weighted performance rankings, and asset correlation matrix studio.
  */
 
 import {
@@ -30,12 +30,19 @@ import {
   rankFundProfiles,
   METRIC_DIRECTION
 } from './screener-engine.js';
+import {
+  calculatePearsonCorrelation,
+  calculateCovariance,
+  alignMultiAssetReturns,
+  computeCorrelationMatrix,
+  calculateRollingCorrelation
+} from './correlation-engine.js';
 import { formatCurrency, rafThrottle } from '../js/chart-utils.js';
 import { formatPct } from '../js/formatting.js';
 
 // App Reactive State
 const state = {
-  activeTab: 'performance', // 'performance' | 'screener' | 'rankings'
+  activeTab: 'performance', // 'performance' | 'screener' | 'rankings' | 'correlations'
 
   // Fund Performance Analyzer State
   fundTicker: 'QQQ',
@@ -66,6 +73,15 @@ const state = {
   rankingsOrderAsc: false,
   rankingsRankedProfiles: [],
 
+  // Correlation Studio State
+  corrTickers: new Set(['VOO', 'QQQ', 'SCHD', 'BND', 'SPY']),
+  corrHorizon: 'all',
+  corrWindowMonths: 36,
+  corrFocusPairA: 'QQQ',
+  corrFocusPairB: 'VOO',
+  corrResult: null,
+  corrRolling: null,
+
   // Cached calculation results
   analysis: null,
   fundObj: null,
@@ -84,7 +100,8 @@ const canvasControllers = {
   growth: null,
   annual: null,
   drawdown: null,
-  rolling: null
+  rolling: null,
+  correlation: null
 };
 
 document.addEventListener('DOMContentLoaded', init);
@@ -98,6 +115,7 @@ async function init() {
 
   updatePickerButtons();
   updateCategoryCounts();
+  renderCorrelationChips();
   updateViewModeUI();
   runAnalysis();
 
@@ -112,6 +130,9 @@ async function init() {
       runScreener();
     } else if (state.activeTab === 'rankings') {
       runRankings();
+    } else if (state.activeTab === 'correlations') {
+      renderCorrelationChips();
+      runCorrelationAnalysis();
     }
   });
 
@@ -122,6 +143,8 @@ async function init() {
     resizeTimer = setTimeout(() => {
       if (state.activeTab === 'performance' && state.analysis) {
         drawAllCharts();
+      } else if (state.activeTab === 'correlations' && state.corrRolling) {
+        drawCorrelationChart();
       }
     }, 200);
   });
@@ -133,9 +156,11 @@ function cacheDOMElements() {
     tabBtnPerformance: document.getElementById('tab-btn-performance'),
     tabBtnScreener: document.getElementById('tab-btn-screener'),
     tabBtnRankings: document.getElementById('tab-btn-rankings'),
+    tabBtnCorrelations: document.getElementById('tab-btn-correlations'),
     tabPerformance: document.getElementById('tab-performance'),
     tabScreener: document.getElementById('tab-screener'),
     tabRankings: document.getElementById('tab-rankings'),
+    tabCorrelations: document.getElementById('tab-correlations'),
     performanceControlsBar: document.getElementById('performance-controls-bar'),
 
     // Modal Triggers & Labels
@@ -275,7 +300,30 @@ function cacheDOMElements() {
     btnExportRankingsCsv: document.getElementById('btn-export-rankings-csv'),
     rankingsTable: document.getElementById('rankings-results-table'),
     rankingsTableBody: document.getElementById('rankings-table-body'),
-    rankingsColMetricHeader: document.getElementById('rankings-col-metric-header')
+    rankingsColMetricHeader: document.getElementById('rankings-col-metric-header'),
+
+    // Correlation Elements
+    corrUniverseChips: document.getElementById('corr-universe-chips'),
+    btnCorrSelectCore: document.getElementById('btn-corr-select-core'),
+    btnCorrSelectAll: document.getElementById('btn-corr-select-all'),
+    btnCorrClearAll: document.getElementById('btn-corr-clear-all'),
+    corrHorizonSelect: document.getElementById('corr-horizon-select'),
+    corrWindowSelect: document.getElementById('corr-window-select'),
+    corrFocusPairA: document.getElementById('corr-focus-pair-a'),
+    corrFocusPairB: document.getElementById('corr-focus-pair-b'),
+    corrStatusText: document.getElementById('corr-status-text'),
+    btnExportCorrCsv: document.getElementById('btn-export-corr-csv'),
+    corrResultsTable: document.getElementById('corr-results-table'),
+    corrChartTitle: document.getElementById('corr-chart-title'),
+    corrChartSubtitle: document.getElementById('corr-chart-subtitle'),
+    corrLegendPair: document.getElementById('corr-legend-pair'),
+    corrLegendText: document.getElementById('corr-legend-text'),
+    corrCanvas: document.getElementById('correlation-canvas'),
+    corrTooltip: document.getElementById('correlation-tooltip'),
+    corrStatCurrent: document.getElementById('corr-stat-current'),
+    corrStatMean: document.getElementById('corr-stat-mean'),
+    corrStatMin: document.getElementById('corr-stat-min'),
+    corrStatMax: document.getElementById('corr-stat-max')
   };
 }
 
@@ -314,6 +362,9 @@ function bindEvents() {
   }
   if (elements.tabBtnRankings) {
     elements.tabBtnRankings.addEventListener('click', () => switchStudioTab('rankings'));
+  }
+  if (elements.tabBtnCorrelations) {
+    elements.tabBtnCorrelations.addEventListener('click', () => switchStudioTab('correlations'));
   }
 
   // Modal Triggers
@@ -408,9 +459,12 @@ function bindEvents() {
         updatePickerButtons();
         updateCategoryCounts();
         renderModalAssetList();
+        renderCorrelationChips();
+
         if (state.activeTab === 'performance') runAnalysis();
         else if (state.activeTab === 'screener') runScreener();
         else if (state.activeTab === 'rankings') runRankings();
+        else if (state.activeTab === 'correlations') runCorrelationAnalysis();
       }
     });
   }
@@ -470,6 +524,7 @@ function bindEvents() {
       if (state.activeTab === 'performance') runAnalysis();
       else if (state.activeTab === 'screener') runScreener();
       else if (state.activeTab === 'rankings') runRankings();
+      else if (state.activeTab === 'correlations') runCorrelationAnalysis();
     });
   }
 
@@ -609,7 +664,6 @@ function bindEvents() {
     });
   }
 
-  // Screener Table Header Sorting
   if (elements.screenerTable) {
     elements.screenerTable.querySelectorAll('th[data-sort]').forEach(th => {
       th.addEventListener('click', () => {
@@ -657,16 +711,74 @@ function bindEvents() {
   if (elements.btnExportRankingsCsv) {
     elements.btnExportRankingsCsv.addEventListener('click', exportRankingsCSV);
   }
+
+  // Correlation Event Handlers
+  if (elements.btnCorrSelectCore) {
+    elements.btnCorrSelectCore.addEventListener('click', () => {
+      state.corrTickers = new Set(['VOO', 'SPY', 'QQQ', 'SCHD', 'BND']);
+      renderCorrelationChips();
+      runCorrelationAnalysis();
+    });
+  }
+
+  if (elements.btnCorrSelectAll) {
+    elements.btnCorrSelectAll.addEventListener('click', () => {
+      const all = getAllFundsSync();
+      state.corrTickers = new Set(all.map(f => f.ticker));
+      renderCorrelationChips();
+      runCorrelationAnalysis();
+    });
+  }
+
+  if (elements.btnCorrClearAll) {
+    elements.btnCorrClearAll.addEventListener('click', () => {
+      state.corrTickers = new Set(['QQQ', 'VOO']); // Minimum 2 assets
+      renderCorrelationChips();
+      runCorrelationAnalysis();
+    });
+  }
+
+  if (elements.corrHorizonSelect) {
+    elements.corrHorizonSelect.addEventListener('change', (e) => {
+      state.corrHorizon = e.target.value;
+      runCorrelationAnalysis();
+    });
+  }
+
+  if (elements.corrWindowSelect) {
+    elements.corrWindowSelect.addEventListener('change', (e) => {
+      state.corrWindowMonths = parseInt(e.target.value, 10);
+      computeAndDrawRollingCorrelation();
+    });
+  }
+
+  if (elements.corrFocusPairA) {
+    elements.corrFocusPairA.addEventListener('change', (e) => {
+      state.corrFocusPairA = e.target.value;
+      computeAndDrawRollingCorrelation();
+    });
+  }
+
+  if (elements.corrFocusPairB) {
+    elements.corrFocusPairB.addEventListener('change', (e) => {
+      state.corrFocusPairB = e.target.value;
+      computeAndDrawRollingCorrelation();
+    });
+  }
+
+  if (elements.btnExportCorrCsv) {
+    elements.btnExportCorrCsv.addEventListener('click', exportCorrelationCSV);
+  }
 }
 
 /**
- * Switches between studio sub-tabs ('performance', 'screener', 'rankings')
+ * Switches between studio sub-tabs ('performance', 'screener', 'rankings', 'correlations')
  */
 function switchStudioTab(tabKey) {
   state.activeTab = tabKey;
 
   // Update Tab Buttons
-  [elements.tabBtnPerformance, elements.tabBtnScreener, elements.tabBtnRankings].forEach(btn => {
+  [elements.tabBtnPerformance, elements.tabBtnScreener, elements.tabBtnRankings, elements.tabBtnCorrelations].forEach(btn => {
     if (btn) {
       if (btn.dataset.tab === tabKey) btn.classList.add('active');
       else btn.classList.remove('active');
@@ -679,19 +791,30 @@ function switchStudioTab(tabKey) {
     elements.tabPerformance?.classList.remove('hidden');
     elements.tabScreener?.classList.add('hidden');
     elements.tabRankings?.classList.add('hidden');
+    elements.tabCorrelations?.classList.add('hidden');
     if (state.analysis) drawAllCharts();
   } else if (tabKey === 'screener') {
     elements.performanceControlsBar?.classList.add('hidden');
     elements.tabPerformance?.classList.add('hidden');
     elements.tabScreener?.classList.remove('hidden');
     elements.tabRankings?.classList.add('hidden');
+    elements.tabCorrelations?.classList.add('hidden');
     runScreener();
   } else if (tabKey === 'rankings') {
     elements.performanceControlsBar?.classList.add('hidden');
     elements.tabPerformance?.classList.add('hidden');
     elements.tabScreener?.classList.add('hidden');
     elements.tabRankings?.classList.remove('hidden');
+    elements.tabCorrelations?.classList.add('hidden');
     runRankings();
+  } else if (tabKey === 'correlations') {
+    elements.performanceControlsBar?.classList.add('hidden');
+    elements.tabPerformance?.classList.add('hidden');
+    elements.tabScreener?.classList.add('hidden');
+    elements.tabRankings?.classList.add('hidden');
+    elements.tabCorrelations?.classList.remove('hidden');
+    renderCorrelationChips();
+    runCorrelationAnalysis();
   }
 }
 
@@ -822,7 +945,7 @@ function renderScreenerTable() {
 
     // Attach drill-down click handlers
     elements.screenerTableBody.querySelectorAll('[data-ticker]').forEach(el => {
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', () => {
         const ticker = el.dataset.ticker;
         if (ticker) drillDownToFund(ticker);
       });
@@ -970,7 +1093,395 @@ function formatRankValue(metric, val) {
 }
 
 /**
- * CSV Exporters
+ * Correlation Studio Logic
+ */
+function renderCorrelationChips() {
+  if (!elements.corrUniverseChips) return;
+
+  const allFunds = getAllFundsSync();
+  let html = '';
+
+  allFunds.forEach(fund => {
+    const isSelected = state.corrTickers.has(fund.ticker);
+    html += `
+      <button type="button" class="corr-chip ${isSelected ? 'active' : ''}" data-ticker="${fund.ticker}">
+        <span class="picker-dot" style="background: ${fund.color || '#38bdf8'};"></span>
+        <span>${fund.ticker}</span>
+      </button>
+    `;
+  });
+
+  elements.corrUniverseChips.innerHTML = html;
+
+  // Bind Chip Toggles
+  elements.corrUniverseChips.querySelectorAll('.corr-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const ticker = chip.dataset.ticker;
+      if (state.corrTickers.has(ticker)) {
+        if (state.corrTickers.size > 2) {
+          state.corrTickers.delete(ticker);
+        } else {
+          alert('At least 2 assets are required for correlation analysis.');
+          return;
+        }
+      } else {
+        state.corrTickers.add(ticker);
+      }
+      renderCorrelationChips();
+      runCorrelationAnalysis();
+    });
+  });
+
+  populatePairSelectors();
+}
+
+function populatePairSelectors() {
+  const tickers = Array.from(state.corrTickers);
+
+  // If focus pair is not in current active set, fallback
+  if (!state.corrTickers.has(state.corrFocusPairA)) {
+    state.corrFocusPairA = tickers[0] || 'QQQ';
+  }
+  if (!state.corrTickers.has(state.corrFocusPairB)) {
+    state.corrFocusPairB = tickers.length > 1 ? tickers[1] : (tickers[0] || 'VOO');
+  }
+
+  let optHtmlA = '';
+  let optHtmlB = '';
+
+  tickers.forEach(t => {
+    optHtmlA += `<option value="${t}" ${t === state.corrFocusPairA ? 'selected' : ''}>${t}</option>`;
+    optHtmlB += `<option value="${t}" ${t === state.corrFocusPairB ? 'selected' : ''}>${t}</option>`;
+  });
+
+  if (elements.corrFocusPairA) elements.corrFocusPairA.innerHTML = optHtmlA;
+  if (elements.corrFocusPairB) elements.corrFocusPairB.innerHTML = optHtmlB;
+}
+
+function runCorrelationAnalysis() {
+  const allFunds = getAllFundsSync();
+  const selectedFunds = allFunds.filter(f => state.corrTickers.has(f.ticker));
+
+  if (selectedFunds.length < 2) {
+    if (elements.corrStatusText) elements.corrStatusText.textContent = 'Please select at least 2 assets.';
+    return;
+  }
+
+  const result = computeCorrelationMatrix(selectedFunds, {
+    useDRIP: state.useDRIP,
+    horizon: state.corrHorizon
+  });
+
+  state.corrResult = result;
+
+  if (result.error) {
+    if (elements.corrStatusText) elements.corrStatusText.textContent = result.error;
+    if (elements.corrResultsTable) {
+      elements.corrResultsTable.innerHTML = `<tr><td style="padding: 2rem; color: #f87171;">${result.error}</td></tr>`;
+    }
+    return;
+  }
+
+  if (elements.corrStatusText) {
+    elements.corrStatusText.textContent = `Matrix analyzing ${result.assets.length} assets across ${result.commonDates.length} common months (${result.minDate} → ${result.maxDate})`;
+  }
+
+  renderCorrelationMatrixTable();
+  computeAndDrawRollingCorrelation();
+}
+
+function renderCorrelationMatrixTable() {
+  if (!elements.corrResultsTable || !state.corrResult) return;
+
+  const { assets, matrix } = state.corrResult;
+  const n = assets.length;
+
+  // 1. Table Header
+  let headHtml = '<thead><tr><th class="th-asset-meta">Asset Name</th><th class="th-asset-meta">Ticker</th>';
+  assets.forEach(a => {
+    headHtml += `<th>${a.ticker}</th>`;
+  });
+  headHtml += '<th class="cell-summary-stat">CAGR Return</th><th class="cell-summary-stat">Monthly Vol</th><th class="cell-summary-stat">Annual Vol</th></tr></thead>';
+
+  // 2. Table Body
+  let bodyHtml = '<tbody>';
+  for (let i = 0; i < n; i++) {
+    const assetI = assets[i];
+    bodyHtml += `<tr>`;
+    bodyHtml += `<td class="cell-asset-name"><span class="table-fund-name" data-ticker="${assetI.ticker}" title="${escapeHtml(assetI.name)}">${escapeHtml(assetI.name)}</span></td>`;
+    bodyHtml += `<td><span class="table-ticker-pill" data-ticker="${assetI.ticker}"><span class="picker-dot" style="background:${assetI.color};"></span>${assetI.ticker}</span></td>`;
+
+    for (let j = 0; j < n; j++) {
+      const assetJ = assets[j];
+      const val = matrix[i][j];
+
+      if (i === j) {
+        bodyHtml += `<td class="cell-self">1.00</td>`;
+      } else {
+        const heatClass = getCorrHeatClass(val);
+        const isActive = (assetI.ticker === state.corrFocusPairA && assetJ.ticker === state.corrFocusPairB) ||
+                         (assetI.ticker === state.corrFocusPairB && assetJ.ticker === state.corrFocusPairA);
+        const activeClass = isActive ? 'cell-active-pair' : '';
+
+        bodyHtml += `
+          <td class="cell-clickable ${heatClass} ${activeClass}"
+              data-pair-a="${assetI.ticker}"
+              data-pair-b="${assetJ.ticker}"
+              title="Click to plot rolling correlation for ${assetI.ticker} vs ${assetJ.ticker}">
+            ${val.toFixed(2)}
+          </td>
+        `;
+      }
+    }
+
+    bodyHtml += `<td class="cell-summary-stat">${formatPct(assetI.cagr)}</td>`;
+    bodyHtml += `<td class="cell-summary-stat">${formatPct(assetI.monthlyVol)}</td>`;
+    bodyHtml += `<td class="cell-summary-stat">${formatPct(assetI.annualVol)}</td>`;
+    bodyHtml += `</tr>`;
+  }
+  bodyHtml += '</tbody>';
+
+  elements.corrResultsTable.innerHTML = headHtml + bodyHtml;
+
+  // Bind cell clicks to switch rolling focus pair
+  elements.corrResultsTable.querySelectorAll('.cell-clickable').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const pairA = cell.dataset.pairA;
+      const pairB = cell.dataset.pairB;
+      if (pairA && pairB) {
+        state.corrFocusPairA = pairA;
+        state.corrFocusPairB = pairB;
+        populatePairSelectors();
+        renderCorrelationMatrixTable(); // Re-highlight active pair
+        computeAndDrawRollingCorrelation();
+      }
+    });
+  });
+
+  // Ticker click drills down to Performance Analyzer
+  elements.corrResultsTable.querySelectorAll('[data-ticker]').forEach(el => {
+    el.addEventListener('click', () => {
+      const ticker = el.dataset.ticker;
+      if (ticker) drillDownToFund(ticker);
+    });
+  });
+}
+
+function getCorrHeatClass(val) {
+  if (val >= 0.70) return 'corr-pos-high';
+  if (val >= 0.30) return 'corr-pos-mid';
+  if (val <= -0.70) return 'corr-neg-high';
+  if (val <= -0.30) return 'corr-neg-mid';
+  return 'corr-neutral';
+}
+
+function computeAndDrawRollingCorrelation() {
+  const result = state.corrResult;
+  if (!result || !result.fundReturnsMap) return;
+
+  const returnsA = result.fundReturnsMap.get(state.corrFocusPairA);
+  const returnsB = result.fundReturnsMap.get(state.corrFocusPairB);
+
+  if (!returnsA || !returnsB) return;
+
+  const rolling = calculateRollingCorrelation(
+    returnsA,
+    returnsB,
+    result.commonDates,
+    state.corrWindowMonths
+  );
+
+  state.corrRolling = rolling;
+
+  // Update Headers & Legend
+  if (elements.corrChartTitle) {
+    elements.corrChartTitle.textContent = `${state.corrFocusPairA} vs ${state.corrFocusPairB} Rolling Correlation`;
+  }
+  if (elements.corrChartSubtitle) {
+    elements.corrChartSubtitle.textContent = `Rolling ${state.corrWindowMonths}-month Pearson correlation history. Range: -1.00 (inverse) to +1.00 (identical).`;
+  }
+  if (elements.corrLegendText) {
+    elements.corrLegendText.textContent = `${state.corrFocusPairA} vs ${state.corrFocusPairB} (${state.corrWindowMonths}M)`;
+  }
+
+  // Update Stats Banner
+  if (elements.corrStatCurrent) elements.corrStatCurrent.textContent = rolling.currentCorrelation.toFixed(2);
+  if (elements.corrStatMean) elements.corrStatMean.textContent = rolling.meanCorrelation.toFixed(2);
+  if (elements.corrStatMin) elements.corrStatMin.textContent = rolling.minCorrelation.toFixed(2);
+  if (elements.corrStatMax) elements.corrStatMax.textContent = rolling.maxCorrelation.toFixed(2);
+
+  drawCorrelationChart();
+}
+
+/**
+ * Draws High-DPI Rolling Correlation Canvas Chart
+ */
+function drawCorrelationChart() {
+  const canvas = elements.corrCanvas;
+  const rolling = state.corrRolling;
+  if (!canvas || !rolling) return;
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const pad = { top: 30, right: 35, bottom: 40, left: 60 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const series = rolling.series;
+  if (!series || series.length < 2) {
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillText('Insufficient historical overlap for rolling correlation', w / 2, h / 2);
+    return;
+  }
+
+  // Fixed bounds [-1.0, 1.0] for canonical financial correlation
+  const minVal = -1.0;
+  const maxVal = 1.0;
+
+  function getY(corr) {
+    return pad.top + plotH * (1 - (corr - minVal) / (maxVal - minVal));
+  }
+
+  function getX(idx) {
+    return pad.left + (idx / (series.length - 1)) * plotW;
+  }
+
+  const zeroY = getY(0);
+
+  // Horizontal Gridlines (-1.0, -0.5, 0.0, 0.5, 1.0)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const gridLevels = [-1.0, -0.5, 0.0, 0.5, 1.0];
+  gridLevels.forEach(val => {
+    const y = getY(val);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+
+    ctx.fillText(val.toFixed(1), pad.left - 8, y);
+  });
+
+  // Highlighted Zero Axis Line
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1.25;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // X Time Axis Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const yearStep = Math.max(1, Math.floor(series.length / 8));
+  for (let i = 0; i < series.length; i += yearStep) {
+    const x = getX(i);
+    const dateStr = series[i].date.substring(0, 4);
+
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillText(dateStr, x, h - pad.bottom + 8);
+  }
+
+  // Gradient Area Fill Above & Below Zero
+  const grad = ctx.createLinearGradient(0, getY(1.0), 0, getY(-1.0));
+  grad.addColorStop(0, 'rgba(45, 212, 191, 0.35)');
+  grad.addColorStop(0.5, 'rgba(45, 212, 191, 0.05)');
+  grad.addColorStop(1, 'rgba(239, 68, 68, 0.35)');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(getX(0), zeroY);
+  series.forEach((pt, idx) => {
+    ctx.lineTo(getX(idx), getY(pt.correlation));
+  });
+  ctx.lineTo(getX(series.length - 1), zeroY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw Rolling Curve Line
+  ctx.strokeStyle = '#2dd4bf';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  series.forEach((pt, idx) => {
+    const x = getX(idx);
+    const y = getY(pt.correlation);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Hover Tooltip Handler
+  setupCanvasHover(canvas, elements.corrTooltip, (mouse) => {
+    const relX = mouse.x - pad.left;
+    if (relX < 0 || relX > plotW) return null;
+    const idx = Math.min(series.length - 1, Math.max(0, Math.round((relX / plotW) * (series.length - 1))));
+    const pt = series[idx];
+    const corrVal = pt.correlation;
+
+    const dotColor = corrVal >= 0.70 ? '#10b981' : (corrVal <= -0.30 ? '#ef4444' : '#2dd4bf');
+
+    return {
+      x: getX(idx),
+      y: getY(pt.correlation),
+      html: `
+        <div class="canvas-tooltip-date">${pt.date} (${state.corrWindowMonths}M Ending)</div>
+        <div class="canvas-tooltip-row">
+          <span><span class="canvas-tooltip-dot" style="background: ${dotColor};"></span>${state.corrFocusPairA} vs ${state.corrFocusPairB}:</span>
+          <strong>${corrVal.toFixed(2)}</strong>
+        </div>
+        <div class="canvas-tooltip-row" style="margin-top: 0.2rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.2rem; color: #94a3b8; font-size: 0.7rem;">
+          <span>Relationship:</span>
+          <strong>${corrVal >= 0.7 ? 'Strong Positive' : corrVal >= 0.3 ? 'Moderate Positive' : corrVal <= -0.3 ? 'Inverse / Hedging' : 'Uncorrelated'}</strong>
+        </div>
+      `
+    };
+  }, 'correlation');
+}
+
+function exportCorrelationCSV() {
+  const result = state.corrResult;
+  if (!result || !result.assets) return;
+
+  const { assets, matrix } = result;
+  let csv = 'Ticker,Name,' + assets.map(a => a.ticker).join(',') + ',CAGR,Monthly Vol,Annual Vol\n';
+
+  assets.forEach((a, i) => {
+    csv += `"${a.ticker}","${a.name.replace(/"/g, '""')}",`;
+    for (let j = 0; j < assets.length; j++) {
+      csv += `${matrix[i][j].toFixed(4)},`;
+    }
+    csv += `${(a.cagr * 100).toFixed(2)}%,`;
+    csv += `${(a.monthlyVol * 100).toFixed(2)}%,`;
+    csv += `${(a.annualVol * 100).toFixed(2)}%\n`;
+  });
+
+  downloadCSV(csv, 'asset_correlation_matrix.csv');
+}
+
+/**
+ * CSV Exporters for Screener and Rankings
  */
 function exportScreenerCSV() {
   const filtered = state.screenerFilteredProfiles;
@@ -1128,8 +1639,11 @@ async function handleFilesImport(files) {
   if (result.importedCount > 0) {
     updateCategoryCounts();
     renderModalAssetList();
+    renderCorrelationChips();
+
     if (state.activeTab === 'screener') runScreener();
     else if (state.activeTab === 'rankings') runRankings();
+    else if (state.activeTab === 'correlations') runCorrelationAnalysis();
 
     // If exactly 1 fund was uploaded in target mode, automatically select it!
     if (files.length === 1 && modalMode === 'target') {
@@ -1223,7 +1737,7 @@ function renderModalAssetList() {
 
   // Bind click on items and select buttons
   elements.modalAssetList.querySelectorAll('.asset-list-item').forEach(item => {
-    item.addEventListener('click', (e) => {
+    item.addEventListener('click', () => {
       const ticker = item.dataset.ticker;
       if (ticker) selectFund(ticker);
     });
