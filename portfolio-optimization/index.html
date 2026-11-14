@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Efficient Frontier Studio | Portfolio Optimization | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="./optimization.css" />
+  </head>
+  <body class="optimization-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+          <a href="index.html" class="top-nav-link active">📈 Efficient Frontier</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container optimization-container">
+      <!-- Header -->
+      <header class="studio-header">
+        <h1>📈 Efficient Frontier Studio</h1>
+        <p class="studio-tagline">
+          Chart the Markowitz efficient frontier to explore risk vs. return trade-offs based on historical returns.
+          Discover the Maximum Sharpe Ratio (Tangency) portfolio, Global Minimum Volatility (GMV) portfolio, Capital Allocation Line (CAL),
+          and asset allocation transition dynamics across the risk spectrum.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Portfolio Optimization Suite Pages">
+        <a href="index.html" class="suite-subnav-link active">📈 Efficient Frontier</a>
+        <a href="portfolio-optimization.html" class="suite-subnav-link">⚖️ Portfolio Optimization <span class="suite-subnav-badge">Page 2</span></a>
+        <a href="black-litterman.html" class="suite-subnav-link">🧠 Black-Litterman Model <span class="suite-subnav-badge">Page 3</span></a>
+        <a href="rolling-optimization.html" class="suite-subnav-link">🔄 Rolling Optimization <span class="suite-subnav-badge">Page 4</span></a>
+      </nav>
+
+      <!-- Dynamic Status & Control Bar -->
+      <section class="status-summary-bar" aria-label="Timeline and Model Summary">
+        <div class="status-pill highlight">
+          <span>Active Timeline:</span>
+          <strong id="status-timeline-range">-- to --</strong>
+          <span class="status-sub" id="status-total-months">(0 Months)</span>
+        </div>
+        <div class="status-pill">
+          <span>Limiting Asset:</span>
+          <strong id="status-limiting-asset">--</strong>
+        </div>
+        <div class="status-pill">
+          <span>Risk-Free Rate:</span>
+          <strong id="status-rf-rate">3.00%</strong>
+        </div>
+        <div class="status-pill">
+          <span>Universe:</span>
+          <strong id="status-asset-count">3 Assets</strong>
+        </div>
+        <div class="status-actions">
+          <button type="button" class="btn-toggle-config" id="btn-toggle-config-panel">
+            <span id="btn-config-icon">⚙️</span>
+            <span id="btn-config-text">Collapse Configuration</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Configuration Card -->
+      <section class="config-card" id="config-card">
+        <div class="config-card-inner">
+          <!-- Presets Bar -->
+          <div class="presets-row">
+            <span class="presets-label">Preset Portfolios:</span>
+            <div class="presets-buttons-wrap">
+              <button type="button" class="btn-preset" data-preset="core-two">Core 60/40 (VOO + BND)</button>
+              <button type="button" class="btn-preset" data-preset="three-fund">Three-Fund (VOO + SCHD + BND)</button>
+              <button type="button" class="btn-preset" data-preset="growth-four">Core Four (VOO + QQQ + SCHD + BND)</button>
+              <button type="button" class="btn-preset" data-preset="equities">All-Equity (VOO + QQQ + SCHD)</button>
+            </div>
+          </div>
+
+          <!-- Asset Universe & Constraints Table -->
+          <div class="asset-table-wrap">
+            <table class="opt-asset-table" id="table-assets-config">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th>Asset / ETF</th>
+                  <th style="width: 140px; text-align: right;">Min. Weight (%)</th>
+                  <th style="width: 140px; text-align: right;">Max. Weight (%)</th>
+                  <th style="width: 150px; text-align: right;">Historical Ann. Return</th>
+                  <th style="width: 140px; text-align: right;">Historical Volatility</th>
+                  <th style="width: 60px; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="asset-rows-body">
+                <!-- Dynamically generated rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Add Asset Button -->
+          <div class="asset-actions-row">
+            <button type="button" class="btn-add-asset" id="btn-open-asset-modal">
+              <span>+</span>
+              <span>Add Asset / ETF</span>
+            </button>
+            <span class="status-sub">Minimum 2 assets required for optimization. Max weight constraints default to 100%.</span>
+          </div>
+
+          <!-- Optimization Settings Grid -->
+          <div class="settings-grid">
+            <div class="setting-item">
+              <label for="opt-rf-input">Risk-Free Rate (%)</label>
+              <input type="number" id="opt-rf-input" class="setting-input" value="3.0" step="0.25" min="0" max="15" />
+            </div>
+            <div class="setting-item">
+              <label for="opt-start-date">Start Date</label>
+              <select id="opt-start-date" class="setting-select"></select>
+            </div>
+            <div class="setting-item">
+              <label for="opt-end-date">End Date</label>
+              <select id="opt-end-date" class="setting-select"></select>
+            </div>
+            <div class="setting-item">
+              <label for="opt-mc-toggle">Monte Carlo Feasible Cloud</label>
+              <select id="opt-mc-toggle" class="setting-select">
+                <option value="true" selected>Show Simulated Portfolios (2,500 points)</option>
+                <option value="false">Hide Simulated Cloud (Frontier Only)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="btn-calc-wrap">
+            <button type="button" class="btn-calculate-primary" id="btn-run-optimization">
+              <span>⚡</span>
+              <span>Calculate Efficient Frontier</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTS SECTION -->
+      <main id="results-container">
+        <!-- Two Flagship Performance Summary Cards -->
+        <section class="flagship-cards-grid">
+          <!-- Maximum Sharpe Ratio (Tangency) Card -->
+          <div class="flagship-card tangency-card">
+            <div class="card-title-row">
+              <h3>⭐ Max Sharpe Ratio (Tangency)</h3>
+              <span class="card-pill tangency">Optimal Risk-Adjusted</span>
+            </div>
+            <div class="card-metrics-grid">
+              <div class="card-metric-box">
+                <div class="card-metric-label">Expected Return</div>
+                <div class="card-metric-value highlight-gold" id="tan-metric-return">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Standard Deviation</div>
+                <div class="card-metric-value" id="tan-metric-vol">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Sharpe Ratio</div>
+                <div class="card-metric-value highlight-gold" id="tan-metric-sharpe">--</div>
+              </div>
+            </div>
+            <div class="card-donut-row">
+              <div class="donut-canvas-wrap">
+                <canvas id="canvas-donut-tangency" width="130" height="130"></canvas>
+              </div>
+              <div class="donut-weights-table" id="tan-weights-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Global Minimum Volatility (GMV) Card -->
+          <div class="flagship-card gmv-card">
+            <div class="card-title-row">
+              <h3>🛡️ Minimum Volatility (GMV)</h3>
+              <span class="card-pill gmv">Lowest Risk</span>
+            </div>
+            <div class="card-metrics-grid">
+              <div class="card-metric-box">
+                <div class="card-metric-label">Expected Return</div>
+                <div class="card-metric-value" id="gmv-metric-return">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Standard Deviation</div>
+                <div class="card-metric-value highlight-green" id="gmv-metric-vol">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Sharpe Ratio</div>
+                <div class="card-metric-value" id="gmv-metric-sharpe">--</div>
+              </div>
+            </div>
+            <div class="card-donut-row">
+              <div class="donut-canvas-wrap">
+                <canvas id="canvas-donut-gmv" width="130" height="130"></canvas>
+              </div>
+              <div class="donut-weights-table" id="gmv-weights-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Charts Stack -->
+        <section class="charts-stack">
+          <!-- Main Efficient Frontier Chart -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <span>📈</span>
+                <span>Markowitz Efficient Frontier & Capital Allocation Line (CAL)</span>
+              </div>
+              <div class="chart-legend" id="frontier-legend">
+                <div class="legend-item"><span class="legend-swatch" style="background: #38bdf8;"></span> Frontier Curve</div>
+                <div class="legend-item"><span class="legend-swatch circle" style="background: #facc15;"></span> Tangency (Max Sharpe)</div>
+                <div class="legend-item"><span class="legend-swatch circle" style="background: #34d399;"></span> GMV (Min Volatility)</div>
+                <div class="legend-item"><span class="legend-swatch" style="border-top: 2px dashed #94a3b8; height: 0;"></span> Capital Allocation Line (CAL)</div>
+                <div class="legend-item"><span class="legend-swatch circle" style="background: #f43f5e;"></span> Individual Assets</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-frontier-chart">
+              <canvas id="canvas-frontier-chart"></canvas>
+              <div class="opt-chart-tooltip" id="tooltip-frontier"></div>
+            </div>
+          </div>
+
+          <!-- Efficient Frontier Transition Map (Stacked Area Chart) -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <span>📊</span>
+                <span>Efficient Frontier Asset Allocation Transition Map</span>
+              </div>
+              <div class="chart-legend" id="transition-legend">
+                <!-- Dynamically generated asset legend items -->
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-transition-chart">
+              <canvas id="canvas-transition-chart"></canvas>
+              <div class="opt-chart-tooltip" id="tooltip-transition"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tables Section: Asset Statistics, Correlation Heatmap, Frontier Portfolios Schedule -->
+        <section class="tables-grid">
+          <!-- Asset Statistics & Bounds Table -->
+          <div class="data-card">
+            <div class="data-card-title">
+              <span>📋</span>
+              <span>Efficient Frontier Asset Characteristics</span>
+            </div>
+            <div class="data-table-scroll">
+              <table class="opt-data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Asset Name / Ticker</th>
+                    <th class="num">Expected Return</th>
+                    <th class="num">Annualized Volatility</th>
+                    <th class="num">Sharpe Ratio</th>
+                    <th class="num">Min Weight</th>
+                    <th class="num">Max Weight</th>
+                  </tr>
+                </thead>
+                <tbody id="table-asset-stats-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Correlation Heatmap Matrix -->
+          <div class="data-card">
+            <div class="data-card-title">
+              <span>🔥</span>
+              <span>Asset Correlation Matrix</span>
+            </div>
+            <div class="data-table-scroll">
+              <table class="opt-data-table" id="table-correlation-matrix">
+                <!-- Injected via JS -->
+              </table>
+            </div>
+          </div>
+
+          <!-- Frontier Portfolios Schedule Table -->
+          <div class="data-card">
+            <div class="data-card-title">
+              <span>📑</span>
+              <span>Efficient Frontier Portfolios Schedule</span>
+            </div>
+            <div class="data-table-scroll">
+              <table class="opt-data-table" id="table-frontier-schedule">
+                <!-- Injected via JS -->
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script src="../js/nav.js"></script>
+    <script type="module" src="./efficient-frontier-ui.js"></script>
+  </body>
+</html>

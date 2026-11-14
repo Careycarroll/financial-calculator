@@ -28,6 +28,7 @@
         { id: "asset-analytics", name: "Asset Analytics Studio", icon: "📊", path: "asset-analytics/index.html", desc: "Fund performance, underwater crashes, heatmaps & rolling bands" },
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" },
         { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation, rebalancing frequencies & side-by-side models" },
+        { id: "efficient-frontier", name: "Efficient Frontier", icon: "📈", path: "portfolio-optimization/index.html", desc: "Markowitz efficient frontier, CAL, Tangency portfolio & transition map" },
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
         { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
         { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
