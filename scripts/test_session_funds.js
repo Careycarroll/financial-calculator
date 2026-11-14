@@ -71,4 +71,57 @@ assert.doesNotThrow(() => {
 }, 'Multi-asset modal invocation succeeds gracefully in test environment');
 console.log('✅ PASS: Multi-asset basket modal options & headless safety validated');
 
+// TEST 6: Fund Selection Callback Signature Compatibility
+console.log('\n--- TEST 6: Fund Selection Callback Signature Compatibility ---');
+assert.strictEqual(typeof assetModalModule.selectFund, 'function', 'selectFund is exported as function');
+
+// Case A: Financial Goals & Portfolio Studio pattern: (selectedFund) => selectedFund.ticker.toUpperCase()
+let receivedTickerA = null;
+let receivedNameA = null;
+assetModalModule.openAssetModal({
+  title: 'Select Asset',
+  onSelect: (selectedFund) => {
+    receivedTickerA = selectedFund.ticker.toUpperCase();
+    receivedNameA = selectedFund.name;
+  }
+});
+assetModalModule.selectFund('qqq');
+assert.strictEqual(receivedTickerA, 'QQQ', 'Pattern A extracts QQQ via selectedFund.ticker.toUpperCase()');
+assert.ok(receivedNameA && receivedNameA.includes('QQQ'), 'Pattern A extracts fund name correctly');
+
+// Case B: Asset Analytics / Regression pattern: (ticker) => ticker.toUpperCase()
+let receivedTickerB = null;
+assetModalModule.openAssetModal({
+  title: 'Select Benchmark',
+  onSelect: (ticker) => {
+    receivedTickerB = ticker.toUpperCase();
+  }
+});
+assetModalModule.selectFund('voo');
+assert.strictEqual(receivedTickerB, 'VOO', 'Pattern B extracts VOO via ticker.toUpperCase()');
+
+// Case C: DCA dual-parameter pattern: (ticker, newFund) => ...
+let receivedTickerC = null;
+let receivedFundC = null;
+assetModalModule.openAssetModal({
+  title: 'Change Fund',
+  onSelect: (ticker, newFund) => {
+    receivedTickerC = String(ticker);
+    receivedFundC = newFund;
+  }
+});
+assetModalModule.selectFund('bnd');
+assert.strictEqual(receivedTickerC, 'BND', 'Pattern C extracts ticker string BND');
+assert.strictEqual(receivedFundC.ticker, 'BND', 'Pattern C receives full fund object');
+
+// Case D: Direct function parameter pattern: openAssetModal((chosen) => ...)
+let receivedTickerD = null;
+assetModalModule.openAssetModal((chosenTicker) => {
+  receivedTickerD = (chosenTicker.ticker || chosenTicker).toUpperCase();
+});
+assetModalModule.selectFund('spy');
+assert.strictEqual(receivedTickerD, 'SPY', 'Pattern D direct callback function receives selected ticker SPY');
+
+console.log('✅ PASS: All modal callback signature patterns (Goals, Analytics, Backtest, ALM, DCA) verified');
+
 console.log('\n🎉 ALL SESSION FUNDS TESTS PASSED SUCCESSFULLY!');

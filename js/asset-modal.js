@@ -538,20 +538,36 @@ function renderAssetList() {
 /**
  * Handles selection of a fund (single-select mode)
  */
-function selectFund(ticker) {
+export function selectFund(ticker) {
   const sym = ticker.toUpperCase();
   const allFunds = getAllFundsSync();
-  const fund = allFunds.find(f => f.ticker.toUpperCase() === sym) || { ticker: sym };
+  const fund = allFunds.find(f => f.ticker.toUpperCase() === sym) || { ticker: sym, name: sym };
 
   if (currentOptions && typeof currentOptions.onSelect === 'function') {
-    currentOptions.onSelect(sym, fund);
+    // Construct a hybrid payload that seamlessly supports:
+    // 1. String-like usage: arg == 'QQQ', arg.toUpperCase(), String(arg)
+    // 2. Object property access: arg.ticker, arg.name, arg.data, arg.color, arg.category
+    // 3. Multi-param callbacks: onSelect(ticker, fund) or onSelect(fund, ticker)
+    const hybrid = new String(sym);
+    hybrid.ticker = sym;
+    hybrid.name = fund.name || sym;
+    hybrid.color = fund.color;
+    hybrid.data = fund.data;
+    hybrid.category = fund.category;
+    hybrid.inception = fund.inception;
+
+    try {
+      currentOptions.onSelect(hybrid, fund);
+    } catch (err) {
+      console.error('Error in assetModal onSelect callback:', err);
+    }
   }
   closeAssetModal();
 }
 
 /**
  * Opens the asset modal with the specified configuration
- * @param {Object} options
+ * @param {Object|Function} options - Options object, or direct onSelect callback function
  * @param {string} [options.title] - Modal title
  * @param {string} [options.badgeText] - Modal header badge label
  * @param {string} [options.badgeColor] - Badge color
@@ -566,6 +582,11 @@ function selectFund(ticker) {
  * @param {Function} [options.onReset] - Callback when session is reset to default 5
  */
 export function openAssetModal(options = {}) {
+  // Support function argument signature (e.g. in alm-ui.js: openAssetModal(callback))
+  if (typeof options === 'function') {
+    options = { onSelect: options };
+  }
+
   ensureModalDOM();
 
   currentOptions = {

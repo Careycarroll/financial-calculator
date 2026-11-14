@@ -1129,8 +1129,9 @@ function attachEventListeners() {
       openAssetModal({
         selectedTicker: 'VOO',
         targetType: 'fund',
-        onSelect: (sel) => {
-          state.startRows.push({ id: `start-${Date.now()}`, ticker: sel.ticker.toUpperCase(), weight: 0 });
+        onSelect: (sel, fund) => {
+          const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || 'VOO';
+          state.startRows.push({ id: `start-${Date.now()}`, ticker, weight: 0 });
           renderAllocTable(elements.startAllocationsTbody, state.startRows, elements.totalStartVal, elements.totalStartStatus);
         }
       });
@@ -1142,8 +1143,9 @@ function attachEventListeners() {
       openAssetModal({
         selectedTicker: 'BND',
         targetType: 'fund',
-        onSelect: (sel) => {
-          state.endRows.push({ id: `end-${Date.now()}`, ticker: sel.ticker.toUpperCase(), weight: 0 });
+        onSelect: (sel, fund) => {
+          const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || 'BND';
+          state.endRows.push({ id: `end-${Date.now()}`, ticker, weight: 0 });
           renderAllocTable(elements.endAllocationsTbody, state.endRows, elements.totalEndVal, elements.totalEndStatus);
         }
       });
@@ -1283,8 +1285,9 @@ function wireTableEvents(tbodyEl, rows, totalValEl, totalStatusEl) {
       openAssetModal({
         selectedTicker: rows[idx].ticker,
         targetType: 'fund',
-        onSelect: (sel) => {
-          rows[idx].ticker = sel.ticker.toUpperCase();
+        onSelect: (sel, fund) => {
+          const ticker = (typeof sel === 'string' ? sel : (sel?.ticker || sel))?.toUpperCase() || (fund?.ticker?.toUpperCase()) || rows[idx].ticker;
+          rows[idx].ticker = ticker;
           renderAllocTable(tbodyEl, rows, totalValEl, totalStatusEl);
         }
       });
