@@ -37,12 +37,18 @@ import {
   computeCorrelationMatrix,
   calculateRollingCorrelation
 } from './correlation-engine.js';
+import {
+  calculateSampleAutocorrelation,
+  calculateRollingAutocorrelation,
+  alignTwoAssetPrices,
+  runCointegrationAnalysis
+} from './timeseries-engine.js';
 import { formatCurrency, rafThrottle } from '../js/chart-utils.js';
 import { formatPct } from '../js/formatting.js';
 
 // App Reactive State
 const state = {
-  activeTab: 'performance', // 'performance' | 'screener' | 'rankings' | 'correlations'
+  activeTab: 'performance', // 'performance' | 'screener' | 'rankings' | 'correlations' | 'autocorr' | 'cointegration'
 
   // Fund Performance Analyzer State
   fundTicker: 'QQQ',
@@ -82,6 +88,18 @@ const state = {
   corrResult: null,
   corrRolling: null,
 
+  // Autocorrelation Lab State
+  autocorrTicker: 'TSLA',
+  autocorrRollPeriod: 24, // 12 | 24 | 36 | 60
+  autocorrResult: null,
+
+  // Cointegration Analysis State
+  cointDepTicker: 'EWA',
+  cointIndepTicker: 'EWC',
+  cointPriceBasis: 'monthly', // 'monthly' | 'drip'
+  cointAdfLags: 1,
+  cointResult: null,
+
   // Cached calculation results
   analysis: null,
   fundObj: null,
@@ -89,7 +107,7 @@ const state = {
 };
 
 // Searchable Modal State
-let modalMode = 'target'; // 'target' | 'benchmark'
+let modalMode = 'target'; // 'target' | 'benchmark' | 'autocorr' | 'coint-dep' | 'coint-indep'
 let activeCategoryFilter = 'all'; // 'all' | 'preset' | 'custom'
 
 // DOM Elements Cache
@@ -101,7 +119,11 @@ const canvasControllers = {
   annual: null,
   drawdown: null,
   rolling: null,
-  correlation: null
+  correlation: null,
+  autocorr1: null,
+  autocorr3: null,
+  autocorr12: null,
+  cointegration: null
 };
 
 document.addEventListener('DOMContentLoaded', init);
@@ -114,6 +136,8 @@ async function init() {
   await initSessionFunds();
 
   updatePickerButtons();
+  updateAutocorrPickerButton();
+  updateCointPickerButtons();
   updateCategoryCounts();
   renderCorrelationChips();
   updateViewModeUI();
@@ -123,6 +147,8 @@ async function init() {
   subscribeSessionFunds(() => {
     updateCategoryCounts();
     updatePickerButtons();
+    updateAutocorrPickerButton();
+    updateCointPickerButtons();
     if (elements.assetModalOverlay && !elements.assetModalOverlay.classList.contains('hidden')) {
       renderModalAssetList();
     }
@@ -133,6 +159,10 @@ async function init() {
     } else if (state.activeTab === 'correlations') {
       renderCorrelationChips();
       runCorrelationAnalysis();
+    } else if (state.activeTab === 'autocorr') {
+      runAutocorrelationAnalysis();
+    } else if (state.activeTab === 'cointegration') {
+      runCointegrationAnalysisUI();
     }
   });
 
@@ -145,6 +175,10 @@ async function init() {
         drawAllCharts();
       } else if (state.activeTab === 'correlations' && state.corrRolling) {
         drawCorrelationChart();
+      } else if (state.activeTab === 'autocorr' && state.autocorrResult) {
+        drawAllAutocorrCharts();
+      } else if (state.activeTab === 'cointegration' && state.cointResult) {
+        drawCointegrationSpreadChart();
       }
     }, 200);
   });
@@ -157,10 +191,14 @@ function cacheDOMElements() {
     tabBtnScreener: document.getElementById('tab-btn-screener'),
     tabBtnRankings: document.getElementById('tab-btn-rankings'),
     tabBtnCorrelations: document.getElementById('tab-btn-correlations'),
+    tabBtnAutocorr: document.getElementById('tab-btn-autocorr'),
+    tabBtnCointegration: document.getElementById('tab-btn-cointegration'),
     tabPerformance: document.getElementById('tab-performance'),
     tabScreener: document.getElementById('tab-screener'),
     tabRankings: document.getElementById('tab-rankings'),
     tabCorrelations: document.getElementById('tab-correlations'),
+    tabAutocorr: document.getElementById('tab-autocorr'),
+    tabCointegration: document.getElementById('tab-cointegration'),
     performanceControlsBar: document.getElementById('performance-controls-bar'),
 
     // Modal Triggers & Labels
@@ -323,7 +361,60 @@ function cacheDOMElements() {
     corrStatCurrent: document.getElementById('corr-stat-current'),
     corrStatMean: document.getElementById('corr-stat-mean'),
     corrStatMin: document.getElementById('corr-stat-min'),
-    corrStatMax: document.getElementById('corr-stat-max')
+    corrStatMax: document.getElementById('corr-stat-max'),
+
+    // Autocorrelation Lab Elements
+    btnOpenAutocorrModal: document.getElementById('btn-open-autocorr-modal'),
+    autocorrPickerTicker: document.getElementById('autocorr-picker-ticker'),
+    autocorrPickerName: document.getElementById('autocorr-picker-name'),
+    autocorrRollPeriod: document.getElementById('autocorr-roll-period'),
+    autocorrStatusText: document.getElementById('autocorr-status-text'),
+    btnExportAutocorrCsv: document.getElementById('btn-export-autocorr-csv'),
+    autocorrDateRangeText: document.getElementById('autocorr-date-range-text'),
+    autocorrTitleLag1: document.getElementById('autocorr-title-lag1'),
+    autocorrLag1Current: document.getElementById('autocorr-lag1-current'),
+    autocorrLag1Mean: document.getElementById('autocorr-lag1-mean'),
+    autocorrLag1Min: document.getElementById('autocorr-lag1-min'),
+    autocorrLag1Max: document.getElementById('autocorr-lag1-max'),
+    canvasAutocorrLag1: document.getElementById('canvas-autocorr-lag1'),
+    tooltipAutocorrLag1: document.getElementById('tooltip-autocorr-lag1'),
+    autocorrTitleLag3: document.getElementById('autocorr-title-lag3'),
+    autocorrLag3Current: document.getElementById('autocorr-lag3-current'),
+    autocorrLag3Mean: document.getElementById('autocorr-lag3-mean'),
+    autocorrLag3Min: document.getElementById('autocorr-lag3-min'),
+    autocorrLag3Max: document.getElementById('autocorr-lag3-max'),
+    canvasAutocorrLag3: document.getElementById('canvas-autocorr-lag3'),
+    tooltipAutocorrLag3: document.getElementById('tooltip-autocorr-lag3'),
+    autocorrTitleLag12: document.getElementById('autocorr-title-lag12'),
+    autocorrLag12Current: document.getElementById('autocorr-lag12-current'),
+    autocorrLag12Mean: document.getElementById('autocorr-lag12-mean'),
+    autocorrLag12Min: document.getElementById('autocorr-lag12-min'),
+    autocorrLag12Max: document.getElementById('autocorr-lag12-max'),
+    canvasAutocorrLag12: document.getElementById('canvas-autocorr-lag12'),
+    tooltipAutocorrLag12: document.getElementById('tooltip-autocorr-lag12'),
+
+    // Cointegration Elements
+    btnOpenCointDepModal: document.getElementById('btn-open-coint-dep-modal'),
+    cointDepTicker: document.getElementById('coint-dep-ticker'),
+    cointDepName: document.getElementById('coint-dep-name'),
+    btnOpenCointIndepModal: document.getElementById('btn-open-coint-indep-modal'),
+    cointIndepTicker: document.getElementById('coint-indep-ticker'),
+    cointIndepName: document.getElementById('coint-indep-name'),
+    cointPricesSelect: document.getElementById('coint-prices-select'),
+    cointLagSelect: document.getElementById('coint-lag-select'),
+    btnRunCointegration: document.getElementById('btn-run-cointegration'),
+    btnExportCointCsv: document.getElementById('btn-export-coint-csv'),
+    cointStatusText: document.getElementById('coint-status-text'),
+    cointConstraintNote: document.getElementById('coint-constraint-note'),
+    cointResultsTable: document.getElementById('coint-results-table'),
+    cointTableBody: document.getElementById('coint-table-body'),
+    cointTableCaption: document.getElementById('coint-table-caption'),
+    cointStatBeta: document.getElementById('coint-stat-beta'),
+    cointStatAlpha: document.getElementById('coint-stat-alpha'),
+    cointStatStd: document.getElementById('coint-stat-std'),
+    cointStatHalflife: document.getElementById('coint-stat-halflife'),
+    cointegrationCanvas: document.getElementById('cointegration-canvas'),
+    cointegrationTooltip: document.getElementById('cointegration-tooltip')
   };
 }
 
@@ -339,6 +430,32 @@ function updatePickerButtons() {
   if (elements.benchPickerTicker && bench) {
     elements.benchPickerTicker.textContent = bench.ticker;
     elements.benchPickerName.textContent = bench.name;
+  }
+}
+
+function updateAutocorrPickerButton() {
+  const allFunds = getAllFundsSync();
+  const fund = allFunds.find(f => f.ticker === state.autocorrTicker) || allFunds[0];
+  if (fund) {
+    state.autocorrTicker = fund.ticker;
+    if (elements.autocorrPickerTicker) elements.autocorrPickerTicker.textContent = fund.ticker;
+    if (elements.autocorrPickerName) elements.autocorrPickerName.textContent = fund.name || fund.ticker;
+  }
+}
+
+function updateCointPickerButtons() {
+  const allFunds = getAllFundsSync();
+  const dep = allFunds.find(f => f.ticker === state.cointDepTicker) || allFunds[0];
+  const indep = allFunds.find(f => f.ticker === state.cointIndepTicker) || (allFunds[1] || allFunds[0]);
+  if (dep) {
+    state.cointDepTicker = dep.ticker;
+    if (elements.cointDepTicker) elements.cointDepTicker.textContent = dep.ticker;
+    if (elements.cointDepName) elements.cointDepName.textContent = dep.name || dep.ticker;
+  }
+  if (indep) {
+    state.cointIndepTicker = indep.ticker;
+    if (elements.cointIndepTicker) elements.cointIndepTicker.textContent = indep.ticker;
+    if (elements.cointIndepName) elements.cointIndepName.textContent = indep.name || indep.ticker;
   }
 }
 
@@ -366,6 +483,12 @@ function bindEvents() {
   if (elements.tabBtnCorrelations) {
     elements.tabBtnCorrelations.addEventListener('click', () => switchStudioTab('correlations'));
   }
+  if (elements.tabBtnAutocorr) {
+    elements.tabBtnAutocorr.addEventListener('click', () => switchStudioTab('autocorr'));
+  }
+  if (elements.tabBtnCointegration) {
+    elements.tabBtnCointegration.addEventListener('click', () => switchStudioTab('cointegration'));
+  }
 
   // Modal Triggers
   if (elements.btnOpenTargetModal) {
@@ -373,6 +496,15 @@ function bindEvents() {
   }
   if (elements.btnOpenBenchModal) {
     elements.btnOpenBenchModal.addEventListener('click', () => openAssetModal('benchmark'));
+  }
+  if (elements.btnOpenAutocorrModal) {
+    elements.btnOpenAutocorrModal.addEventListener('click', () => openAssetModal('autocorr'));
+  }
+  if (elements.btnOpenCointDepModal) {
+    elements.btnOpenCointDepModal.addEventListener('click', () => openAssetModal('coint-dep'));
+  }
+  if (elements.btnOpenCointIndepModal) {
+    elements.btnOpenCointIndepModal.addEventListener('click', () => openAssetModal('coint-indep'));
   }
 
   // Modal Close Handlers
@@ -769,52 +901,87 @@ function bindEvents() {
   if (elements.btnExportCorrCsv) {
     elements.btnExportCorrCsv.addEventListener('click', exportCorrelationCSV);
   }
+
+  // Autocorrelation Lab Event Handlers
+  if (elements.autocorrRollPeriod) {
+    elements.autocorrRollPeriod.addEventListener('change', (e) => {
+      state.autocorrRollPeriod = parseInt(e.target.value, 10);
+      runAutocorrelationAnalysis();
+    });
+  }
+
+  if (elements.btnExportAutocorrCsv) {
+    elements.btnExportAutocorrCsv.addEventListener('click', exportAutocorrelationCSV);
+  }
+
+  // Cointegration Event Handlers
+  if (elements.cointPricesSelect) {
+    elements.cointPricesSelect.addEventListener('change', (e) => {
+      state.cointPriceBasis = e.target.value;
+      runCointegrationAnalysisUI();
+    });
+  }
+
+  if (elements.cointLagSelect) {
+    elements.cointLagSelect.addEventListener('change', (e) => {
+      state.cointAdfLags = parseInt(e.target.value, 10);
+      runCointegrationAnalysisUI();
+    });
+  }
+
+  if (elements.btnRunCointegration) {
+    elements.btnRunCointegration.addEventListener('click', runCointegrationAnalysisUI);
+  }
+
+  if (elements.btnExportCointCsv) {
+    elements.btnExportCointCsv.addEventListener('click', exportCointegrationCSV);
+  }
 }
 
 /**
- * Switches between studio sub-tabs ('performance', 'screener', 'rankings', 'correlations')
+ * Switches between studio sub-tabs ('performance', 'screener', 'rankings', 'correlations', 'autocorr', 'cointegration')
  */
 function switchStudioTab(tabKey) {
   state.activeTab = tabKey;
 
-  // Update Tab Buttons
-  [elements.tabBtnPerformance, elements.tabBtnScreener, elements.tabBtnRankings, elements.tabBtnCorrelations].forEach(btn => {
-    if (btn) {
-      if (btn.dataset.tab === tabKey) btn.classList.add('active');
-      else btn.classList.remove('active');
+  const tabList = [
+    { btn: elements.tabBtnPerformance, pane: elements.tabPerformance, key: 'performance' },
+    { btn: elements.tabBtnScreener, pane: elements.tabScreener, key: 'screener' },
+    { btn: elements.tabBtnRankings, pane: elements.tabRankings, key: 'rankings' },
+    { btn: elements.tabBtnCorrelations, pane: elements.tabCorrelations, key: 'correlations' },
+    { btn: elements.tabBtnAutocorr, pane: elements.tabAutocorr, key: 'autocorr' },
+    { btn: elements.tabBtnCointegration, pane: elements.tabCointegration, key: 'cointegration' }
+  ];
+
+  tabList.forEach(t => {
+    if (t.btn) {
+      if (t.key === tabKey) t.btn.classList.add('active');
+      else t.btn.classList.remove('active');
+    }
+    if (t.pane) {
+      if (t.key === tabKey) t.pane.classList.remove('hidden');
+      else t.pane.classList.add('hidden');
     }
   });
 
-  // Toggle Tab Containers
   if (tabKey === 'performance') {
     elements.performanceControlsBar?.classList.remove('hidden');
-    elements.tabPerformance?.classList.remove('hidden');
-    elements.tabScreener?.classList.add('hidden');
-    elements.tabRankings?.classList.add('hidden');
-    elements.tabCorrelations?.classList.add('hidden');
     if (state.analysis) drawAllCharts();
-  } else if (tabKey === 'screener') {
+  } else {
     elements.performanceControlsBar?.classList.add('hidden');
-    elements.tabPerformance?.classList.add('hidden');
-    elements.tabScreener?.classList.remove('hidden');
-    elements.tabRankings?.classList.add('hidden');
-    elements.tabCorrelations?.classList.add('hidden');
+  }
+
+  if (tabKey === 'screener') {
     runScreener();
   } else if (tabKey === 'rankings') {
-    elements.performanceControlsBar?.classList.add('hidden');
-    elements.tabPerformance?.classList.add('hidden');
-    elements.tabScreener?.classList.add('hidden');
-    elements.tabRankings?.classList.remove('hidden');
-    elements.tabCorrelations?.classList.add('hidden');
     runRankings();
   } else if (tabKey === 'correlations') {
-    elements.performanceControlsBar?.classList.add('hidden');
-    elements.tabPerformance?.classList.add('hidden');
-    elements.tabScreener?.classList.add('hidden');
-    elements.tabRankings?.classList.add('hidden');
-    elements.tabCorrelations?.classList.remove('hidden');
     renderCorrelationChips();
     runCorrelationAnalysis();
+  } else if (tabKey === 'autocorr') {
+    runAutocorrelationAnalysis();
+  } else if (tabKey === 'cointegration') {
+    runCointegrationAnalysisUI();
   }
 }
 
@@ -1545,15 +1712,35 @@ function openAssetModal(mode) {
   modalMode = mode;
 
   if (elements.modalTitle) {
-    elements.modalTitle.textContent = mode === 'target'
-      ? 'Select Target Asset / Fund'
-      : 'Select Benchmark Reference';
+    if (mode === 'target') elements.modalTitle.textContent = 'Select Target Asset / Fund';
+    else if (mode === 'benchmark') elements.modalTitle.textContent = 'Select Benchmark Reference';
+    else if (mode === 'autocorr') elements.modalTitle.textContent = 'Select Autocorrelation Asset';
+    else if (mode === 'coint-dep') elements.modalTitle.textContent = 'Select Dependent Asset (Y)';
+    else if (mode === 'coint-indep') elements.modalTitle.textContent = 'Select Independent Asset (X)';
   }
 
   if (elements.modalTargetTypeBadge) {
-    elements.modalTargetTypeBadge.textContent = mode === 'target' ? 'Target Asset' : 'Benchmark Reference';
-    elements.modalTargetTypeBadge.style.background = mode === 'target' ? 'rgba(45, 212, 191, 0.15)' : 'rgba(168, 85, 247, 0.15)';
-    elements.modalTargetTypeBadge.style.color = mode === 'target' ? '#2dd4bf' : '#c084fc';
+    if (mode === 'target') {
+      elements.modalTargetTypeBadge.textContent = 'Target Asset';
+      elements.modalTargetTypeBadge.style.background = 'rgba(45, 212, 191, 0.15)';
+      elements.modalTargetTypeBadge.style.color = '#2dd4bf';
+    } else if (mode === 'benchmark') {
+      elements.modalTargetTypeBadge.textContent = 'Benchmark Reference';
+      elements.modalTargetTypeBadge.style.background = 'rgba(168, 85, 247, 0.15)';
+      elements.modalTargetTypeBadge.style.color = '#c084fc';
+    } else if (mode === 'autocorr') {
+      elements.modalTargetTypeBadge.textContent = 'Autocorrelation Asset';
+      elements.modalTargetTypeBadge.style.background = 'rgba(45, 212, 191, 0.15)';
+      elements.modalTargetTypeBadge.style.color = '#2dd4bf';
+    } else if (mode === 'coint-dep') {
+      elements.modalTargetTypeBadge.textContent = 'Dependent (Y)';
+      elements.modalTargetTypeBadge.style.background = 'rgba(45, 212, 191, 0.15)';
+      elements.modalTargetTypeBadge.style.color = '#2dd4bf';
+    } else if (mode === 'coint-indep') {
+      elements.modalTargetTypeBadge.textContent = 'Independent (X)';
+      elements.modalTargetTypeBadge.style.background = 'rgba(168, 85, 247, 0.15)';
+      elements.modalTargetTypeBadge.style.color = '#c084fc';
+    }
   }
 
   // Reset category tabs to 'all'
@@ -1592,15 +1779,33 @@ function closeAssetModal() {
 }
 
 function selectFund(ticker) {
+  const sym = ticker.toUpperCase();
   if (modalMode === 'target') {
-    state.fundTicker = ticker.toUpperCase();
-  } else {
-    state.benchTicker = ticker.toUpperCase();
+    state.fundTicker = sym;
+    updatePickerButtons();
+    closeAssetModal();
+    runAnalysis();
+  } else if (modalMode === 'benchmark') {
+    state.benchTicker = sym;
+    updatePickerButtons();
+    closeAssetModal();
+    runAnalysis();
+  } else if (modalMode === 'autocorr') {
+    state.autocorrTicker = sym;
+    updateAutocorrPickerButton();
+    closeAssetModal();
+    runAutocorrelationAnalysis();
+  } else if (modalMode === 'coint-dep') {
+    state.cointDepTicker = sym;
+    updateCointPickerButtons();
+    closeAssetModal();
+    runCointegrationAnalysisUI();
+  } else if (modalMode === 'coint-indep') {
+    state.cointIndepTicker = sym;
+    updateCointPickerButtons();
+    closeAssetModal();
+    runCointegrationAnalysisUI();
   }
-
-  updatePickerButtons();
-  closeAssetModal();
-  runAnalysis();
 }
 
 /**
@@ -2720,4 +2925,780 @@ function exportPerformanceReportCSV() {
   });
 
   downloadCSV(csv, `fund_performance_${state.fundTicker}_vs_${state.benchTicker}.csv`);
+}
+
+/* ===================================================================
+   AUTOCORRELATION LAB CONTROLLER & CANVAS RENDERERS
+   =================================================================== */
+
+/**
+ * Formats a correlation coefficient to 2 decimal places
+ */
+function formatCorrelation(val) {
+  return typeof val === 'number' && !isNaN(val) ? val.toFixed(2) : '0.00';
+}
+
+/**
+ * Runs Autocorrelation analysis on the selected target asset
+ */
+function runAutocorrelationAnalysis() {
+  const allFunds = getAllFundsSync();
+  let fund = allFunds.find(f => f.ticker === state.autocorrTicker);
+  if (!fund) {
+    fund = allFunds[0];
+    if (fund) state.autocorrTicker = fund.ticker;
+  }
+  if (!fund) return;
+
+  updateAutocorrPickerButton();
+
+  const monthlyReturns = computeMonthlyReturns(fund.data, state.useDRIP);
+  if (monthlyReturns.length < state.autocorrRollPeriod) {
+    if (elements.autocorrStatusText) {
+      elements.autocorrStatusText.textContent = `Insufficient monthly history for ${fund.ticker} (${monthlyReturns.length} months vs ${state.autocorrRollPeriod}M roll).`;
+    }
+    return;
+  }
+
+  const returns = monthlyReturns.map(r => r.return);
+  const dates = monthlyReturns.map(r => r.date);
+
+  const rolling = calculateRollingAutocorrelation(returns, dates, state.autocorrRollPeriod, [1, 3, 12]);
+  state.autocorrResult = rolling;
+
+  if (elements.autocorrStatusText) {
+    elements.autocorrStatusText.textContent = `Calculated ${rolling.dates.length} rolling ${state.autocorrRollPeriod}-month autocorrelation periods for ${fund.ticker}.`;
+  }
+
+  if (elements.autocorrDateRangeText && dates.length > 0) {
+    elements.autocorrDateRangeText.textContent = `Asset autocorrelations for time period ${dates[0]} - ${dates[dates.length - 1]} based on monthly returns.`;
+  }
+
+  // Update Block Titles and Stat Pills
+  const rollLabel = `${state.autocorrRollPeriod}-month`;
+  const fundLabel = `${fund.name || fund.ticker} (${fund.ticker})`;
+
+  // Lag 1
+  if (elements.autocorrTitleLag1) {
+    elements.autocorrTitleLag1.textContent = `${fundLabel} ${rollLabel} rolling autocorrelation (monthly returns), Time Lag = 1`;
+  }
+  const s1 = rolling.summary[1] || { current: 0, mean: 0, min: 0, max: 0 };
+  if (elements.autocorrLag1Current) elements.autocorrLag1Current.textContent = formatCorrelation(s1.current);
+  if (elements.autocorrLag1Mean) elements.autocorrLag1Mean.textContent = formatCorrelation(s1.mean);
+  if (elements.autocorrLag1Min) elements.autocorrLag1Min.textContent = formatCorrelation(s1.min);
+  if (elements.autocorrLag1Max) elements.autocorrLag1Max.textContent = formatCorrelation(s1.max);
+
+  // Lag 3
+  if (elements.autocorrTitleLag3) {
+    elements.autocorrTitleLag3.textContent = `${fundLabel} ${rollLabel} rolling autocorrelation (monthly returns), Time Lag = 3`;
+  }
+  const s3 = rolling.summary[3] || { current: 0, mean: 0, min: 0, max: 0 };
+  if (elements.autocorrLag3Current) elements.autocorrLag3Current.textContent = formatCorrelation(s3.current);
+  if (elements.autocorrLag3Mean) elements.autocorrLag3Mean.textContent = formatCorrelation(s3.mean);
+  if (elements.autocorrLag3Min) elements.autocorrLag3Min.textContent = formatCorrelation(s3.min);
+  if (elements.autocorrLag3Max) elements.autocorrLag3Max.textContent = formatCorrelation(s3.max);
+
+  // Lag 12
+  if (elements.autocorrTitleLag12) {
+    elements.autocorrTitleLag12.textContent = `${fundLabel} ${rollLabel} rolling autocorrelation (monthly returns), Time Lag = 12`;
+  }
+  const s12 = rolling.summary[12] || { current: 0, mean: 0, min: 0, max: 0 };
+  if (elements.autocorrLag12Current) elements.autocorrLag12Current.textContent = formatCorrelation(s12.current);
+  if (elements.autocorrLag12Mean) elements.autocorrLag12Mean.textContent = formatCorrelation(s12.mean);
+  if (elements.autocorrLag12Min) elements.autocorrLag12Min.textContent = formatCorrelation(s12.min);
+  if (elements.autocorrLag12Max) elements.autocorrLag12Max.textContent = formatCorrelation(s12.max);
+
+  drawAllAutocorrCharts();
+}
+
+/**
+ * Draws all 3 stacked autocorrelation charts
+ */
+function drawAllAutocorrCharts() {
+  if (!state.autocorrResult || !state.autocorrResult.series) return;
+
+  drawAutocorrCanvasChart(
+    elements.canvasAutocorrLag1,
+    elements.tooltipAutocorrLag1,
+    state.autocorrResult.series[1],
+    1,
+    'autocorr1'
+  );
+
+  drawAutocorrCanvasChart(
+    elements.canvasAutocorrLag3,
+    elements.tooltipAutocorrLag3,
+    state.autocorrResult.series[3],
+    3,
+    'autocorr3'
+  );
+
+  drawAutocorrCanvasChart(
+    elements.canvasAutocorrLag12,
+    elements.tooltipAutocorrLag12,
+    state.autocorrResult.series[12],
+    12,
+    'autocorr12'
+  );
+}
+
+/**
+ * Draws a single High-DPI rolling autocorrelation chart with zero baseline and purple area shading
+ */
+function drawAutocorrCanvasChart(canvas, tooltipEl, series, lag, controllerKey) {
+  if (!canvas || !series || series.length < 2) return;
+
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const pad = { top: 20, right: 30, bottom: 35, left: 55 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Determine Y Bounds (ensure zero line is always well-framed, min span [-0.4, 0.4])
+  let minVal = 0;
+  let maxVal = 0;
+  series.forEach(pt => {
+    if (pt.value < minVal) minVal = pt.value;
+    if (pt.value > maxVal) maxVal = pt.value;
+  });
+
+  minVal = Math.min(-0.35, minVal * 1.2);
+  maxVal = Math.max(0.35, maxVal * 1.2);
+  // Cap inside [-1.0, 1.0]
+  minVal = Math.max(-1.0, minVal);
+  maxVal = Math.min(1.0, maxVal);
+
+  function getY(val) {
+    return pad.top + plotH * (1 - (val - minVal) / (maxVal - minVal));
+  }
+
+  function getX(idx) {
+    return pad.left + (idx / (series.length - 1)) * plotW;
+  }
+
+  const zeroY = getY(0);
+
+  // 1. Gridlines and Y Labels
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const ySteps = 4;
+  for (let i = 0; i <= ySteps; i++) {
+    const val = minVal + (i / ySteps) * (maxVal - minVal);
+    const y = getY(val);
+
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+
+    ctx.fillText(val.toFixed(2), pad.left - 8, y);
+  }
+
+  // 2. X Ticks (Date years)
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const xStep = Math.max(1, Math.floor(series.length / 8));
+  for (let i = 0; i < series.length; i += xStep) {
+    const x = getX(i);
+    const yearStr = series[i].date.substring(0, 4);
+
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillText(yearStr, x, h - pad.bottom + 8);
+  }
+
+  // 3. Purple Shaded Area Fill between curve and Zero Baseline
+  ctx.beginPath();
+  ctx.moveTo(getX(0), zeroY);
+  for (let i = 0; i < series.length; i++) {
+    ctx.lineTo(getX(i), getY(series[i].value));
+  }
+  ctx.lineTo(getX(series.length - 1), zeroY);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(168, 85, 247, 0.32)';
+  ctx.fill();
+
+  // 4. Zero Baseline Stroke
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 5. Autocorrelation Curve Stroke
+  ctx.beginPath();
+  for (let i = 0; i < series.length; i++) {
+    const x = getX(i);
+    const y = getY(series[i].value);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 6. Interactive Hover Crosshairs via universal helper
+  if (tooltipEl) {
+    setupCanvasHover(canvas, tooltipEl, (xPos, yPos) => {
+      if (xPos < pad.left || xPos > w - pad.right) return null;
+
+      const ratio = (xPos - pad.left) / plotW;
+      const idx = Math.max(0, Math.min(series.length - 1, Math.round(ratio * (series.length - 1))));
+      const pt = series[idx];
+      const ptX = getX(idx);
+      const ptY = getY(pt.value);
+
+      // Redraw crosshair & active dot
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(canvas, 0, 0); // Re-use base buffer
+
+      // Dynamic redraw
+      drawAutocorrBase(ctx, w, h, pad, plotW, plotH, series, minVal, maxVal, zeroY, getX, getY);
+
+      // Draw crosshair line
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(ptX, pad.top);
+      ctx.lineTo(ptX, h - pad.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw dot
+      ctx.fillStyle = '#a855f7';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ptX, ptY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Regime badge text
+      let regimeBadge = '<span style="color: #94a3b8;">Random Walk (Independent)</span>';
+      if (pt.value >= 0.15) {
+        regimeBadge = '<span style="color: #34d399; font-weight: 700;">Trend Persistence (Momentum)</span>';
+      } else if (pt.value <= -0.15) {
+        regimeBadge = '<span style="color: #f59e0b; font-weight: 700;">Mean Reverting (Oscillatory)</span>';
+      }
+
+      const html = `
+        <div style="font-weight: 700; color: #f8fafc; margin-bottom: 0.35rem; font-size: 0.85rem;">${pt.date}</div>
+        <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.25rem;">
+          <span style="color: #cbd5e1;">Lag ${lag} Autocorr:</span>
+          <strong style="color: #c084fc;">${formatCorrelation(pt.value)}</strong>
+        </div>
+        <div style="font-size: 0.75rem; margin-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.3rem;">
+          ${regimeBadge}
+        </div>
+      `;
+
+      return {
+        x: ptX,
+        y: ptY,
+        html
+      };
+    }, controllerKey);
+  }
+}
+
+/**
+ * Base rendering subroutine for Autocorrelation chart
+ */
+function drawAutocorrBase(ctx, w, h, pad, plotW, plotH, series, minVal, maxVal, zeroY, getX, getY) {
+  // 1. Gridlines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const ySteps = 4;
+  for (let i = 0; i <= ySteps; i++) {
+    const val = minVal + (i / ySteps) * (maxVal - minVal);
+    const y = getY(val);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+    ctx.fillText(val.toFixed(2), pad.left - 8, y);
+  }
+
+  // 2. X Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const xStep = Math.max(1, Math.floor(series.length / 8));
+  for (let i = 0; i < series.length; i += xStep) {
+    const x = getX(i);
+    const yearStr = series[i].date.substring(0, 4);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+    ctx.fillText(yearStr, x, h - pad.bottom + 8);
+  }
+
+  // 3. Purple Shaded Area Fill
+  ctx.beginPath();
+  ctx.moveTo(getX(0), zeroY);
+  for (let i = 0; i < series.length; i++) {
+    ctx.lineTo(getX(i), getY(series[i].value));
+  }
+  ctx.lineTo(getX(series.length - 1), zeroY);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(168, 85, 247, 0.32)';
+  ctx.fill();
+
+  // 4. Zero Baseline Stroke
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 5. Curve
+  ctx.beginPath();
+  for (let i = 0; i < series.length; i++) {
+    const x = getX(i);
+    const y = getY(series[i].value);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+/**
+ * Exports Autocorrelation time series to CSV
+ */
+function exportAutocorrelationCSV() {
+  const res = state.autocorrResult;
+  if (!res || !res.dates || res.dates.length === 0) return;
+
+  let csv = `Date,Lag 1 Autocorrelation,Lag 3 Autocorrelation,Lag 12 Autocorrelation\n`;
+  for (let i = 0; i < res.dates.length; i++) {
+    const date = res.dates[i];
+    const r1 = res.series[1][i]?.value?.toFixed(4) || '';
+    const r3 = res.series[3][i]?.value?.toFixed(4) || '';
+    const r12 = res.series[12][i]?.value?.toFixed(4) || '';
+    csv += `${date},${r1},${r3},${r12}\n`;
+  }
+
+  downloadCSV(csv, `autocorrelation_${state.autocorrTicker}_${state.autocorrRollPeriod}M.csv`);
+}
+
+/* ===================================================================
+   COINTEGRATION ANALYSIS CONTROLLER & CANVAS RENDERERS
+   =================================================================== */
+
+/**
+ * Runs Cointegration Analysis on Dependent (Y) and Independent (X) assets
+ */
+function runCointegrationAnalysisUI() {
+  const allFunds = getAllFundsSync();
+  let dep = allFunds.find(f => f.ticker === state.cointDepTicker);
+  let indep = allFunds.find(f => f.ticker === state.cointIndepTicker);
+
+  if (!dep) {
+    dep = allFunds[0];
+    if (dep) state.cointDepTicker = dep.ticker;
+  }
+  if (!indep) {
+    indep = allFunds.find(f => f.ticker !== state.cointDepTicker) || allFunds[1] || allFunds[0];
+    if (indep) state.cointIndepTicker = indep.ticker;
+  }
+  if (!dep || !indep) return;
+
+  updateCointPickerButtons();
+
+  const useDRIP = state.cointPriceBasis === 'drip';
+  const result = runCointegrationAnalysis(dep, indep, {
+    useDRIP,
+    adfLags: state.cointAdfLags
+  });
+
+  if (result.error) {
+    if (elements.cointStatusText) elements.cointStatusText.textContent = `Error: ${result.error}`;
+    return;
+  }
+
+  state.cointResult = result;
+
+  if (elements.cointStatusText) {
+    elements.cointStatusText.textContent = `Analyzed ${result.period.months} overlapping monthly price points. ADF Test Statistic: ${result.adfTest.testStatistic.toFixed(3)}.`;
+  }
+
+  if (elements.cointConstraintNote) {
+    elements.cointConstraintNote.textContent = `Note: The time period was constrained by the available data for ${result.dependent.name} (${result.dependent.ticker}) [${result.period.start} - ${result.period.end}].`;
+  }
+
+  // Populate Table Row
+  if (elements.cointTableBody) {
+    const isCoint95 = result.isCointegrated;
+    const isCoint90 = result.adfTest.testStatistic < result.criticalValues.crit90;
+
+    const rowHtml = `
+      <tr>
+        <td style="font-weight: 600; color: #f8fafc;">${result.dependent.name} (${result.dependent.ticker})</td>
+        <td style="font-weight: 600; color: #f8fafc;">${result.independent.name} (${result.independent.ticker})</td>
+        <td class="text-right" style="font-weight: 700; color: #38bdf8;">${result.adfTest.testStatistic.toFixed(3)}</td>
+        <td class="text-right" style="font-weight: 700; color: #f8fafc;">${result.pValue.toFixed(2)}</td>
+        <td class="text-center">
+          <span class="${isCoint95 ? 'badge-coint-yes' : 'badge-coint-no'}">${result.confidence95}</span>
+        </td>
+        <td class="text-center">
+          <span class="${isCoint90 ? 'badge-coint-yes' : 'badge-coint-no'}">${result.confidence90}</span>
+        </td>
+      </tr>
+    `;
+    elements.cointTableBody.innerHTML = rowHtml;
+  }
+
+  if (elements.cointTableCaption) {
+    elements.cointTableCaption.textContent = `Cointegration test results for time period ${result.period.start} - ${result.period.end} based on ${useDRIP ? 'adjusted prices' : 'monthly prices'}.`;
+  }
+
+  // Populate Diagnostics Stats Banner
+  if (elements.cointStatBeta) elements.cointStatBeta.textContent = result.cointegratingEquation.beta.toFixed(3);
+  if (elements.cointStatAlpha) elements.cointStatAlpha.textContent = formatCurrency(result.cointegratingEquation.alpha);
+  if (elements.cointStatStd) elements.cointStatStd.textContent = result.cointegratingEquation.residualStd.toFixed(3);
+
+  const gamma = result.adfTest.gamma;
+  const halfLife = (gamma < 0 && (1 + gamma) > 0)
+    ? (-Math.log(2) / Math.log(1 + gamma)).toFixed(1) + ' Mos'
+    : 'N/A';
+  if (elements.cointStatHalflife) elements.cointStatHalflife.textContent = halfLife;
+
+  drawCointegrationSpreadChart();
+}
+
+/**
+ * Draws High-DPI Cointegration Residual & Mean-Reverting Spread Chart with +/- 1 sigma and +/- 2 sigma bounds
+ */
+function drawCointegrationSpreadChart() {
+  const canvas = elements.cointegrationCanvas;
+  const tooltipEl = elements.cointegrationTooltip;
+  const res = state.cointResult;
+
+  if (!canvas || !res || !res.spreadSeries || res.spreadSeries.length < 2) return;
+
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const pad = { top: 25, right: 35, bottom: 40, left: 60 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const series = res.spreadSeries;
+
+  // Determine Z-Score bounds (ensure +/- 2.5 sigma is visible)
+  let minZ = -2.5;
+  let maxZ = 2.5;
+  series.forEach(pt => {
+    if (pt.zScore < minZ) minZ = pt.zScore;
+    if (pt.zScore > maxZ) maxZ = pt.zScore;
+  });
+  minZ *= 1.15;
+  maxZ *= 1.15;
+
+  function getY(z) {
+    return pad.top + plotH * (1 - (z - minZ) / (maxZ - minZ));
+  }
+
+  function getX(idx) {
+    return pad.left + (idx / (series.length - 1)) * plotW;
+  }
+
+  const zeroY = getY(0);
+  const plus1Y = getY(1.0);
+  const minus1Y = getY(-1.0);
+  const plus2Y = getY(2.0);
+  const minus2Y = getY(-2.0);
+
+  // 1. Shaded Band between -1 sigma and +1 sigma
+  ctx.fillStyle = 'rgba(45, 212, 191, 0.05)';
+  ctx.fillRect(pad.left, plus1Y, plotW, minus1Y - plus1Y);
+
+  // 2. Horizontal Statistical Band Lines
+  function drawBand(y, color, dash = [4, 4], label = '') {
+    ctx.strokeStyle = color;
+    ctx.setLineDash(dash);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (label) {
+      ctx.fillStyle = color;
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(label, w - pad.right - 4, y - 2);
+    }
+  }
+
+  drawBand(plus2Y, 'rgba(239, 68, 68, 0.6)', [4, 4], '+2σ Overbought (Short Spread)');
+  drawBand(plus1Y, 'rgba(234, 179, 8, 0.45)', [3, 3], '+1σ');
+  drawBand(minus1Y, 'rgba(234, 179, 8, 0.45)', [3, 3], '-1σ');
+  drawBand(minus2Y, 'rgba(34, 197, 94, 0.6)', [4, 4], '-2σ Oversold (Long Spread)');
+
+  // 3. Zero Mean Equilibrium Baseline
+  ctx.strokeStyle = 'rgba(45, 212, 191, 0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.stroke();
+
+  // 4. Y-Axis Ticks & Labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  [-2, -1, 0, 1, 2].forEach(zVal => {
+    const y = getY(zVal);
+    ctx.fillText(`${zVal > 0 ? '+' : ''}${zVal}σ`, pad.left - 8, y);
+  });
+
+  // 5. X Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const xStep = Math.max(1, Math.floor(series.length / 8));
+  for (let i = 0; i < series.length; i += xStep) {
+    const x = getX(i);
+    const yearStr = series[i].date.substring(0, 4);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillText(yearStr, x, h - pad.bottom + 8);
+  }
+
+  // 6. Draw Residual Spread Curve
+  ctx.beginPath();
+  for (let i = 0; i < series.length; i++) {
+    const x = getX(i);
+    const y = getY(series[i].zScore);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#2dd4bf';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 7. Interactive Hover Crosshairs via universal helper
+  if (tooltipEl) {
+    setupCanvasHover(canvas, tooltipEl, (xPos, yPos) => {
+      if (xPos < pad.left || xPos > w - pad.right) return null;
+
+      const ratio = (xPos - pad.left) / plotW;
+      const idx = Math.max(0, Math.min(series.length - 1, Math.round(ratio * (series.length - 1))));
+      const pt = series[idx];
+      const ptX = getX(idx);
+      const ptY = getY(pt.zScore);
+
+      // Redraw base
+      ctx.clearRect(0, 0, w, h);
+      drawCointegrationBase(ctx, w, h, pad, plotW, plotH, series, minZ, maxZ, zeroY, plus1Y, minus1Y, plus2Y, minus2Y, getX, getY);
+
+      // Draw crosshair
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(ptX, pad.top);
+      ctx.lineTo(ptX, h - pad.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw active dot
+      ctx.fillStyle = '#2dd4bf';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ptX, ptY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Determine statistical arbitrage trade signal
+      let signalHtml = '<span style="color: #94a3b8;">Equilibrium (Neutral)</span>';
+      if (pt.zScore >= 2.0) {
+        signalHtml = '<span style="color: #f87171; font-weight: 700;">Overbought (+2σ) &bull; Short Spread</span>';
+      } else if (pt.zScore <= -2.0) {
+        signalHtml = '<span style="color: #4ade80; font-weight: 700;">Oversold (-2σ) &bull; Long Spread</span>';
+      }
+
+      const html = `
+        <div style="font-weight: 700; color: #f8fafc; margin-bottom: 0.35rem; font-size: 0.85rem;">${pt.date}</div>
+        <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.2rem;">
+          <span style="color: #cbd5e1;">Z-Score:</span>
+          <strong style="color: #2dd4bf;">${pt.zScore > 0 ? '+' : ''}${pt.zScore.toFixed(2)}σ</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.2rem;">
+          <span style="color: #cbd5e1;">Raw Residual (e):</span>
+          <span style="color: #f8fafc; font-variant-numeric: tabular-nums;">${pt.residual.toFixed(3)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.2rem;">
+          <span style="color: #cbd5e1;">Spread (Y - βX):</span>
+          <span style="color: #f8fafc; font-variant-numeric: tabular-nums;">${pt.spread.toFixed(2)}</span>
+        </div>
+        <div style="font-size: 0.75rem; margin-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.3rem;">
+          ${signalHtml}
+        </div>
+      `;
+
+      return {
+        x: ptX,
+        y: ptY,
+        html
+      };
+    }, 'cointegration');
+  }
+}
+
+/**
+ * Base rendering subroutine for Cointegration chart
+ */
+function drawCointegrationBase(ctx, w, h, pad, plotW, plotH, series, minZ, maxZ, zeroY, plus1Y, minus1Y, plus2Y, minus2Y, getX, getY) {
+  // Shaded Band
+  ctx.fillStyle = 'rgba(45, 212, 191, 0.05)';
+  ctx.fillRect(pad.left, plus1Y, plotW, minus1Y - plus1Y);
+
+  function drawBand(y, color, dash = [4, 4], label = '') {
+    ctx.strokeStyle = color;
+    ctx.setLineDash(dash);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (label) {
+      ctx.fillStyle = color;
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(label, w - pad.right - 4, y - 2);
+    }
+  }
+
+  drawBand(plus2Y, 'rgba(239, 68, 68, 0.6)', [4, 4], '+2σ Overbought (Short Spread)');
+  drawBand(plus1Y, 'rgba(234, 179, 8, 0.45)', [3, 3], '+1σ');
+  drawBand(minus1Y, 'rgba(234, 179, 8, 0.45)', [3, 3], '-1σ');
+  drawBand(minus2Y, 'rgba(34, 197, 94, 0.6)', [4, 4], '-2σ Oversold (Long Spread)');
+
+  // Zero Mean
+  ctx.strokeStyle = 'rgba(45, 212, 191, 0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.stroke();
+
+  // Y Labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  [-2, -1, 0, 1, 2].forEach(zVal => {
+    const y = getY(zVal);
+    ctx.fillText(`${zVal > 0 ? '+' : ''}${zVal}σ`, pad.left - 8, y);
+  });
+
+  // X Ticks
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const xStep = Math.max(1, Math.floor(series.length / 8));
+  for (let i = 0; i < series.length; i += xStep) {
+    const x = getX(i);
+    const yearStr = series[i].date.substring(0, 4);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+    ctx.fillText(yearStr, x, h - pad.bottom + 8);
+  }
+
+  // Curve
+  ctx.beginPath();
+  for (let i = 0; i < series.length; i++) {
+    const x = getX(i);
+    const y = getY(series[i].zScore);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#2dd4bf';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+/**
+ * Exports Cointegration analysis and spread series to CSV
+ */
+function exportCointegrationCSV() {
+  const res = state.cointResult;
+  if (!res || !res.spreadSeries) return;
+
+  let csv = '=== ASSET COINTEGRATION TEST REPORT ===\n';
+  csv += `Dependent Asset (Y),${res.dependent.ticker} (${res.dependent.name})\n`;
+  csv += `Independent Asset (X),${res.independent.ticker} (${res.independent.name})\n`;
+  csv += `Analysis Period,${res.period.start} to ${res.period.end} (${res.period.months} months)\n`;
+  csv += `Price Basis,${state.cointPriceBasis === 'drip' ? 'Adjusted Prices (DRIP)' : 'Monthly Prices'}\n\n`;
+
+  csv += '--- ADF COINTEGRATION TEST METRICS ---\n';
+  csv += `Test Statistic,${res.adfTest.testStatistic.toFixed(4)}\n`;
+  csv += `p-value,${res.pValue.toFixed(4)}\n`;
+  csv += `95% Confidence Verdict,${res.confidence95} (Critical: ${res.criticalValues.crit95.toFixed(3)})\n`;
+  csv += `90% Confidence Verdict,${res.confidence90} (Critical: ${res.criticalValues.crit90.toFixed(3)})\n`;
+  csv += `Hedge Ratio (Beta),${res.cointegratingEquation.beta.toFixed(4)}\n`;
+  csv += `Cointegrating Intercept (Alpha),${res.cointegratingEquation.alpha.toFixed(4)}\n`;
+  csv += `Residual Std Dev,${res.cointegratingEquation.residualStd.toFixed(4)}\n\n`;
+
+  csv += '--- MONTHLY COINTEGRATION SPREAD SERIES ---\n';
+  csv += 'Date,Dependent Price,Independent Price,Raw Spread,Residual,Z-Score\n';
+  res.spreadSeries.forEach(pt => {
+    csv += `${pt.date},${pt.priceDep.toFixed(2)},${pt.priceIndep.toFixed(2)},${pt.spread.toFixed(4)},${pt.residual.toFixed(4)},${pt.zScore.toFixed(4)}\n`;
+  });
+
+  downloadCSV(csv, `cointegration_${res.dependent.ticker}_vs_${res.independent.ticker}.csv`);
 }
