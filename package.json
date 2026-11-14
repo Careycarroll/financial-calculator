@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node scripts/test_dca_engine.js && node scripts/test_regression_engine.js && node scripts/test_analytics_engine.js && node scripts/test_session_funds.js && node scripts/test_screener_engine.js && node scripts/test_correlation_engine.js && node scripts/test_timeseries_engine.js && node scripts/test_portfolio_engine.js && node scripts/test_monte_carlo_engine.js && node scripts/test_optimization_engine.js && node scripts/test_manager_performance.js && node scripts/test_asset_class_allocation.js && node scripts/test_dynamic_engine.js && node scripts/test_factor_engine.js && node scripts/test_factor_ui.js && node scripts/test_home_catalog.js",
+    "test": "node scripts/test_dca_engine.js && node scripts/test_regression_engine.js && node scripts/test_analytics_engine.js && node scripts/test_session_funds.js && node scripts/test_screener_engine.js && node scripts/test_correlation_engine.js && node scripts/test_timeseries_engine.js && node scripts/test_portfolio_engine.js && node scripts/test_monte_carlo_engine.js && node scripts/test_optimization_engine.js && node scripts/test_manager_performance.js && node scripts/test_asset_class_allocation.js && node scripts/test_dynamic_engine.js && node scripts/test_factor_engine.js && node scripts/test_factor_ui.js && node scripts/test_tactical_engine.js && node scripts/test_tactical_ui.js && node scripts/test_home_catalog.js",
+    "test:tactical": "node scripts/test_tactical_engine.js",
+    "test:tactical-ui": "node scripts/test_tactical_ui.js",
     "test:factor": "node scripts/test_factor_engine.js",
     "test:factor-ui": "node scripts/test_factor_ui.js",
     "test:dynamic": "node scripts/test_dynamic_engine.js",

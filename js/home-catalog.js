@@ -259,6 +259,18 @@ export const TOOLS_CATALOG = [
     keywords: ["dynamic allocation", "glidepath", "target date", "lifecycle", "tactical", "trend following", "sma", "moving average", "dual momentum", "crash protection", "rebalance"]
   },
   {
+    id: "tactical-allocation",
+    title: "Tactical Asset Allocation Studio",
+    shortTitle: "Tactical Allocation",
+    path: "tactical-allocation/index.html",
+    icon: "⚡",
+    badge: "STUDIO",
+    desc: "Backtest quantitative timing models across 54 years: Dual Momentum (GEM), Moving Averages, Momentum Rotation, Adaptive Asset Allocation, and Volatility Targeting.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["tactical asset allocation", "dual momentum", "gem", "moving average", "sma", "gtaa", "adaptive allocation", "target volatility", "trend following", "market valuation"]
+  },
+  {
     id: "dca-comparator",
     title: "Historical Fund DCA Backtester",
     shortTitle: "DCA Backtest",
