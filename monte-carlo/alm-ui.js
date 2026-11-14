@@ -1246,11 +1246,14 @@ function setupEventListeners() {
     const selectBtn = e.target.closest('.btn-select-asset');
     if (selectBtn) {
       const id = selectBtn.getAttribute('data-asset-id');
-      openAssetModal((chosenTicker) => {
-        const row = state.assets.find(r => r.id === id);
-        if (row) {
-          row.ticker = chosenTicker;
-          renderAssetsTable();
+      openAssetModal({
+        targetType: 'fund',
+        onSelect: (chosenTicker) => {
+          const row = state.assets.find(r => r.id === id);
+          if (row) {
+            row.ticker = (typeof chosenTicker === 'string' ? chosenTicker : (chosenTicker?.ticker || chosenTicker))?.toUpperCase();
+            renderAssetsTable();
+          }
         }
       });
     }

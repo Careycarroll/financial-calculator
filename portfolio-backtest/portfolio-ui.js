@@ -1431,9 +1431,10 @@ function attachEventListeners() {
         selectedTicker: state.benchmarkTicker,
         targetType: 'benchmark',
         onSelect: (selectedFund) => {
-          state.benchmarkTicker = selectedFund.ticker.toUpperCase();
-          elements.benchTickerLabel.textContent = selectedFund.ticker;
-          elements.benchNameLabel.textContent = selectedFund.name;
+          const ticker = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase();
+          state.benchmarkTicker = ticker;
+          elements.benchTickerLabel.textContent = ticker;
+          elements.benchNameLabel.textContent = selectedFund?.name || ticker;
           executeBacktest();
         }
       });
@@ -1467,7 +1468,8 @@ function attachEventListeners() {
           selectedTicker: currentRow.ticker,
           targetType: 'fund',
           onSelect: (selectedFund) => {
-            currentRow.ticker = selectedFund.ticker.toUpperCase();
+            const ticker = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase();
+            currentRow.ticker = ticker;
             renderAllocationTable();
           }
         });
@@ -1494,9 +1496,10 @@ function attachEventListeners() {
         selectedTicker: 'VOO',
         targetType: 'fund',
         onSelect: (selectedFund) => {
+          const ticker = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase();
           state.rows.push({
             id: `row-${Date.now()}`,
-            ticker: selectedFund.ticker.toUpperCase(),
+            ticker,
             p1: 0,
             p2: 0,
             p3: 0

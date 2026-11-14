@@ -161,7 +161,8 @@ function init() {
       openAssetModal({
         allowBatch: true,
         onSelect: (selectedFund) => {
-          addAsset(selectedFund.ticker);
+          const ticker = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase();
+          addAsset(ticker);
         }
       });
     });

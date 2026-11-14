@@ -1032,8 +1032,9 @@ function attachEventListeners() {
         openAssetModal({
           selectedTicker: currentRow.ticker,
           targetType: 'fund',
-          onSelect: (selectedFund) => {
-            currentRow.ticker = selectedFund.ticker.toUpperCase();
+          onSelect: (selectedFund, fund) => {
+            const ticker = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase() || fund?.ticker?.toUpperCase() || currentRow.ticker;
+            currentRow.ticker = ticker;
             renderAllocationTable();
           }
         });
@@ -1059,10 +1060,11 @@ function attachEventListeners() {
       openAssetModal({
         selectedTicker: 'VOO',
         targetType: 'fund',
-        onSelect: (selectedFund) => {
+        onSelect: (selectedFund, fund) => {
+          const ticker = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase() || fund?.ticker?.toUpperCase() || 'VOO';
           state.rows.push({
             id: `row-${Date.now()}`,
-            ticker: selectedFund.ticker.toUpperCase(),
+            ticker,
             weight: 0
           });
           renderAllocationTable();

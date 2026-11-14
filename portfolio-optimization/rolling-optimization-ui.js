@@ -963,7 +963,7 @@ function init() {
     elements.btnAddAsset.addEventListener('click', () => {
       openAssetModal({
         onSelect: (selectedFund) => {
-          const upper = selectedFund.ticker.toUpperCase();
+          const upper = (typeof selectedFund === 'string' ? selectedFund : (selectedFund?.ticker || selectedFund))?.toUpperCase();
           const exists = state.selectedAssets.some(a => a.ticker.toUpperCase() === upper);
           if (exists) {
             alert(`${upper} is already in the universe.`);
