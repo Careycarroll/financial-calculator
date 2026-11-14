@@ -1428,6 +1428,19 @@ function wireEvents() {
     });
   }
 
+  // Executive Decision Framework Guide Toggle
+  const execToggle = document.getElementById('executive-guide-toggle');
+  const execBody = document.getElementById('executive-guide-body');
+  const execArrow = document.getElementById('executive-guide-arrow');
+  if (execToggle && execBody && execArrow) {
+    execToggle.addEventListener('click', () => {
+      const isOpen = execBody.style.display !== 'none';
+      execBody.style.display = isOpen ? 'none' : 'block';
+      execToggle.classList.toggle('open', !isOpen);
+      execArrow.classList.toggle('open', !isOpen);
+    });
+  }
+
   // Quick Presets
   const setPreset = (tickers, activeBtn) => {
     [el.presetScv, el.presetCore, el.presetExtremes].forEach(b => b && b.classList.remove('active'));

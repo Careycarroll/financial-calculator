@@ -261,7 +261,44 @@
         <a href="index.html" class="suite-subnav-link">📈 Factor Regression &amp; SML Lab</a>
         <a href="manager-performance.html" class="suite-subnav-link">🏆 Manager Performance Analysis</a>
         <a href="factor-analysis.html" class="suite-subnav-link active">🔬 Factor Analysis Studio</a>
+        <a href="pca.html" class="suite-subnav-link">🧠 Principal Component Analysis (PCA)</a>
+        <a href="factor-matching.html" class="suite-subnav-link">🎯 Match Factor Exposures &amp; Risk Parity</a>
       </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-factor">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Manager Skill vs. Cheap Factor Beta</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🎯 Executive Purpose</div>
+              <strong>Fee Justification &amp; Unmasking Alpha</strong>
+              <p>Active managers charge 100–150 bps claiming "alpha". Multivariate factor regression reveals whether that outperformance is true managerial genius or simply riding known systematic risk premia (Small Cap, Value, or Momentum).</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">📋 How to Use</div>
+              <strong>3-Step Rapid Workflow</strong>
+              <p>1. Select factor model (Fama-French 3-Factor, 5-Factor, or Carhart 4-Factor).<br>2. Choose focus fund.<br>3. Review regression loadings (&beta;) and 36-month rolling style drift across bull/bear cycles.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🔍 What to Expect</div>
+              <strong>Factor Loading Dynamics</strong>
+              <p>• Value Funds (RZV/IWN): Expect positive &beta;_HML (+0.5 to +0.9) and high R² (&gt;90%).<br>• Style Drift: Notice how small-cap loadings drift larger during late-stage bull cycles as managers outgrow their universe.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">💡 Executive Output Decoder</div>
+              <strong>Alpha Significance &amp; R²</strong>
+              <p>• Statistically Significant Alpha (p &lt; 0.05): Keep the manager.<br>• Negative/Zero Alpha with high Factor Betas: Fire the manager; buy a 4 bps passive factor ETF instead.<br>• R² &gt; 90%: The fund is an index hugger.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Status Bar -->
       <section class="regression-status-bar" id="factor-status-bar">
