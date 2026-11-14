@@ -1,7 +1,8 @@
 /**
  * Asset Analytics Studio UI Controller
  * Manages reactive UI state, Canvas charts, underwater drawdown tables,
- * monthly return heatmaps, rolling metric diagnostics, and searchable asset selector modal.
+ * monthly return heatmaps, rolling metric diagnostics, searchable asset selector modal,
+ * multi-factor fund screening, and weighted performance rankings leaderboards.
  */
 
 import {
@@ -22,11 +23,21 @@ import {
   generateSimpleVerdict,
   analyzeFundRegression
 } from './analytics-engine.js';
+import {
+  calculateTrailingReturns,
+  screenAndProfileFunds,
+  filterFundProfiles,
+  rankFundProfiles,
+  METRIC_DIRECTION
+} from './screener-engine.js';
 import { formatCurrency, rafThrottle } from '../js/chart-utils.js';
 import { formatPct } from '../js/formatting.js';
 
 // App Reactive State
 const state = {
+  activeTab: 'performance', // 'performance' | 'screener' | 'rankings'
+
+  // Fund Performance Analyzer State
   fundTicker: 'QQQ',
   benchTicker: 'VOO',
   timeHorizon: 'all', // 'all' | '10y' | '5y' | '3y' | '1y'
@@ -35,6 +46,26 @@ const state = {
   growthScale: 'linear', // 'linear' | 'log'
   rollingWindowMonths: 36, // 12 | 36 | 60
   annualRf: 0.03, // 3% risk-free rate
+
+  // Screener State
+  screenerBenchmark: 'VOO',
+  screenerAssetClass: 'all',
+  screenerMinHistory: 0,
+  screenerMinSharpe: 'all',
+  screenerSearch: '',
+  screenerSortCol: 'cagr',
+  screenerSortAsc: false,
+  screenerPage: 1,
+  screenerPageSize: 15,
+  screenerFilteredProfiles: [],
+
+  // Rankings State
+  rankingsMetric: 'sharpe',
+  rankingsBenchmark: 'VOO',
+  rankingsAssetClass: 'all',
+  rankingsOrderAsc: false,
+  rankingsRankedProfiles: [],
+
   // Cached calculation results
   analysis: null,
   fundObj: null,
@@ -77,6 +108,11 @@ async function init() {
     if (elements.assetModalOverlay && !elements.assetModalOverlay.classList.contains('hidden')) {
       renderModalAssetList();
     }
+    if (state.activeTab === 'screener') {
+      runScreener();
+    } else if (state.activeTab === 'rankings') {
+      runRankings();
+    }
   });
 
   // Handle window resizing with debounce
@@ -84,7 +120,7 @@ async function init() {
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (state.analysis) {
+      if (state.activeTab === 'performance' && state.analysis) {
         drawAllCharts();
       }
     }, 200);
@@ -93,6 +129,15 @@ async function init() {
 
 function cacheDOMElements() {
   elements = {
+    // Studio Sub-Tabs
+    tabBtnPerformance: document.getElementById('tab-btn-performance'),
+    tabBtnScreener: document.getElementById('tab-btn-screener'),
+    tabBtnRankings: document.getElementById('tab-btn-rankings'),
+    tabPerformance: document.getElementById('tab-performance'),
+    tabScreener: document.getElementById('tab-screener'),
+    tabRankings: document.getElementById('tab-rankings'),
+    performanceControlsBar: document.getElementById('performance-controls-bar'),
+
     // Modal Triggers & Labels
     btnOpenTargetModal: document.getElementById('btn-open-target-modal'),
     btnOpenBenchModal: document.getElementById('btn-open-bench-modal'),
@@ -122,7 +167,7 @@ function cacheDOMElements() {
     dropzoneProgressBar: document.getElementById('dropzone-progress-bar'),
     dropzoneProgressText: document.getElementById('dropzone-progress-text'),
 
-    // Controls
+    // Performance Tab Controls
     rangeSelect: document.getElementById('range-select'),
     dripToggle: document.getElementById('drip-toggle'),
     btnModeSimple: document.getElementById('btn-mode-simple'),
@@ -202,7 +247,35 @@ function cacheDOMElements() {
     mInfoRatio: document.getElementById('m-info-ratio'),
     mUpCapture: document.getElementById('m-up-capture'),
     mDownCapture: document.getElementById('m-down-capture'),
-    mCaptureRatio: document.getElementById('m-capture-ratio')
+    mCaptureRatio: document.getElementById('m-capture-ratio'),
+
+    // Screener Elements
+    screenerAssetClass: document.getElementById('screener-asset-class'),
+    screenerHistory: document.getElementById('screener-history'),
+    screenerBenchmark: document.getElementById('screener-benchmark'),
+    screenerMinSharpe: document.getElementById('screener-min-sharpe'),
+    screenerSearchInput: document.getElementById('screener-search-input'),
+    screenerStatusText: document.getElementById('screener-status-text'),
+    btnResetScreenerFilters: document.getElementById('btn-reset-screener-filters'),
+    btnExportScreenerCsv: document.getElementById('btn-export-screener-csv'),
+    screenerEntriesSelect: document.getElementById('screener-entries-select'),
+    screenerTable: document.getElementById('screener-results-table'),
+    screenerTableBody: document.getElementById('screener-table-body'),
+    screenerPaginationInfo: document.getElementById('screener-pagination-info'),
+    btnScreenerPrev: document.getElementById('btn-screener-prev'),
+    btnScreenerNext: document.getElementById('btn-screener-next'),
+    screenerPageDisplay: document.getElementById('screener-page-display'),
+
+    // Rankings Elements
+    rankingsMetricSelect: document.getElementById('rankings-metric-select'),
+    rankingsBenchmarkSelect: document.getElementById('rankings-benchmark-select'),
+    rankingsAssetClass: document.getElementById('rankings-asset-class'),
+    rankingsOrderSelect: document.getElementById('rankings-order-select'),
+    rankingsStatusText: document.getElementById('rankings-status-text'),
+    btnExportRankingsCsv: document.getElementById('btn-export-rankings-csv'),
+    rankingsTable: document.getElementById('rankings-results-table'),
+    rankingsTableBody: document.getElementById('rankings-table-body'),
+    rankingsColMetricHeader: document.getElementById('rankings-col-metric-header')
   };
 }
 
@@ -232,6 +305,17 @@ function updateCategoryCounts() {
 }
 
 function bindEvents() {
+  // Studio Sub-Navigation Tabs
+  if (elements.tabBtnPerformance) {
+    elements.tabBtnPerformance.addEventListener('click', () => switchStudioTab('performance'));
+  }
+  if (elements.tabBtnScreener) {
+    elements.tabBtnScreener.addEventListener('click', () => switchStudioTab('screener'));
+  }
+  if (elements.tabBtnRankings) {
+    elements.tabBtnRankings.addEventListener('click', () => switchStudioTab('rankings'));
+  }
+
   // Modal Triggers
   if (elements.btnOpenTargetModal) {
     elements.btnOpenTargetModal.addEventListener('click', () => openAssetModal('target'));
@@ -324,7 +408,9 @@ function bindEvents() {
         updatePickerButtons();
         updateCategoryCounts();
         renderModalAssetList();
-        runAnalysis();
+        if (state.activeTab === 'performance') runAnalysis();
+        else if (state.activeTab === 'screener') runScreener();
+        else if (state.activeTab === 'rankings') runRankings();
       }
     });
   }
@@ -370,7 +456,7 @@ function bindEvents() {
     });
   }
 
-  // Controls
+  // Performance Controls
   if (elements.rangeSelect) {
     elements.rangeSelect.addEventListener('change', (e) => {
       state.timeHorizon = e.target.value;
@@ -381,7 +467,9 @@ function bindEvents() {
   if (elements.dripToggle) {
     elements.dripToggle.addEventListener('change', (e) => {
       state.useDRIP = e.target.value === 'true';
-      runAnalysis();
+      if (state.activeTab === 'performance') runAnalysis();
+      else if (state.activeTab === 'screener') runScreener();
+      else if (state.activeTab === 'rankings') runRankings();
     });
   }
 
@@ -431,6 +519,511 @@ function bindEvents() {
   if (elements.btnExportCsv) {
     elements.btnExportCsv.addEventListener('click', exportPerformanceReportCSV);
   }
+
+  // Screener Event Handlers
+  if (elements.screenerAssetClass) {
+    elements.screenerAssetClass.addEventListener('change', (e) => {
+      state.screenerAssetClass = e.target.value;
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
+  if (elements.screenerHistory) {
+    elements.screenerHistory.addEventListener('change', (e) => {
+      state.screenerMinHistory = parseInt(e.target.value, 10);
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
+  if (elements.screenerBenchmark) {
+    elements.screenerBenchmark.addEventListener('change', (e) => {
+      state.screenerBenchmark = e.target.value;
+      runScreener();
+    });
+  }
+
+  if (elements.screenerMinSharpe) {
+    elements.screenerMinSharpe.addEventListener('change', (e) => {
+      state.screenerMinSharpe = e.target.value;
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
+  if (elements.screenerSearchInput) {
+    elements.screenerSearchInput.addEventListener('input', (e) => {
+      state.screenerSearch = e.target.value;
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
+  if (elements.btnResetScreenerFilters) {
+    elements.btnResetScreenerFilters.addEventListener('click', () => {
+      state.screenerAssetClass = 'all';
+      state.screenerMinHistory = 0;
+      state.screenerMinSharpe = 'all';
+      state.screenerSearch = '';
+      state.screenerPage = 1;
+
+      if (elements.screenerAssetClass) elements.screenerAssetClass.value = 'all';
+      if (elements.screenerHistory) elements.screenerHistory.value = '0';
+      if (elements.screenerMinSharpe) elements.screenerMinSharpe.value = 'all';
+      if (elements.screenerSearchInput) elements.screenerSearchInput.value = '';
+
+      runScreener();
+    });
+  }
+
+  if (elements.btnExportScreenerCsv) {
+    elements.btnExportScreenerCsv.addEventListener('click', exportScreenerCSV);
+  }
+
+  if (elements.screenerEntriesSelect) {
+    elements.screenerEntriesSelect.addEventListener('change', (e) => {
+      state.screenerPageSize = e.target.value;
+      state.screenerPage = 1;
+      renderScreenerTable();
+    });
+  }
+
+  if (elements.btnScreenerPrev) {
+    elements.btnScreenerPrev.addEventListener('click', () => {
+      if (state.screenerPage > 1) {
+        state.screenerPage--;
+        renderScreenerTable();
+      }
+    });
+  }
+
+  if (elements.btnScreenerNext) {
+    elements.btnScreenerNext.addEventListener('click', () => {
+      const pageSize = state.screenerPageSize === 'all' ? state.screenerFilteredProfiles.length : parseInt(state.screenerPageSize, 10);
+      const totalPages = Math.max(1, Math.ceil(state.screenerFilteredProfiles.length / pageSize));
+      if (state.screenerPage < totalPages) {
+        state.screenerPage++;
+        renderScreenerTable();
+      }
+    });
+  }
+
+  // Screener Table Header Sorting
+  if (elements.screenerTable) {
+    elements.screenerTable.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sort;
+        if (state.screenerSortCol === col) {
+          state.screenerSortAsc = !state.screenerSortAsc;
+        } else {
+          state.screenerSortCol = col;
+          state.screenerSortAsc = false;
+        }
+        runScreener();
+      });
+    });
+  }
+
+  // Rankings Event Handlers
+  if (elements.rankingsMetricSelect) {
+    elements.rankingsMetricSelect.addEventListener('change', (e) => {
+      state.rankingsMetric = e.target.value;
+      runRankings();
+    });
+  }
+
+  if (elements.rankingsBenchmarkSelect) {
+    elements.rankingsBenchmarkSelect.addEventListener('change', (e) => {
+      state.rankingsBenchmark = e.target.value;
+      runRankings();
+    });
+  }
+
+  if (elements.rankingsAssetClass) {
+    elements.rankingsAssetClass.addEventListener('change', (e) => {
+      state.rankingsAssetClass = e.target.value;
+      runRankings();
+    });
+  }
+
+  if (elements.rankingsOrderSelect) {
+    elements.rankingsOrderSelect.addEventListener('change', (e) => {
+      state.rankingsOrderAsc = e.target.value === 'asc';
+      runRankings();
+    });
+  }
+
+  if (elements.btnExportRankingsCsv) {
+    elements.btnExportRankingsCsv.addEventListener('click', exportRankingsCSV);
+  }
+}
+
+/**
+ * Switches between studio sub-tabs ('performance', 'screener', 'rankings')
+ */
+function switchStudioTab(tabKey) {
+  state.activeTab = tabKey;
+
+  // Update Tab Buttons
+  [elements.tabBtnPerformance, elements.tabBtnScreener, elements.tabBtnRankings].forEach(btn => {
+    if (btn) {
+      if (btn.dataset.tab === tabKey) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+
+  // Toggle Tab Containers
+  if (tabKey === 'performance') {
+    elements.performanceControlsBar?.classList.remove('hidden');
+    elements.tabPerformance?.classList.remove('hidden');
+    elements.tabScreener?.classList.add('hidden');
+    elements.tabRankings?.classList.add('hidden');
+    if (state.analysis) drawAllCharts();
+  } else if (tabKey === 'screener') {
+    elements.performanceControlsBar?.classList.add('hidden');
+    elements.tabPerformance?.classList.add('hidden');
+    elements.tabScreener?.classList.remove('hidden');
+    elements.tabRankings?.classList.add('hidden');
+    runScreener();
+  } else if (tabKey === 'rankings') {
+    elements.performanceControlsBar?.classList.add('hidden');
+    elements.tabPerformance?.classList.add('hidden');
+    elements.tabScreener?.classList.add('hidden');
+    elements.tabRankings?.classList.remove('hidden');
+    runRankings();
+  }
+}
+
+/**
+ * 1-Click drill down from Screener/Rankings to Fund Performance Analyzer
+ */
+function drillDownToFund(ticker) {
+  state.fundTicker = ticker.toUpperCase();
+  updatePickerButtons();
+  switchStudioTab('performance');
+  runAnalysis();
+}
+
+/**
+ * Screener Engine Evaluation & Filtering
+ */
+function runScreener() {
+  const allFunds = getAllFundsSync();
+  const benchmarkFund = allFunds.find(f => f.ticker === state.screenerBenchmark) || allFunds[0];
+
+  const profiles = screenAndProfileFunds(allFunds, benchmarkFund, {
+    useDRIP: state.useDRIP,
+    annualRf: state.annualRf
+  });
+
+  const filtered = filterFundProfiles(profiles, {
+    searchQuery: state.screenerSearch,
+    assetClass: state.screenerAssetClass,
+    minHistoryYears: state.screenerMinHistory,
+    minSharpe: state.screenerMinSharpe === 'all' ? null : parseFloat(state.screenerMinSharpe)
+  });
+
+  // Sort Profiles
+  const isHigherBetter = METRIC_DIRECTION[state.screenerSortCol] !== false;
+  const desc = state.screenerSortAsc ? !isHigherBetter : isHigherBetter;
+
+  filtered.sort((a, b) => {
+    const valA = a[state.screenerSortCol];
+    const valB = b[state.screenerSortCol];
+    if (valA == null && valB == null) return 0;
+    if (valA == null) return 1;
+    if (valB == null) return -1;
+    if (typeof valA === 'string') {
+      return state.screenerSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    return desc ? valB - valA : valA - valB;
+  });
+
+  state.screenerFilteredProfiles = filtered;
+  renderScreenerTable();
+}
+
+function renderScreenerTable() {
+  if (!elements.screenerTableBody) return;
+
+  const allFunds = getAllFundsSync();
+  const filtered = state.screenerFilteredProfiles;
+
+  if (elements.screenerStatusText) {
+    elements.screenerStatusText.textContent = `Showing ${filtered.length} of ${allFunds.length} funds in universe (Bench: ${state.screenerBenchmark})`;
+  }
+
+  // Update Sorting Headers
+  if (elements.screenerTable) {
+    elements.screenerTable.querySelectorAll('th[data-sort]').forEach(th => {
+      const col = th.dataset.sort;
+      const icon = th.querySelector('.sort-icon');
+      if (col === state.screenerSortCol) {
+        th.classList.add('active-sort');
+        if (icon) icon.textContent = state.screenerSortAsc ? '▲' : '▼';
+      } else {
+        th.classList.remove('active-sort');
+        if (icon) icon.textContent = '↕';
+      }
+    });
+  }
+
+  // Pagination Slice
+  const pageSize = state.screenerPageSize === 'all' ? filtered.length : parseInt(state.screenerPageSize, 10);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if (state.screenerPage > totalPages) state.screenerPage = totalPages;
+
+  const startIdx = (state.screenerPage - 1) * pageSize;
+  const endIdx = Math.min(filtered.length, startIdx + pageSize);
+  const pageSlice = filtered.slice(startIdx, endIdx);
+
+  if (pageSlice.length === 0) {
+    elements.screenerTableBody.innerHTML = `
+      <tr>
+        <td colspan="17" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+          🔍 No funds match the active screen criteria. Try broadening your filters or uploading custom CSVs.
+        </td>
+      </tr>
+    `;
+  } else {
+    let html = '';
+    pageSlice.forEach(p => {
+      html += `
+        <tr>
+          <td>
+            <span class="table-ticker-pill" data-ticker="${p.ticker}">
+              <span class="picker-dot" style="background: ${p.color};"></span>
+              ${p.ticker}
+            </span>
+          </td>
+          <td><span class="table-fund-name" data-ticker="${p.ticker}" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span></td>
+          <td>${escapeHtml(p.assetClass)}</td>
+          <td class="num-col">${p.ytd != null ? formatPct(p.ytd) : '—'}</td>
+          <td class="num-col">${p.return1y != null ? formatPct(p.return1y) : '—'}</td>
+          <td class="num-col">${p.return3y != null ? formatPct(p.return3y) : '—'}</td>
+          <td class="num-col">${p.return5y != null ? formatPct(p.return5y) : '—'}</td>
+          <td class="num-col" style="font-weight: 700;">${p.cagr != null ? formatPct(p.cagr) : '—'}</td>
+          <td class="num-col">${p.sharpe != null ? p.sharpe.toFixed(2) : '—'}</td>
+          <td class="num-col">${p.sortino != null ? p.sortino.toFixed(2) : '—'}</td>
+          <td class="num-col">${p.volatility != null ? formatPct(p.volatility) : '—'}</td>
+          <td class="num-col" style="color: #f87171;">${p.maxDrawdown != null ? formatPct(p.maxDrawdown) : '—'}</td>
+          <td class="num-col">${p.alpha != null ? `${p.alpha >= 0 ? '+' : ''}${formatPct(p.alpha)}` : '—'}</td>
+          <td class="num-col">${p.beta != null ? p.beta.toFixed(2) : '—'}</td>
+          <td class="num-col">${p.upCapture != null ? `${(p.upCapture * 100).toFixed(0)}%` : '—'}</td>
+          <td class="num-col">${p.downCapture != null ? `${(p.downCapture * 100).toFixed(0)}%` : '—'}</td>
+          <td style="text-align: right;">
+            <button type="button" class="btn-table-analyze" data-ticker="${p.ticker}">Analyze 📊</button>
+          </td>
+        </tr>
+      `;
+    });
+    elements.screenerTableBody.innerHTML = html;
+
+    // Attach drill-down click handlers
+    elements.screenerTableBody.querySelectorAll('[data-ticker]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const ticker = el.dataset.ticker;
+        if (ticker) drillDownToFund(ticker);
+      });
+    });
+  }
+
+  // Update Pagination Controls
+  if (elements.screenerPaginationInfo) {
+    elements.screenerPaginationInfo.textContent = `Showing ${filtered.length === 0 ? 0 : startIdx + 1} to ${endIdx} of ${filtered.length} entries`;
+  }
+  if (elements.screenerPageDisplay) {
+    elements.screenerPageDisplay.textContent = `${state.screenerPage} / ${totalPages}`;
+  }
+  if (elements.btnScreenerPrev) {
+    elements.btnScreenerPrev.disabled = state.screenerPage <= 1;
+  }
+  if (elements.btnScreenerNext) {
+    elements.btnScreenerNext.disabled = state.screenerPage >= totalPages;
+  }
+}
+
+/**
+ * Rankings Leaderboard Engine
+ */
+function runRankings() {
+  const allFunds = getAllFundsSync();
+  const benchmarkFund = allFunds.find(f => f.ticker === state.rankingsBenchmark) || allFunds[0];
+
+  let profiles = screenAndProfileFunds(allFunds, benchmarkFund, {
+    useDRIP: state.useDRIP,
+    annualRf: state.annualRf
+  });
+
+  if (state.rankingsAssetClass !== 'all') {
+    profiles = profiles.filter(p => p.assetClass.toLowerCase().includes(state.rankingsAssetClass.toLowerCase()));
+  }
+
+  const ranked = rankFundProfiles(profiles, state.rankingsMetric, state.rankingsOrderAsc);
+  state.rankingsRankedProfiles = ranked;
+  renderRankingsTable();
+}
+
+function renderRankingsTable() {
+  if (!elements.rankingsTableBody) return;
+
+  const ranked = state.rankingsRankedProfiles;
+
+  if (elements.rankingsStatusText) {
+    elements.rankingsStatusText.textContent = `Ranked ${ranked.length} funds in active universe by ${getMetricLabel(state.rankingsMetric)}`;
+  }
+
+  if (elements.rankingsColMetricHeader) {
+    elements.rankingsColMetricHeader.textContent = getMetricLabel(state.rankingsMetric);
+  }
+
+  if (ranked.length === 0) {
+    elements.rankingsTableBody.innerHTML = `
+      <tr>
+        <td colspan="11" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+          No funds available for ranking.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  let html = '';
+  ranked.forEach(r => {
+    let rankBadgeClass = 'rank-badge rank-badge-other';
+    if (r.rank === 1) rankBadgeClass = 'rank-badge rank-badge-1';
+    else if (r.rank === 2) rankBadgeClass = 'rank-badge rank-badge-2';
+    else if (r.rank === 3) rankBadgeClass = 'rank-badge rank-badge-3';
+
+    let pctPillClass = 'percentile-pill pct-mid';
+    if (r.percentile >= 95) pctPillClass = 'percentile-pill pct-top-5';
+    else if (r.percentile >= 90) pctPillClass = 'percentile-pill pct-top-10';
+    else if (r.percentile >= 80) pctPillClass = 'percentile-pill pct-top-20';
+    else if (r.percentile <= 20) pctPillClass = 'percentile-pill pct-bottom-20';
+
+    const formattedRankValue = formatRankValue(state.rankingsMetric, r.rankValue);
+
+    html += `
+      <tr>
+        <td><span class="${rankBadgeClass}">#${r.rank}</span></td>
+        <td><span class="${pctPillClass}">${r.percentileBadge}</span></td>
+        <td>
+          <span class="table-ticker-pill" data-ticker="${r.ticker}">
+            <span class="picker-dot" style="background: ${r.color};"></span>
+            ${r.ticker}
+          </span>
+          <span class="table-fund-name" data-ticker="${r.ticker}" style="margin-left: 0.5rem;" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
+        </td>
+        <td>${escapeHtml(r.assetClass)}</td>
+        <td class="num-col rank-metric-highlight">${formattedRankValue}</td>
+        <td class="num-col">${r.cagr != null ? formatPct(r.cagr) : '—'}</td>
+        <td class="num-col">${r.sharpe != null ? r.sharpe.toFixed(2) : '—'}</td>
+        <td class="num-col">${r.sortino != null ? r.sortino.toFixed(2) : '—'}</td>
+        <td class="num-col" style="color: #f87171;">${r.maxDrawdown != null ? formatPct(r.maxDrawdown) : '—'}</td>
+        <td class="num-col">${r.beta != null ? r.beta.toFixed(2) : '—'}</td>
+        <td style="text-align: right;">
+          <button type="button" class="btn-table-analyze" data-ticker="${r.ticker}">Analyze 📊</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  elements.rankingsTableBody.innerHTML = html;
+
+  // Drill-down click handlers
+  elements.rankingsTableBody.querySelectorAll('[data-ticker]').forEach(el => {
+    el.addEventListener('click', () => {
+      const ticker = el.dataset.ticker;
+      if (ticker) drillDownToFund(ticker);
+    });
+  });
+}
+
+function getMetricLabel(metric) {
+  const map = {
+    sharpe: 'Sharpe Ratio',
+    cagr: 'CAGR Return',
+    sortino: 'Sortino Ratio',
+    alpha: "Jensen's Alpha",
+    maxDrawdown: 'Lowest Max DD',
+    upCapture: 'Up Capture',
+    captureRatio: 'Capture Ratio',
+    treynor: 'Treynor Ratio',
+    return1y: '1Y Return',
+    return3y: '3Y CAGR',
+    return5y: '5Y CAGR',
+    ytd: 'YTD Return'
+  };
+  return map[metric] || metric.toUpperCase();
+}
+
+function formatRankValue(metric, val) {
+  if (val == null) return '—';
+  if (['cagr', 'maxDrawdown', 'alpha', 'return1y', 'return3y', 'return5y', 'ytd', 'volatility'].includes(metric)) {
+    return formatPct(val);
+  }
+  if (['upCapture', 'downCapture'].includes(metric)) {
+    return `${(val * 100).toFixed(1)}%`;
+  }
+  return Number(val).toFixed(2);
+}
+
+/**
+ * CSV Exporters
+ */
+function exportScreenerCSV() {
+  const filtered = state.screenerFilteredProfiles;
+  if (!filtered || filtered.length === 0) return;
+
+  let csv = 'Ticker,Name,Asset Class,YTD,1Y,3Y,5Y,CAGR,Sharpe,Sortino,Volatility,Max Drawdown,Alpha,Beta,Up Capture,Down Capture\n';
+  filtered.forEach(p => {
+    csv += `"${p.ticker}","${p.name.replace(/"/g, '""')}","${p.assetClass}",`;
+    csv += `${p.ytd != null ? (p.ytd * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.return1y != null ? (p.return1y * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.return3y != null ? (p.return3y * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.return5y != null ? (p.return5y * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.cagr != null ? (p.cagr * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.sharpe != null ? p.sharpe.toFixed(2) : ''},`;
+    csv += `${p.sortino != null ? p.sortino.toFixed(2) : ''},`;
+    csv += `${p.volatility != null ? (p.volatility * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.maxDrawdown != null ? (p.maxDrawdown * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.alpha != null ? (p.alpha * 100).toFixed(2) + '%' : ''},`;
+    csv += `${p.beta != null ? p.beta.toFixed(2) : ''},`;
+    csv += `${p.upCapture != null ? (p.upCapture * 100).toFixed(1) + '%' : ''},`;
+    csv += `${p.downCapture != null ? (p.downCapture * 100).toFixed(1) + '%' : ''}\n`;
+  });
+
+  downloadCSV(csv, 'fund_screener_results.csv');
+}
+
+function exportRankingsCSV() {
+  const ranked = state.rankingsRankedProfiles;
+  if (!ranked || ranked.length === 0) return;
+
+  let csv = `Rank,Percentile,Ticker,Name,Asset Class,${getMetricLabel(state.rankingsMetric)},CAGR,Sharpe,Sortino,Max Drawdown,Beta\n`;
+  ranked.forEach(r => {
+    csv += `${r.rank},"${r.percentileBadge}","${r.ticker}","${r.name.replace(/"/g, '""')}","${r.assetClass}",`;
+    csv += `"${formatRankValue(state.rankingsMetric, r.rankValue)}",`;
+    csv += `${r.cagr != null ? (r.cagr * 100).toFixed(2) + '%' : ''},`;
+    csv += `${r.sharpe != null ? r.sharpe.toFixed(2) : ''},`;
+    csv += `${r.sortino != null ? r.sortino.toFixed(2) : ''},`;
+    csv += `${r.maxDrawdown != null ? (r.maxDrawdown * 100).toFixed(2) + '%' : ''},`;
+    csv += `${r.beta != null ? r.beta.toFixed(2) : ''}\n`;
+  });
+
+  downloadCSV(csv, `fund_leaderboard_by_${state.rankingsMetric}.csv`);
+}
+
+function downloadCSV(csvContent, filename) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /**
@@ -535,6 +1128,8 @@ async function handleFilesImport(files) {
   if (result.importedCount > 0) {
     updateCategoryCounts();
     renderModalAssetList();
+    if (state.activeTab === 'screener') runScreener();
+    else if (state.activeTab === 'rankings') runRankings();
 
     // If exactly 1 fund was uploaded in target mode, automatically select it!
     if (files.length === 1 && modalMode === 'target') {
@@ -646,15 +1241,15 @@ function escapeHtml(str) {
 
 function updateViewModeUI() {
   if (state.viewMode === 'simple') {
-    elements.btnModeSimple.classList.add('active');
-    elements.btnModeQuant.classList.remove('active');
-    elements.verdictContainer.classList.remove('hidden');
-    elements.kpiScorecardGrid.classList.add('hidden');
+    elements.btnModeSimple?.classList.add('active');
+    elements.btnModeQuant?.classList.remove('active');
+    elements.verdictContainer?.classList.remove('hidden');
+    elements.kpiScorecardGrid?.classList.add('hidden');
   } else {
-    elements.btnModeQuant.classList.add('active');
-    elements.btnModeSimple.classList.remove('active');
-    elements.verdictContainer.classList.add('hidden');
-    elements.kpiScorecardGrid.classList.remove('hidden');
+    elements.btnModeQuant?.classList.add('active');
+    elements.btnModeSimple?.classList.remove('active');
+    elements.verdictContainer?.classList.add('hidden');
+    elements.kpiScorecardGrid?.classList.remove('hidden');
   }
 }
 
@@ -761,29 +1356,29 @@ function renderScorecards() {
     a.rollingStats || { winRate: 0, totalWindows: 0, outperformedWindows: 0 }
   );
 
-  elements.verdictBadge.textContent = verdict.badge;
-  elements.verdictSummary.innerHTML = verdict.summary;
-  elements.verdictRisk.innerHTML = verdict.riskVerdict;
-  elements.verdictWinRate.innerHTML = verdict.winVerdict;
+  if (elements.verdictBadge) elements.verdictBadge.textContent = verdict.badge;
+  if (elements.verdictSummary) elements.verdictSummary.innerHTML = verdict.summary;
+  if (elements.verdictRisk) elements.verdictRisk.innerHTML = verdict.riskVerdict;
+  if (elements.verdictWinRate) elements.verdictWinRate.innerHTML = verdict.winVerdict;
 
   // KPI Scorecard Cards (Quant Mode)
-  elements.kpiFinalVal.textContent = `$${Math.round(finalFundVal).toLocaleString()}`;
-  elements.kpiFinalSub.textContent = finalBenchVal ? `vs $${Math.round(finalBenchVal).toLocaleString()} ${state.benchTicker}` : 'Initial: $10,000';
+  if (elements.kpiFinalVal) elements.kpiFinalVal.textContent = `$${Math.round(finalFundVal).toLocaleString()}`;
+  if (elements.kpiFinalSub) elements.kpiFinalSub.textContent = finalBenchVal ? `vs $${Math.round(finalBenchVal).toLocaleString()} ${state.benchTicker}` : 'Initial: $10,000';
 
-  elements.kpiCagr.textContent = formatPct(fRisk.cagr);
-  elements.kpiCagrSub.textContent = `vs ${formatPct(bRisk.cagr)} benchmark`;
+  if (elements.kpiCagr) elements.kpiCagr.textContent = formatPct(fRisk.cagr);
+  if (elements.kpiCagrSub) elements.kpiCagrSub.textContent = `vs ${formatPct(bRisk.cagr)} benchmark`;
 
-  elements.kpiVol.textContent = formatPct(fRisk.annualVolatility);
-  elements.kpiVolSub.textContent = `Downside Dev: ${formatPct(fRisk.downsideDeviation)}`;
+  if (elements.kpiVol) elements.kpiVol.textContent = formatPct(fRisk.annualVolatility);
+  if (elements.kpiVolSub) elements.kpiVolSub.textContent = `Downside Dev: ${formatPct(fRisk.downsideDeviation)}`;
 
-  elements.kpiMaxDd.textContent = formatPct(fRisk.maxDrawdown);
-  elements.kpiMaxDdSub.textContent = `Ulcer Index: ${formatPct(fRisk.ulcerIndex)}`;
+  if (elements.kpiMaxDd) elements.kpiMaxDd.textContent = formatPct(fRisk.maxDrawdown);
+  if (elements.kpiMaxDdSub) elements.kpiMaxDdSub.textContent = `Ulcer Index: ${formatPct(fRisk.ulcerIndex)}`;
 
-  elements.kpiSharpe.textContent = fRisk.sharpeRatio.toFixed(2);
-  elements.kpiSharpeSub.textContent = `Sortino: ${fRisk.sortinoRatio.toFixed(2)}`;
+  if (elements.kpiSharpe) elements.kpiSharpe.textContent = fRisk.sharpeRatio.toFixed(2);
+  if (elements.kpiSharpeSub) elements.kpiSharpeSub.textContent = `Sortino: ${fRisk.sortinoRatio.toFixed(2)}`;
 
-  elements.kpiSortino.textContent = fRisk.sortinoRatio.toFixed(2);
-  elements.kpiSortinoSub.textContent = `Calmar: ${fRisk.calmarRatio.toFixed(2)}`;
+  if (elements.kpiSortino) elements.kpiSortino.textContent = fRisk.sortinoRatio.toFixed(2);
+  if (elements.kpiSortinoSub) elements.kpiSortinoSub.textContent = `Calmar: ${fRisk.calmarRatio.toFixed(2)}`;
 }
 
 function renderCrashTable() {
@@ -811,7 +1406,7 @@ function renderCrashTable() {
     });
   }
 
-  elements.crashTableBody.innerHTML = html;
+  if (elements.crashTableBody) elements.crashTableBody.innerHTML = html;
 }
 
 function renderHeatmapTable() {
@@ -842,7 +1437,7 @@ function renderHeatmapTable() {
     html += `<td class="total-col ${annualClass}">${formatPct(row.annualReturn)}</td></tr>`;
   });
 
-  elements.heatmapTableBody.innerHTML = html;
+  if (elements.heatmapTableBody) elements.heatmapTableBody.innerHTML = html;
 }
 
 function renderInstitutionalMatrix() {
@@ -861,39 +1456,39 @@ function renderInstitutionalMatrix() {
   const worstYear = validAnn.length > 0 ? Math.min(...validAnn.map(r => r.fundReturn)) : 0;
 
   // Quad 1: Return & Compounding
-  elements.mCagr.textContent = formatPct(fRisk.cagr);
-  elements.mBenchCagr.textContent = formatPct(bRisk.cagr);
-  elements.mArithMean.textContent = formatPct(fRisk.annualArithmeticMean);
-  elements.mBestYear.textContent = formatPct(bestYear);
-  elements.mWorstYear.textContent = formatPct(worstYear);
+  if (elements.mCagr) elements.mCagr.textContent = formatPct(fRisk.cagr);
+  if (elements.mBenchCagr) elements.mBenchCagr.textContent = formatPct(bRisk.cagr);
+  if (elements.mArithMean) elements.mArithMean.textContent = formatPct(fRisk.annualArithmeticMean);
+  if (elements.mBestYear) elements.mBestYear.textContent = formatPct(bestYear);
+  if (elements.mWorstYear) elements.mWorstYear.textContent = formatPct(worstYear);
 
   // Quad 2: Risk & Volatility
-  elements.mVol.textContent = formatPct(fRisk.annualVolatility);
-  elements.mDownsideDev.textContent = formatPct(fRisk.downsideDeviation);
-  elements.mMaxDd.textContent = formatPct(fRisk.maxDrawdown);
-  elements.mUlcer.textContent = formatPct(fRisk.ulcerIndex);
-  elements.mVar.textContent = `-${formatPct(risk.varMonthly)}`;
-  elements.mCvar.textContent = `-${formatPct(risk.cvarMonthly)}`;
+  if (elements.mVol) elements.mVol.textContent = formatPct(fRisk.annualVolatility);
+  if (elements.mDownsideDev) elements.mDownsideDev.textContent = formatPct(fRisk.downsideDeviation);
+  if (elements.mMaxDd) elements.mMaxDd.textContent = formatPct(fRisk.maxDrawdown);
+  if (elements.mUlcer) elements.mUlcer.textContent = formatPct(fRisk.ulcerIndex);
+  if (elements.mVar) elements.mVar.textContent = `-${formatPct(risk.varMonthly)}`;
+  if (elements.mCvar) elements.mCvar.textContent = `-${formatPct(risk.cvarMonthly)}`;
 
   // Quad 3: Risk-Adjusted Efficiency
-  elements.mSharpe.textContent = fRisk.sharpeRatio.toFixed(2);
-  elements.mSortino.textContent = fRisk.sortinoRatio.toFixed(2);
-  elements.mTreynor.textContent = fRisk.treynorRatio.toFixed(4);
-  elements.mCalmar.textContent = fRisk.calmarRatio.toFixed(2);
-  elements.mMartin.textContent = fRisk.martinRatio.toFixed(2);
-  elements.mOmega.textContent = fRisk.omegaRatio.toFixed(2);
-  elements.mGainPain.textContent = fRisk.gainToPainRatio.toFixed(2);
-  elements.mMSquared.textContent = formatPct(a.profile.mSquared);
+  if (elements.mSharpe) elements.mSharpe.textContent = fRisk.sharpeRatio.toFixed(2);
+  if (elements.mSortino) elements.mSortino.textContent = fRisk.sortinoRatio.toFixed(2);
+  if (elements.mTreynor) elements.mTreynor.textContent = fRisk.treynorRatio.toFixed(4);
+  if (elements.mCalmar) elements.mCalmar.textContent = fRisk.calmarRatio.toFixed(2);
+  if (elements.mMartin) elements.mMartin.textContent = fRisk.martinRatio.toFixed(2);
+  if (elements.mOmega) elements.mOmega.textContent = fRisk.omegaRatio.toFixed(2);
+  if (elements.mGainPain) elements.mGainPain.textContent = fRisk.gainToPainRatio.toFixed(2);
+  if (elements.mMSquared) elements.mMSquared.textContent = formatPct(a.profile.mSquared);
 
   // Quad 4: Benchmark Relative (CAPM)
-  elements.mAlpha.textContent = `${capm.alpha >= 0 ? '+' : ''}${formatPct(capm.alpha)}`;
-  elements.mBeta.textContent = capm.beta.toFixed(2);
-  elements.mRSquared.textContent = capm.rSquared.toFixed(2);
-  elements.mTrackingError.textContent = formatPct(capm.trackingError);
-  elements.mInfoRatio.textContent = a.profile.informationRatio.toFixed(2);
-  elements.mUpCapture.textContent = `${(a.profile.dualBeta.upCapture * 100).toFixed(1)}%`;
-  elements.mDownCapture.textContent = `${(a.profile.dualBeta.downCapture * 100).toFixed(1)}%`;
-  elements.mCaptureRatio.textContent = a.profile.dualBeta.captureRatio.toFixed(2);
+  if (elements.mAlpha) elements.mAlpha.textContent = `${capm.alpha >= 0 ? '+' : ''}${formatPct(capm.alpha)}`;
+  if (elements.mBeta) elements.mBeta.textContent = capm.beta.toFixed(2);
+  if (elements.mRSquared) elements.mRSquared.textContent = capm.rSquared.toFixed(2);
+  if (elements.mTrackingError) elements.mTrackingError.textContent = formatPct(capm.trackingError);
+  if (elements.mInfoRatio) elements.mInfoRatio.textContent = a.profile.informationRatio.toFixed(2);
+  if (elements.mUpCapture) elements.mUpCapture.textContent = `${(a.profile.dualBeta.upCapture * 100).toFixed(1)}%`;
+  if (elements.mDownCapture) elements.mDownCapture.textContent = `${(a.profile.dualBeta.downCapture * 100).toFixed(1)}%`;
+  if (elements.mCaptureRatio) elements.mCaptureRatio.textContent = a.profile.dualBeta.captureRatio.toFixed(2);
 }
 
 function computeAndDrawRolling() {
@@ -908,8 +1503,10 @@ function computeAndDrawRolling() {
   );
   a.rollingStats = rolling;
 
-  elements.rollingWinRatePill.textContent = `${rolling.winRate}%`;
-  elements.rollingComparisonsText.innerHTML = `Outperformed <strong>${state.benchTicker}</strong> in <strong>${rolling.outperformedWindows}</strong> of <strong>${rolling.totalWindows}</strong> rolling ${state.rollingWindowMonths}-month windows.`;
+  if (elements.rollingWinRatePill) elements.rollingWinRatePill.textContent = `${rolling.winRate}%`;
+  if (elements.rollingComparisonsText) {
+    elements.rollingComparisonsText.innerHTML = `Outperformed <strong>${state.benchTicker}</strong> in <strong>${rolling.outperformedWindows}</strong> of <strong>${rolling.totalWindows}</strong> rolling ${state.rollingWindowMonths}-month windows.`;
+  }
 
   drawRollingChart();
 }
@@ -1608,12 +2205,5 @@ function exportPerformanceReportCSV() {
     csv += `${y.year},${fRet},${bRet},${exRet}\n`;
   });
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `fund_performance_${state.fundTicker}_vs_${state.benchTicker}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  downloadCSV(csv, `fund_performance_${state.fundTicker}_vs_${state.benchTicker}.csv`);
 }

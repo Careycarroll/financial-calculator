@@ -46,14 +46,14 @@
 
       <!-- Studio Sub-Navigation Tabs -->
       <nav class="studio-tabs" aria-label="Asset Analytics Sub-Navigation">
-        <button type="button" class="studio-tab active" data-tab="performance">📊 Fund Performance</button>
-        <button type="button" class="studio-tab disabled" data-tab="screener" title="Phase 2: Multi-Factor Universe Screener">🔍 Fund Screener <span class="studio-tab-badge">Phase 2</span></button>
-        <button type="button" class="studio-tab disabled" data-tab="rankings" title="Phase 2: Multi-Metric Weighted Leaderboards">🏆 Fund Rankings <span class="studio-tab-badge">Phase 2</span></button>
+        <button type="button" class="studio-tab active" data-tab="performance" id="tab-btn-performance">📊 Fund Performance</button>
+        <button type="button" class="studio-tab" data-tab="screener" id="tab-btn-screener">🔍 Fund Screener</button>
+        <button type="button" class="studio-tab" data-tab="rankings" id="tab-btn-rankings">🏆 Fund Rankings</button>
         <button type="button" class="studio-tab disabled" data-tab="correlations" title="Phase 3: Pairwise Correlation Matrix">🔗 Asset Correlations <span class="studio-tab-badge">Phase 3</span></button>
       </nav>
 
       <!-- Global Controls Bar -->
-      <section class="analytics-controls-bar" aria-label="Analysis Controls">
+      <section class="analytics-controls-bar" id="performance-controls-bar" aria-label="Analysis Controls">
         <div class="controls-left">
           <!-- Fund Ticker Selector (Searchable Modal Trigger) -->
           <div class="control-item">
@@ -454,6 +454,225 @@
               <span>📥</span>
               <span>Download Performance Report (CSV)</span>
             </button>
+          </div>
+        </section>
+      </main>
+
+      <!-- TAB CONTENT: FUND SCREENER -->
+      <main id="tab-screener" class="tab-pane hidden">
+        <!-- Screener Controls Bar -->
+        <section class="screener-controls-bar" aria-label="Screener Filter Controls">
+          <div class="screener-controls-grid">
+            <div class="control-item">
+              <label for="screener-asset-class">Asset Class</label>
+              <select id="screener-asset-class" class="control-select">
+                <option value="all" selected>All Asset Classes</option>
+                <option value="Large Cap">Large Cap Equity</option>
+                <option value="Growth">Growth / Tech</option>
+                <option value="Dividend">Dividend Equity</option>
+                <option value="Bond">Fixed Income / Bonds</option>
+                <option value="Custom">Custom Session Funds</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="screener-history">Minimum History</label>
+              <select id="screener-history" class="control-select">
+                <option value="0" selected>All Available History</option>
+                <option value="1">At least 1 Year (12M)</option>
+                <option value="3">At least 3 Years (36M)</option>
+                <option value="5">At least 5 Years (60M)</option>
+                <option value="10">At least 10 Years (120M)</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="screener-benchmark">Benchmark Reference</label>
+              <select id="screener-benchmark" class="control-select">
+                <option value="VOO" selected>VOO (S&P 500 ETF)</option>
+                <option value="SPY">SPY (S&P 500 Trust)</option>
+                <option value="QQQ">QQQ (Nasdaq-100)</option>
+                <option value="SCHD">SCHD (Dividend ETF)</option>
+                <option value="BND">BND (Total Bond Market)</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="screener-min-sharpe">Min Sharpe Ratio</label>
+              <select id="screener-min-sharpe" class="control-select">
+                <option value="all" selected>Any Sharpe</option>
+                <option value="0.5">Sharpe &ge; 0.50</option>
+                <option value="0.75">Sharpe &ge; 0.75</option>
+                <option value="1.0">Sharpe &ge; 1.00</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="screener-search-input">Search Universe</label>
+              <input type="text" id="screener-search-input" class="control-input" placeholder="Search ticker, name, category..." />
+            </div>
+          </div>
+
+          <div class="screener-actions-row">
+            <span class="screener-status-text" id="screener-status-text">Showing 5 of 5 funds in session</span>
+            <div class="screener-btns-right">
+              <button type="button" class="btn-tool-outline" id="btn-reset-screener-filters">↺ Reset Filters</button>
+              <button type="button" class="btn-tool-primary" id="btn-export-screener-csv">📥 Export Screener CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Screener Results Table Card -->
+        <section class="analytics-card" style="margin-top: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Multi-Factor Screen Results</h3>
+              <span class="card-subtitle">Click any column header to sort. Click a ticker or 'Analyze' to open its full performance deep-dive.</span>
+            </div>
+            <div class="table-entries-selector">
+              <label for="screener-entries-select">Show:</label>
+              <select id="screener-entries-select" class="entries-select">
+                <option value="15" selected>15 entries</option>
+                <option value="30">30 entries</option>
+                <option value="50">50 entries</option>
+                <option value="all">All entries</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="screener-table-wrapper">
+            <table class="screener-table" id="screener-results-table">
+              <thead>
+                <tr>
+                  <th data-sort="ticker">Ticker <span class="sort-icon">↕</span></th>
+                  <th data-sort="name">Fund Name <span class="sort-icon">↕</span></th>
+                  <th data-sort="assetClass">Asset Class <span class="sort-icon">↕</span></th>
+                  <th data-sort="ytd" class="num-col">YTD <span class="sort-icon">↕</span></th>
+                  <th data-sort="return1y" class="num-col">1Y <span class="sort-icon">↕</span></th>
+                  <th data-sort="return3y" class="num-col">3Y <span class="sort-icon">↕</span></th>
+                  <th data-sort="return5y" class="num-col">5Y <span class="sort-icon">↕</span></th>
+                  <th data-sort="cagr" class="num-col">CAGR <span class="sort-icon">↕</span></th>
+                  <th data-sort="sharpe" class="num-col">Sharpe <span class="sort-icon">↕</span></th>
+                  <th data-sort="sortino" class="num-col">Sortino <span class="sort-icon">↕</span></th>
+                  <th data-sort="volatility" class="num-col">Vol (Ann) <span class="sort-icon">↕</span></th>
+                  <th data-sort="maxDrawdown" class="num-col">Max DD <span class="sort-icon">↕</span></th>
+                  <th data-sort="alpha" class="num-col">Alpha (α) <span class="sort-icon">↕</span></th>
+                  <th data-sort="beta" class="num-col">Beta (β) <span class="sort-icon">↕</span></th>
+                  <th data-sort="upCapture" class="num-col">Up Cap <span class="sort-icon">↕</span></th>
+                  <th data-sort="downCapture" class="num-col">Down Cap <span class="sort-icon">↕</span></th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="screener-table-body">
+                <!-- Dynamically populated via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="screener-pagination-bar" id="screener-pagination-bar">
+            <span class="pagination-info" id="screener-pagination-info">Showing 1 to 5 of 5 entries</span>
+            <div class="pagination-controls">
+              <button type="button" class="btn-page" id="btn-screener-prev" disabled>&larr; Previous</button>
+              <span class="page-current" id="screener-page-display">1 / 1</span>
+              <button type="button" class="btn-page" id="btn-screener-next" disabled>Next &rarr;</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- TAB CONTENT: FUND RANKINGS -->
+      <main id="tab-rankings" class="tab-pane hidden">
+        <!-- Rankings Controls Bar -->
+        <section class="rankings-controls-bar" aria-label="Ranking Criteria">
+          <div class="rankings-controls-grid">
+            <div class="control-item">
+              <label for="rankings-metric-select">Rank Universe By</label>
+              <select id="rankings-metric-select" class="control-select">
+                <option value="sharpe" selected>Sharpe Ratio (Risk-Adjusted Efficiency)</option>
+                <option value="cagr">Compounded Annual Return (CAGR)</option>
+                <option value="sortino">Sortino Ratio (Downside Efficiency)</option>
+                <option value="alpha">Jensen's Alpha (Excess Performance α)</option>
+                <option value="maxDrawdown">Lowest Max Drawdown (Capital Preservation)</option>
+                <option value="upCapture">Upside Market Capture</option>
+                <option value="captureRatio">Capture Ratio (Up / Down)</option>
+                <option value="treynor">Treynor Ratio</option>
+                <option value="return1y">Trailing 1-Year Return</option>
+                <option value="return3y">Trailing 3-Year CAGR</option>
+                <option value="return5y">Trailing 5-Year CAGR</option>
+                <option value="ytd">Year-To-Date (YTD) Return</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="rankings-benchmark-select">Benchmark Reference</label>
+              <select id="rankings-benchmark-select" class="control-select">
+                <option value="VOO" selected>VOO (S&P 500 ETF)</option>
+                <option value="SPY">SPY (S&P 500 Trust)</option>
+                <option value="QQQ">QQQ (Nasdaq-100)</option>
+                <option value="SCHD">SCHD (Dividend ETF)</option>
+                <option value="BND">BND (Total Bond Market)</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="rankings-asset-class">Asset Class Filter</label>
+              <select id="rankings-asset-class" class="control-select">
+                <option value="all" selected>All Asset Classes</option>
+                <option value="Large Cap">Large Cap Equity</option>
+                <option value="Growth">Growth / Tech</option>
+                <option value="Dividend">Dividend Equity</option>
+                <option value="Bond">Fixed Income / Bonds</option>
+                <option value="Custom">Custom Session Funds</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="rankings-order-select">Ordering</label>
+              <select id="rankings-order-select" class="control-select">
+                <option value="desc" selected>Best First (Top Performers)</option>
+                <option value="asc">Invert Order (Bottom Performers)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="screener-actions-row">
+            <span class="screener-status-text" id="rankings-status-text">Ranked 5 funds in active universe</span>
+            <div class="screener-btns-right">
+              <button type="button" class="btn-tool-primary" id="btn-export-rankings-csv">📥 Export Leaderboard CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Rankings Leaderboard Card -->
+        <section class="analytics-card" style="margin-top: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Fund Performance Leaderboard</h3>
+              <span class="card-subtitle">Ordinal ranks and percentile bands computed dynamically across session funds.</span>
+            </div>
+          </div>
+
+          <div class="rankings-table-wrapper">
+            <table class="rankings-table" id="rankings-results-table">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">Rank</th>
+                  <th style="width: 110px;">Percentile</th>
+                  <th>Fund Asset</th>
+                  <th>Asset Class</th>
+                  <th class="num-col" id="rankings-col-metric-header">Rank Metric</th>
+                  <th class="num-col">CAGR</th>
+                  <th class="num-col">Sharpe</th>
+                  <th class="num-col">Sortino</th>
+                  <th class="num-col">Max DD</th>
+                  <th class="num-col">Beta (β)</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="rankings-table-body">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
           </div>
         </section>
       </main>
