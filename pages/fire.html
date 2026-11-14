@@ -14,11 +14,11 @@
       <div class="top-nav-inner">
         <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
         <div class="top-nav-links">
-          <a href="../index.html" class="top-nav-link">Calculators</a>
-          <a href="fire.html" class="top-nav-link active">FIRE Dashboard</a>
-          <a href="drawdown-engine.html" class="top-nav-link">Drawdown Engine</a>
-          <a href="market-stress.html" class="top-nav-link">Market Stress</a>
-          <a href="news.html" class="top-nav-link">News Feed</a>
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="fire.html" class="top-nav-link active">🔥 FIRE</a>
+          <a href="drawdown-engine.html" class="top-nav-link">🛡️ Drawdown Engine</a>
+          <a href="market-stress.html" class="top-nav-link">⚡ Market Stress</a>
+          <a href="../fund-regression/index.html" class="top-nav-link nav-bridge-link" title="Jump to Fund Regression Lab">📈 Regression Lab</a>
         </div>
       </div>
     </nav>
@@ -37,6 +37,16 @@
           <span class="btn-arrow">➔</span>
         </a>
       </header>
+
+      <!-- In-Page Workflow Jump Bar -->
+      <div class="workflow-jump-bar">
+        <span class="workflow-jump-label">Retirement Suite:</span>
+        <a href="drawdown-engine.html" class="workflow-jump-pill">🛡️ Drawdown Engine</a>
+        <a href="market-stress.html" class="workflow-jump-pill">⚡ Market Stress Simulator</a>
+        <span class="workflow-jump-divider">|</span>
+        <span class="workflow-jump-label">Cross-Analysis:</span>
+        <a href="../fund-regression/index.html" class="workflow-jump-pill bridge-pill">📈 Fund Regression Lab</a>
+      </div>
 
       <main>
         <!-- Shared Profile -->
@@ -1055,6 +1065,7 @@
       </footer>
     </div>
 
+    <script src="../js/nav.js"></script>
     <script type="module" src="../js/fire.js"></script>
     <script src="../js/font-scale.js"></script>
     <script src="../js/prefetch.js"></script>

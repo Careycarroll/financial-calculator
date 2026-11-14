@@ -14,12 +14,11 @@
       <div class="top-nav-inner">
         <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
         <div class="top-nav-links">
-          <a href="../index.html" class="top-nav-link">Calculators</a>
-          <a href="../fund-regression/index.html" class="top-nav-link">Regression Lab</a>
-          <a href="../pages/fire.html" class="top-nav-link">FIRE Dashboard</a>
-          <a href="../pages/drawdown-engine.html" class="top-nav-link">Drawdown Engine</a>
-          <a href="../pages/market-stress.html" class="top-nav-link">Market Stress</a>
-          <a href="../pages/news.html" class="top-nav-link">News Feed</a>
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="index.html" class="top-nav-link active">📊 DCA Backtest</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+          <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
         </div>
       </div>
     </nav>
@@ -32,6 +31,16 @@
           Compare total portfolio accumulation, Money-Weighted Internal Rate of Return (IRR), annualized CAGR, and test the power of dividend reinvestment (DRIP).
         </p>
       </header>
+
+      <!-- In-Page Workflow Jump Bar -->
+      <div class="workflow-jump-bar">
+        <span class="workflow-jump-label">Fund Suite:</span>
+        <a href="../fund-regression/index.html" class="workflow-jump-pill">📈 Fund Regression Lab</a>
+        <a href="../pages/options.html" class="workflow-jump-pill">🎯 Options Strategy Lab</a>
+        <span class="workflow-jump-divider">|</span>
+        <span class="workflow-jump-label">Stress Analysis:</span>
+        <a href="../pages/market-stress.html" class="workflow-jump-pill bridge-pill">⚡ Market Stress Simulator</a>
+      </div>
 
       <!-- Dynamic Status & Bottleneck Bar -->
       <section class="dca-status-bar" id="dca-status-bar">
@@ -224,6 +233,7 @@
 
     <!-- Scripts -->
     <script type="module" src="dca-ui.js"></script>
+    <script src="../js/nav.js"></script>
     <script src="../js/font-scale.js"></script>
     <script src="../js/prefetch.js"></script>
   </body>
