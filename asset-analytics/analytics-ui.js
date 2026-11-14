@@ -28,7 +28,8 @@ import {
   screenAndProfileFunds,
   filterFundProfiles,
   rankFundProfiles,
-  METRIC_DIRECTION
+  METRIC_DIRECTION,
+  SUB_CATEGORIES_BY_ASSET_CLASS
 } from './screener-engine.js';
 import {
   calculatePearsonCorrelation,
@@ -62,7 +63,10 @@ const state = {
 
   // Screener State
   screenerBenchmark: 'VOO',
+  screenerFundType: 'all', // 'all' | 'ETF' | 'Mutual Fund' | 'Closed-End Fund'
   screenerAssetClass: 'all',
+  screenerSubCategory: 'all',
+  screenerExpenseRatio: 'all',
   screenerMinHistory: 0,
   screenerMinSharpe: 'all',
   screenerSearch: '',
@@ -139,6 +143,7 @@ async function init() {
   updateAutocorrPickerButton();
   updateCointPickerButtons();
   updateCategoryCounts();
+  updateSubCategoryDropdown();
   renderCorrelationChips();
   updateViewModeUI();
   runAnalysis();
@@ -313,7 +318,10 @@ function cacheDOMElements() {
     mCaptureRatio: document.getElementById('m-capture-ratio'),
 
     // Screener Elements
+    screenerFundType: document.getElementById('screener-fund-type'),
     screenerAssetClass: document.getElementById('screener-asset-class'),
+    screenerSubCategory: document.getElementById('screener-sub-category'),
+    screenerExpenseRatio: document.getElementById('screener-expense-ratio'),
     screenerHistory: document.getElementById('screener-history'),
     screenerBenchmark: document.getElementById('screener-benchmark'),
     screenerMinSharpe: document.getElementById('screener-min-sharpe'),
@@ -708,9 +716,34 @@ function bindEvents() {
   }
 
   // Screener Event Handlers
+  if (elements.screenerFundType) {
+    elements.screenerFundType.addEventListener('change', (e) => {
+      state.screenerFundType = e.target.value;
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
   if (elements.screenerAssetClass) {
     elements.screenerAssetClass.addEventListener('change', (e) => {
       state.screenerAssetClass = e.target.value;
+      updateSubCategoryDropdown();
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
+  if (elements.screenerSubCategory) {
+    elements.screenerSubCategory.addEventListener('change', (e) => {
+      state.screenerSubCategory = e.target.value;
+      state.screenerPage = 1;
+      runScreener();
+    });
+  }
+
+  if (elements.screenerExpenseRatio) {
+    elements.screenerExpenseRatio.addEventListener('change', (e) => {
+      state.screenerExpenseRatio = e.target.value;
       state.screenerPage = 1;
       runScreener();
     });
@@ -749,17 +782,23 @@ function bindEvents() {
 
   if (elements.btnResetScreenerFilters) {
     elements.btnResetScreenerFilters.addEventListener('click', () => {
+      state.screenerFundType = 'all';
       state.screenerAssetClass = 'all';
+      state.screenerSubCategory = 'all';
+      state.screenerExpenseRatio = 'all';
       state.screenerMinHistory = 0;
       state.screenerMinSharpe = 'all';
       state.screenerSearch = '';
       state.screenerPage = 1;
 
+      if (elements.screenerFundType) elements.screenerFundType.value = 'all';
       if (elements.screenerAssetClass) elements.screenerAssetClass.value = 'all';
+      if (elements.screenerExpenseRatio) elements.screenerExpenseRatio.value = 'all';
       if (elements.screenerHistory) elements.screenerHistory.value = '0';
       if (elements.screenerMinSharpe) elements.screenerMinSharpe.value = 'all';
       if (elements.screenerSearchInput) elements.screenerSearchInput.value = '';
 
+      updateSubCategoryDropdown();
       runScreener();
     });
   }
@@ -996,6 +1035,24 @@ function drillDownToFund(ticker) {
 }
 
 /**
+ * Dynamically populates the Category / Style dropdown based on active Asset Class
+ */
+function updateSubCategoryDropdown() {
+  if (!elements.screenerSubCategory) return;
+  const assetClass = state.screenerAssetClass;
+  const subCategories = SUB_CATEGORIES_BY_ASSET_CLASS[assetClass] || [];
+
+  let html = '<option value="all" selected>All Categories</option>';
+  if (subCategories.length > 0) {
+    subCategories.forEach(cat => {
+      html += `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`;
+    });
+  }
+  elements.screenerSubCategory.innerHTML = html;
+  state.screenerSubCategory = 'all';
+}
+
+/**
  * Screener Engine Evaluation & Filtering
  */
 function runScreener() {
@@ -1009,7 +1066,10 @@ function runScreener() {
 
   const filtered = filterFundProfiles(profiles, {
     searchQuery: state.screenerSearch,
+    fundType: state.screenerFundType,
     assetClass: state.screenerAssetClass,
+    subCategory: state.screenerSubCategory,
+    maxExpenseRatio: state.screenerExpenseRatio === 'all' ? null : parseFloat(state.screenerExpenseRatio),
     minHistoryYears: state.screenerMinHistory,
     minSharpe: state.screenerMinSharpe === 'all' ? null : parseFloat(state.screenerMinSharpe)
   });
@@ -1071,7 +1131,7 @@ function renderScreenerTable() {
   if (pageSlice.length === 0) {
     elements.screenerTableBody.innerHTML = `
       <tr>
-        <td colspan="17" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+        <td colspan="18" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
           🔍 No funds match the active screen criteria. Try broadening your filters or uploading custom CSVs.
         </td>
       </tr>
@@ -1089,6 +1149,7 @@ function renderScreenerTable() {
           </td>
           <td><span class="table-fund-name" data-ticker="${p.ticker}" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span></td>
           <td>${escapeHtml(p.assetClass)}</td>
+          <td>${escapeHtml(p.category || '—')}</td>
           <td class="num-col">${p.ytd != null ? formatPct(p.ytd) : '—'}</td>
           <td class="num-col">${p.return1y != null ? formatPct(p.return1y) : '—'}</td>
           <td class="num-col">${p.return3y != null ? formatPct(p.return3y) : '—'}</td>
@@ -1147,7 +1208,7 @@ function runRankings() {
   });
 
   if (state.rankingsAssetClass !== 'all') {
-    profiles = profiles.filter(p => p.assetClass.toLowerCase().includes(state.rankingsAssetClass.toLowerCase()));
+    profiles = profiles.filter(p => p.assetClass.toLowerCase() === state.rankingsAssetClass.toLowerCase());
   }
 
   const ranked = rankFundProfiles(profiles, state.rankingsMetric, state.rankingsOrderAsc);
@@ -1654,9 +1715,9 @@ function exportScreenerCSV() {
   const filtered = state.screenerFilteredProfiles;
   if (!filtered || filtered.length === 0) return;
 
-  let csv = 'Ticker,Name,Asset Class,YTD,1Y,3Y,5Y,CAGR,Sharpe,Sortino,Volatility,Max Drawdown,Alpha,Beta,Up Capture,Down Capture\n';
+  let csv = 'Ticker,Name,Fund Type,Asset Class,Category,YTD,1Y,3Y,5Y,CAGR,Sharpe,Sortino,Volatility,Max Drawdown,Alpha,Beta,Up Capture,Down Capture\n';
   filtered.forEach(p => {
-    csv += `"${p.ticker}","${p.name.replace(/"/g, '""')}","${p.assetClass}",`;
+    csv += `"${p.ticker}","${p.name.replace(/"/g, '""')}","${p.fundType || ''}","${p.assetClass}","${p.category || ''}",`;
     csv += `${p.ytd != null ? (p.ytd * 100).toFixed(2) + '%' : ''},`;
     csv += `${p.return1y != null ? (p.return1y * 100).toFixed(2) + '%' : ''},`;
     csv += `${p.return3y != null ? (p.return3y * 100).toFixed(2) + '%' : ''},`;
