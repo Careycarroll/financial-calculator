@@ -235,6 +235,18 @@ export const TOOLS_CATALOG = [
     keywords: ["portfolio", "backtest", "rebalance", "asset allocation", "60/40", "voo", "bnd", "qqq", "schd", "benchmark", "weights", "cagr", "volatility", "sharpe", "drawdown"]
   },
   {
+    id: "asset-class-allocation",
+    title: "Backtest Asset Class Allocation Studio",
+    shortTitle: "Asset Class Backtest",
+    path: "portfolio-backtest/asset-class-allocation.html",
+    icon: "🏛️",
+    badge: "STUDIO",
+    desc: "Backtest multi-asset portfolios over 54+ years (1972–present) across 28 canonical asset classes. Test through 1970s stagflation, 1987 crash, 2008 GFC, and 2022 rate shock.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["asset class", "backtest", "1972", "asset class allocation", "historical returns", "stagflation", "rebalancing", "all-weather", "60/40", "treasury", "commodities", "gold", "reit", "cagr"]
+  },
+  {
     id: "dca-comparator",
     title: "Historical Fund DCA Backtester",
     shortTitle: "DCA Backtest",
