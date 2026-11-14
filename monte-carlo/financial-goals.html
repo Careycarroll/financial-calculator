@@ -5,40 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Financial Goals Planning — Financial Calculator</title>
   <link rel="stylesheet" href="../css/base.css" />
-  <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/common-calculator.css" />
   <link rel="stylesheet" href="../css/asset-modal.css" />
   <link rel="stylesheet" href="./monte-carlo.css" />
-  <script src="../js/font-scale.js"></script>
-  <script src="../js/prefetch.js"></script>
 </head>
 <body class="monte-carlo-page">
-  <!-- GLOBAL HEADER -->
-  <header class="top-nav">
-    <div class="top-nav-left">
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <div class="top-nav-inner">
       <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
-      <span class="nav-separator">/</span>
-      <div class="nav-category-dropdown-wrap">
-        <button class="nav-category-btn" id="nav-category-btn" type="button">
-          <span id="nav-category-label">Trading &amp; Fund Analytics</span>
-          <span class="nav-chevron">▾</span>
-        </button>
-        <div class="nav-category-menu" id="nav-category-menu"></div>
+      <div class="top-nav-links">
+        <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+        <a href="../asset-analytics/index.html" class="top-nav-link">📊 Asset Analytics</a>
+        <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
+        <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio Studio</a>
+        <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
+        <a href="index.html" class="top-nav-link active">🎲 Monte Carlo</a>
+        <a href="../pages/options.html" class="top-nav-link">🎯 Options</a>
+        <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
       </div>
-      <a href="../index.html" class="nav-all-tools-link">← All Tools</a>
     </div>
-    <div class="top-nav-actions" id="top-nav-actions">
-      <!-- Populated dynamically by nav.js -->
+  </nav>
+
+  <!-- Suite Sub-Navigation -->
+  <div class="suite-subnav-bar">
+    <div class="suite-subnav-inner">
+      <span class="suite-subnav-label">Monte Carlo Tools:</span>
+      <a href="index.html" class="suite-subnav-link">🎲 Simulation</a>
+      <a href="financial-goals.html" class="suite-subnav-link active">🎯 Financial Goals</a>
+      <a href="asset-liability.html" class="suite-subnav-link">⚖️ Asset Liability Modeling</a>
     </div>
-  </header>
+  </div>
 
-  <main class="monte-carlo-container">
-    <!-- SUITE SUB-NAVIGATION -->
-    <nav class="suite-subnav" aria-label="Monte Carlo Suite">
-      <a href="index.html" class="subnav-link">🎲 Monte Carlo Simulation</a>
-      <a href="financial-goals.html" class="subnav-link active">🎯 Financial Goals</a>
-      <a href="asset-liability.html" class="subnav-link">⚖️ Asset Liability Modeling</a>
-    </nav>
-
+  <div class="page-container monte-carlo-container">
     <!-- HEADER TITLE & TAGLINE -->
     <header class="studio-header">
       <h1>🎯 Financial Goals &amp; Glide Path Studio</h1>
@@ -380,10 +379,11 @@
         </div>
       </section>
     </div>
-  </main>
+  </div>
 
-  <!-- SCRIPTS -->
-  <script type="module" src="./goals-ui.js"></script>
+  <!-- Scripts -->
   <script src="../js/nav.js"></script>
+  <script src="../js/font-scale.js"></script>
+  <script type="module" src="./goals-ui.js"></script>
 </body>
 </html>

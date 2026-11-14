@@ -13,13 +13,11 @@
       tools: [
         { id: "fire", name: "FIRE Dashboard", icon: "🔥", path: "pages/fire.html", desc: "Financial Independence number & Coast FIRE target" },
         { id: "drawdown-engine", name: "Drawdown Engine", icon: "🛡️", path: "pages/drawdown-engine.html", desc: "Tax-aware Guyton-Klinger withdrawal guardrails & RMDs" },
-        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Mega-cap concentration & 401(k) DCA stress testing" },
-        { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
-        { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
-        { id: "asset-liability", name: "Asset Liability Modeling", icon: "⚖️", path: "monte-carlo/asset-liability.html", desc: "Stress test asset allocation against future liability obligations" }
+        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Mega-cap concentration & 401(k) DCA stress testing" }
       ],
       bridges: [
-        { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "Analyze factor risks & Jensen's Alpha" }
+        { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "Analyze factor risks & Jensen's Alpha" },
+        { id: "monte-carlo", name: "Monte Carlo Studio", icon: "🎲", path: "monte-carlo/index.html", desc: "Simulate portfolio survival & retirement solvency" }
       ]
     },
     {
