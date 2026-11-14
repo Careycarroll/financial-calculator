@@ -175,6 +175,18 @@ export const TOOLS_CATALOG = [
 
   // --- Portfolio Construction & Backtesting ---
   {
+    id: "efficient-frontier",
+    title: "Efficient Frontier Studio",
+    shortTitle: "Efficient Frontier",
+    path: "portfolio-optimization/index.html",
+    icon: "📈",
+    badge: "STUDIO",
+    desc: "Calculate and chart Markowitz efficient frontier curves, Capital Allocation Line (CAL), Tangency Portfolio, and asset weight transition maps.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["efficient frontier", "portfolio optimization", "markowitz", "mvo", "tangency", "cal", "gmv", "sharpe", "covariance", "transition map", "asset allocation", "weights"]
+  },
+  {
     id: "portfolio-backtest",
     title: "Portfolio Backtest Studio",
     shortTitle: "Portfolio Studio",
