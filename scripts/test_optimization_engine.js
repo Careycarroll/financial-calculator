@@ -26,7 +26,11 @@ import {
   solveRiskParity,
   calculateCVaR,
   calculateSortinoRatio,
-  solveMinCVaR
+  solveMinCVaR,
+  invertMatrix,
+  matrixMultiply,
+  computeImpliedEquilibriumReturns,
+  solveBlackLitterman
 } from '../portfolio-optimization/optimization-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 
@@ -195,5 +199,70 @@ assert(sortinoMetrics.sortinoRatio > 0, `Sortino ratio is positive (got ${sortin
 console.log(`VOO 95% Monthly VaR: ${(cvarMetrics.var * 100).toFixed(2)}% | 95% CVaR: ${(cvarMetrics.cvar * 100).toFixed(2)}%`);
 console.log(`VOO Sortino Ratio: ${sortinoMetrics.sortinoRatio.toFixed(3)} | Downside Vol: ${(sortinoMetrics.downsideVol * 100).toFixed(2)}%`);
 console.log('✅ PASS: Tail risk (CVaR) and downside semivariance (Sortino) verified');
+
+// TEST 9: Matrix Inversion & Identity (A * inv(A) = I)
+console.log('\n--- TEST 9: Linear Algebra & Matrix Inversion ---');
+const mat = [
+  [4, 2, 1],
+  [2, 5, 3],
+  [1, 3, 6]
+];
+const invMat = invertMatrix(mat);
+const prod = matrixMultiply(mat, invMat);
+
+for (let i = 0; i < 3; i++) {
+  for (let j = 0; j < 3; j++) {
+    const expected = (i === j) ? 1.0 : 0.0;
+    assert(Math.abs(prod[i][j] - expected) < 1e-6, `Element [${i}][${j}] equals ${expected} (got ${prod[i][j]})`);
+  }
+}
+console.log('✅ PASS: Gaussian elimination matrix inversion verifies A * A^-1 = I to 1e-6 precision');
+
+// TEST 10: Black-Litterman Model (Equilibrium Prior & Views Tilt)
+console.log('\n--- TEST 10: Black-Litterman Model (Equilibrium & Views) ---');
+const benchWeights = [0.50, 0.30, 0.20]; // 50% VOO, 30% BND, 20% QQQ
+const blNoViews = solveBlackLitterman({
+  benchmarkWeights: benchWeights,
+  covarianceMatrix: stats.covarianceMatrix,
+  expectedMarketReturn: 0.08,
+  riskFreeRate: 0.03,
+  views: []
+});
+
+// Zero-views identity
+assert(blNoViews.viewsCount === 0, '0 views detected');
+for (let i = 0; i < 3; i++) {
+  assert(Math.abs(blNoViews.optimalWeights[i] - benchWeights[i]) < 1e-6, `No-views weight ${i} strictly equals benchmark weight`);
+  assert(Math.abs(blNoViews.activeTilts[i]) < 1e-6, `No-views active tilt ${i} is 0`);
+}
+console.log('✅ PASS: Black-Litterman zero-views identity strictly matches market equilibrium prior');
+
+// Bullish View on QQQ (Asset 2)
+const blBullishQQQ = solveBlackLitterman({
+  benchmarkWeights: benchWeights,
+  covarianceMatrix: stats.covarianceMatrix,
+  expectedMarketReturn: 0.08,
+  riskFreeRate: 0.03,
+  tau: 0.05,
+  views: [
+    {
+      type: 'absolute',
+      assetIndex1: 2, // QQQ
+      expectedReturn: 0.22, // 22% expected return
+      confidence: 0.80 // 80% high confidence
+    }
+  ]
+});
+
+console.log(`Prior Equilibrium Returns:     VOO: ${(blBullishQQQ.priorReturns[0]*100).toFixed(2)}% | BND: ${(blBullishQQQ.priorReturns[1]*100).toFixed(2)}% | QQQ: ${(blBullishQQQ.priorReturns[2]*100).toFixed(2)}%`);
+console.log(`Posterior Returns (Bull QQQ):  VOO: ${(blBullishQQQ.posteriorReturns[0]*100).toFixed(2)}% | BND: ${(blBullishQQQ.posteriorReturns[1]*100).toFixed(2)}% | QQQ: ${(blBullishQQQ.posteriorReturns[2]*100).toFixed(2)}%`);
+console.log(`Benchmark Weights:             VOO: ${(benchWeights[0]*100).toFixed(1)}% | BND: ${(benchWeights[1]*100).toFixed(1)}% | QQQ: ${(benchWeights[2]*100).toFixed(1)}%`);
+console.log(`Black-Litterman Weights:       VOO: ${(blBullishQQQ.optimalWeights[0]*100).toFixed(1)}% | BND: ${(blBullishQQQ.optimalWeights[1]*100).toFixed(1)}% | QQQ: ${(blBullishQQQ.optimalWeights[2]*100).toFixed(1)}%`);
+console.log(`Active Tilts:                  VOO: ${(blBullishQQQ.activeTilts[0]*100).toFixed(1)}% | BND: ${(blBullishQQQ.activeTilts[1]*100).toFixed(1)}% | QQQ: ${(blBullishQQQ.activeTilts[2]*100).toFixed(1)}%`);
+
+// Verify bullish view shifts posterior return upwards and allocates positive active tilt to QQQ
+assert(blBullishQQQ.posteriorReturns[2] > blBullishQQQ.priorReturns[2], 'Posterior return for QQQ exceeds prior return');
+assert(blBullishQQQ.activeTilts[2] > 0, `QQQ receives positive active tilt (+${(blBullishQQQ.activeTilts[2]*100).toFixed(1)}%)`);
+console.log('✅ PASS: Black-Litterman Bayesian update directionally shifts posterior returns and active tilts');
 
 console.log('\n🎉 ALL PORTFOLIO OPTIMIZATION TESTS PASSED SUCCESSFULLY!');

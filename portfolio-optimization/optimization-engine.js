@@ -1004,3 +1004,369 @@ export function solveTargetRiskPortfolio(targetVol, expectedReturns, covarianceM
 
   return best;
 }
+
+
+// ===================================================================
+// LINEAR ALGEBRA & MATRIX UTILITIES FOR BLACK-LITTERMAN
+// ===================================================================
+
+/**
+ * Multiplies two matrices A (m x k) and B (k x n).
+ * @param {Array<Array<number>>} A
+ * @param {Array<Array<number>>} B
+ * @returns {Array<Array<number>>} Matrix product (m x n)
+ */
+export function matrixMultiply(A, B) {
+  const m = A.length;
+  const k = A[0].length;
+  const n = B[0].length;
+
+  const result = [];
+  for (let i = 0; i < m; i++) {
+    result[i] = new Array(n).fill(0);
+    for (let j = 0; j < n; j++) {
+      let sum = 0;
+      for (let p = 0; p < k; p++) {
+        sum += A[i][p] * B[p][j];
+      }
+      result[i][j] = sum;
+    }
+  }
+  return result;
+}
+
+/**
+ * Multiplies matrix A (m x n) by vector v (n x 1).
+ * @param {Array<Array<number>>} A
+ * @param {Array<number>} v
+ * @returns {Array<number>} Result vector (m x 1)
+ */
+export function matrixVectorMultiply(A, v) {
+  const m = A.length;
+  const n = v.length;
+  const result = new Array(m).fill(0);
+  for (let i = 0; i < m; i++) {
+    let sum = 0;
+    for (let j = 0; j < n; j++) {
+      sum += A[i][j] * v[j];
+    }
+    result[i] = sum;
+  }
+  return result;
+}
+
+/**
+ * Transposes a matrix A (m x n) -> (n x m).
+ * @param {Array<Array<number>>} A
+ * @returns {Array<Array<number>>}
+ */
+export function transposeMatrix(A) {
+  const m = A.length;
+  const n = A[0].length;
+  const result = [];
+  for (let j = 0; j < n; j++) {
+    result[j] = new Array(m);
+    for (let i = 0; i < m; i++) {
+      result[j][i] = A[i][j];
+    }
+  }
+  return result;
+}
+
+/**
+ * Inverts an n x n square matrix using Gaussian elimination with partial pivoting.
+ * @param {Array<Array<number>>} A
+ * @returns {Array<Array<number>>} Inverse matrix A^-1
+ */
+export function invertMatrix(A) {
+  const n = A.length;
+  // Augment A with identity matrix [A | I]
+  const M = [];
+  for (let i = 0; i < n; i++) {
+    M[i] = new Array(2 * n).fill(0);
+    for (let j = 0; j < n; j++) {
+      M[i][j] = A[i][j];
+    }
+    M[i][n + i] = 1.0;
+  }
+
+  // Gaussian elimination with row pivoting
+  for (let col = 0; col < n; col++) {
+    // Find pivot row
+    let maxRow = col;
+    let maxVal = Math.abs(M[col][col]);
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(M[row][col]) > maxVal) {
+        maxVal = Math.abs(M[row][col]);
+        maxRow = row;
+      }
+    }
+
+    if (maxVal < 1e-12) {
+      throw new Error(`Matrix is singular or near-singular at column ${col}`);
+    }
+
+    // Swap pivot row
+    if (maxRow !== col) {
+      const temp = M[col];
+      M[col] = M[maxRow];
+      M[maxRow] = temp;
+    }
+
+    // Scale pivot row
+    const pivot = M[col][col];
+    for (let j = 0; j < 2 * n; j++) {
+      M[col][j] /= pivot;
+    }
+
+    // Eliminate other rows
+    for (let row = 0; row < n; row++) {
+      if (row !== col) {
+        const factor = M[row][col];
+        for (let j = 0; j < 2 * n; j++) {
+          M[row][j] -= factor * M[col][j];
+        }
+      }
+    }
+  }
+
+  // Extract right half
+  const inv = [];
+  for (let i = 0; i < n; i++) {
+    inv[i] = new Array(n);
+    for (let j = 0; j < n; j++) {
+      inv[i][j] = M[i][n + j];
+    }
+  }
+  return inv;
+}
+
+// ===================================================================
+// BLACK-LITTERMAN BAYESIAN ASSET ALLOCATION MODEL
+// ===================================================================
+
+/**
+ * Computes Implied Equilibrium Excess Returns (Reverse Optimization):
+ * Pi = delta * Sigma * w_mkt
+ *
+ * @param {Array<number>} benchmarkWeights - Market capitalization or benchmark weights
+ * @param {Array<Array<number>>} covarianceMatrix - Annualized covariance matrix
+ * @param {number} marketRiskAversion - delta = (r_mkt - Rf) / sigma_mkt^2
+ * @returns {Array<number>} Implied equilibrium excess returns vector Pi
+ */
+export function computeImpliedEquilibriumReturns(benchmarkWeights, covarianceMatrix, marketRiskAversion) {
+  const n = benchmarkWeights.length;
+  const Pi = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    let sigW = 0;
+    for (let j = 0; j < n; j++) {
+      sigW += covarianceMatrix[i][j] * benchmarkWeights[j];
+    }
+    Pi[i] = marketRiskAversion * sigW;
+  }
+  return Pi;
+}
+
+/**
+ * Solves the complete Black-Litterman model:
+ * Blends CAPM equilibrium returns (Prior) with subjective investor views (Views).
+ *
+ * Formula:
+ * M = [ (tau * Sigma)^-1 + P^T * Omega^-1 * P ]^-1
+ * mu_BL = M * [ (tau * Sigma)^-1 * Pi + P^T * Omega^-1 * Q ]
+ * Sigma_BL = Sigma + M
+ * w_BL = (delta * Sigma_BL)^-1 * mu_BL
+ *
+ * @param {Object} params
+ * @param {Array<number>} params.benchmarkWeights - Base market weights (sum to 1)
+ * @param {Array<Array<number>>} params.covarianceMatrix - Annualized asset covariance
+ * @param {number} [params.expectedMarketReturn=0.08] - Expected annual return of benchmark
+ * @param {number} [params.riskFreeRate=0.03] - Risk-free rate
+ * @param {number} [params.tau=0.05] - Uncertainty scaling parameter
+ * @param {Array<Object>} [params.views] - Array of investor views:
+ *   {
+ *     type: 'absolute' | 'relative',
+ *     assetIndex1: number,
+ *     assetIndex2?: number,
+ *     expectedReturn: number, // e.g. 0.12 for 12% or relative outperformance 0.04
+ *     confidence: number // between 0.05 and 0.95
+ *   }
+ * @returns {Object} Complete Black-Litterman solution
+ */
+export function solveBlackLitterman(params) {
+  const {
+    benchmarkWeights,
+    covarianceMatrix,
+    expectedMarketReturn = 0.08,
+    riskFreeRate = 0.03,
+    tau = 0.05,
+    views = []
+  } = params;
+
+  const n = benchmarkWeights.length;
+
+  // 1. Benchmark Portfolio Risk and Market Risk Aversion delta
+  let benchVar = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      benchVar += benchmarkWeights[i] * benchmarkWeights[j] * covarianceMatrix[i][j];
+    }
+  }
+  benchVar = Math.max(1e-8, benchVar);
+  const benchVol = Math.sqrt(benchVar);
+  const delta = Math.max(0.1, (expectedMarketReturn - riskFreeRate) / benchVar);
+
+  // 2. Prior Equilibrium Excess Returns: Pi = delta * Sigma * w_mkt
+  const Pi = computeImpliedEquilibriumReturns(benchmarkWeights, covarianceMatrix, delta);
+  const priorTotalReturns = Pi.map(pi => pi + riskFreeRate);
+
+  // If no views provided, posterior equals prior (identity)
+  if (!views || views.length === 0) {
+    const priorStats = calculatePortfolioStats(benchmarkWeights, priorTotalReturns, covarianceMatrix, riskFreeRate);
+    return {
+      delta,
+      tau,
+      benchmarkWeights: [...benchmarkWeights],
+      optimalWeights: [...benchmarkWeights],
+      activeTilts: new Array(n).fill(0),
+      priorReturns: priorTotalReturns,
+      posteriorReturns: priorTotalReturns,
+      posteriorCovariance: covarianceMatrix,
+      benchmarkStats: priorStats,
+      optimalStats: priorStats,
+      viewsCount: 0
+    };
+  }
+
+  // 3. Build Pick Matrix P (k x n) and Views Vector Q (k x 1)
+  const k = views.length;
+  const P = [];
+  const Q = new Array(k);
+  const confidences = [];
+
+  for (let v = 0; v < k; v++) {
+    const view = views[v];
+    P[v] = new Array(n).fill(0);
+    const i1 = view.assetIndex1;
+
+    if (view.type === 'relative' && typeof view.assetIndex2 === 'number') {
+      const i2 = view.assetIndex2;
+      P[v][i1] = 1.0;
+      P[v][i2] = -1.0;
+      Q[v] = view.expectedReturn; // Excess outperformance
+    } else {
+      // Absolute view: express in excess return over Rf
+      P[v][i1] = 1.0;
+      Q[v] = view.expectedReturn - riskFreeRate;
+    }
+    confidences.push(Math.max(0.01, Math.min(0.99, view.confidence || 0.50)));
+  }
+
+  // 4. Build Diagonal Uncertainty Matrix Omega (k x k)
+  // He & Litterman / Idzorek formulation: Omega_ii = (P * (tau * Sigma) * P^T)_ii * ((1 - c) / c)
+  const tauSigma = [];
+  for (let i = 0; i < n; i++) {
+    tauSigma[i] = new Array(n);
+    for (let j = 0; j < n; j++) {
+      tauSigma[i][j] = tau * covarianceMatrix[i][j];
+    }
+  }
+
+  const P_tauSigma = matrixMultiply(P, tauSigma);
+  const P_tauSigma_Pt = matrixMultiply(P_tauSigma, transposeMatrix(P));
+
+  const Omega = [];
+  const invOmega = [];
+  for (let i = 0; i < k; i++) {
+    Omega[i] = new Array(k).fill(0);
+    invOmega[i] = new Array(k).fill(0);
+    const varView = Math.max(1e-10, P_tauSigma_Pt[i][i]);
+    const conf = confidences[i];
+    const omegaVal = varView * ((1 - conf) / conf);
+    Omega[i][i] = omegaVal;
+    invOmega[i][i] = 1 / omegaVal;
+  }
+
+  // 5. Solve Master Formula for Posterior Expected Excess Returns mu_BL
+  // inv(tauSigma)
+  const invTauSigma = invertMatrix(tauSigma);
+  const Pt = transposeMatrix(P);
+
+  // Pt * invOmega * P  (n x n)
+  const Pt_invOmega = matrixMultiply(Pt, invOmega);
+  const Pt_invOmega_P = matrixMultiply(Pt_invOmega, P);
+
+  // M_inv = invTauSigma + Pt_invOmega_P
+  const M_inv = [];
+  for (let i = 0; i < n; i++) {
+    M_inv[i] = new Array(n);
+    for (let j = 0; j < n; j++) {
+      M_inv[i][j] = invTauSigma[i][j] + Pt_invOmega_P[i][j];
+    }
+  }
+
+  // M = inv(M_inv)
+  const M = invertMatrix(M_inv);
+
+  // term1 = invTauSigma * Pi (n x 1)
+  const term1 = matrixVectorMultiply(invTauSigma, Pi);
+
+  // term2 = Pt * invOmega * Q (n x 1)
+  const invOmega_Q = matrixVectorMultiply(invOmega, Q);
+  const term2 = matrixVectorMultiply(Pt, invOmega_Q);
+
+  const bracket = new Array(n);
+  for (let i = 0; i < n; i++) {
+    bracket[i] = term1[i] + term2[i];
+  }
+
+  // Posterior Excess Returns: mu_BL_excess = M * bracket
+  const mu_BL_excess = matrixVectorMultiply(M, bracket);
+  const posteriorTotalReturns = mu_BL_excess.map(r => r + riskFreeRate);
+
+  // 6. Posterior Covariance: Sigma_BL = Sigma + M
+  const Sigma_BL = [];
+  for (let i = 0; i < n; i++) {
+    Sigma_BL[i] = new Array(n);
+    for (let j = 0; j < n; j++) {
+      Sigma_BL[i][j] = covarianceMatrix[i][j] + M[i][j];
+    }
+  }
+
+  // 7. Optimal Black-Litterman Portfolio Allocation:
+  // w_unconstrained = inv(delta * Sigma_BL) * mu_BL_excess
+  const deltaSigmaBL = [];
+  for (let i = 0; i < n; i++) {
+    deltaSigmaBL[i] = new Array(n);
+    for (let j = 0; j < n; j++) {
+      deltaSigmaBL[i][j] = delta * Sigma_BL[i][j];
+    }
+  }
+
+  const invDeltaSigmaBL = invertMatrix(deltaSigmaBL);
+  let rawWeights = matrixVectorMultiply(invDeltaSigmaBL, mu_BL_excess);
+
+  // Normalize raw weights to sum to 1.0 (with long-only non-negative projection)
+  const optimalWeights = projectOntoSimplex(rawWeights, new Array(n).fill(0), new Array(n).fill(1));
+
+  // Active Tilts (Delta w = w_BL - w_mkt)
+  const activeTilts = optimalWeights.map((w, idx) => w - benchmarkWeights[idx]);
+
+  // Performance stats for Benchmark vs Optimal
+  const benchmarkStats = calculatePortfolioStats(benchmarkWeights, posteriorTotalReturns, covarianceMatrix, riskFreeRate);
+  const optimalStats = calculatePortfolioStats(optimalWeights, posteriorTotalReturns, covarianceMatrix, riskFreeRate);
+
+  return {
+    delta,
+    tau,
+    benchmarkWeights: [...benchmarkWeights],
+    optimalWeights,
+    activeTilts,
+    priorReturns: priorTotalReturns,
+    posteriorReturns: posteriorTotalReturns,
+    posteriorCovariance: Sigma_BL,
+    benchmarkStats,
+    optimalStats,
+    viewsCount: k
+  };
+}

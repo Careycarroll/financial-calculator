@@ -199,6 +199,18 @@ export const TOOLS_CATALOG = [
     keywords: ["portfolio optimization", "risk parity", "erc", "cvar", "sortino", "sharpe", "asset allocation", "weights", "minimum variance", "risk contribution", "diversification"]
   },
   {
+    id: "black-litterman",
+    title: "Black-Litterman Model Studio",
+    shortTitle: "Black-Litterman",
+    path: "portfolio-optimization/black-litterman.html",
+    icon: "🧠",
+    badge: "STUDIO",
+    desc: "Combine CAPM market equilibrium returns (prior) with subjective investor views to derive optimal Bayesian asset allocations and active tilts.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["black-litterman", "bayesian", "market equilibrium", "prior", "posterior", "views", "active tilt", "tau", "omega", "reverse optimization", "asset allocation"]
+  },
+  {
     id: "portfolio-backtest",
     title: "Portfolio Backtest Studio",
     shortTitle: "Portfolio Studio",
