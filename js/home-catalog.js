@@ -211,6 +211,18 @@ export const TOOLS_CATALOG = [
     keywords: ["black-litterman", "bayesian", "market equilibrium", "prior", "posterior", "views", "active tilt", "tau", "omega", "reverse optimization", "asset allocation"]
   },
   {
+    id: "rolling-optimization",
+    title: "Rolling Portfolio Optimization Studio",
+    shortTitle: "Rolling Optimization",
+    path: "portfolio-optimization/rolling-optimization.html",
+    icon: "🔄",
+    badge: "STUDIO",
+    desc: "Evaluate dynamic out-of-sample walk-forward portfolio optimization strategies over rolling lookback windows with drift, turnover, and benchmark tracking.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["rolling optimization", "walk forward", "out of sample", "turnover", "lookback", "drift", "rebalancing", "backtest", "sharpe", "risk parity", "cvar"]
+  },
+  {
     id: "portfolio-backtest",
     title: "Portfolio Backtest Studio",
     shortTitle: "Portfolio Studio",
