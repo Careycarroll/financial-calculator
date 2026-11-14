@@ -187,6 +187,18 @@ export const TOOLS_CATALOG = [
     keywords: ["efficient frontier", "portfolio optimization", "markowitz", "mvo", "tangency", "cal", "gmv", "sharpe", "covariance", "transition map", "asset allocation", "weights"]
   },
   {
+    id: "portfolio-optimization",
+    title: "Portfolio Optimization Studio",
+    shortTitle: "Portfolio Optimization",
+    path: "portfolio-optimization/portfolio-optimization.html",
+    icon: "⚖️",
+    badge: "STUDIO",
+    desc: "Optimize portfolio allocations for specific targets: Maximize Sharpe, Minimize Volatility (GMV), Equal Risk Contribution (Risk Parity), or Minimize Tail Risk (CVaR).",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["portfolio optimization", "risk parity", "erc", "cvar", "sortino", "sharpe", "asset allocation", "weights", "minimum variance", "risk contribution", "diversification"]
+  },
+  {
     id: "portfolio-backtest",
     title: "Portfolio Backtest Studio",
     shortTitle: "Portfolio Studio",
