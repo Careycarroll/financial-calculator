@@ -49,7 +49,7 @@
         <button type="button" class="studio-tab active" data-tab="performance" id="tab-btn-performance">📊 Fund Performance</button>
         <button type="button" class="studio-tab" data-tab="screener" id="tab-btn-screener">🔍 Fund Screener</button>
         <button type="button" class="studio-tab" data-tab="rankings" id="tab-btn-rankings">🏆 Fund Rankings</button>
-        <button type="button" class="studio-tab disabled" data-tab="correlations" title="Phase 3: Pairwise Correlation Matrix">🔗 Asset Correlations <span class="studio-tab-badge">Phase 3</span></button>
+        <button type="button" class="studio-tab" data-tab="correlations" id="tab-btn-correlations">🔗 Asset Correlations</button>
       </nav>
 
       <!-- Global Controls Bar -->
@@ -673,6 +673,124 @@
                 <!-- Populated dynamically via JS -->
               </tbody>
             </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- TAB CONTENT: ASSET CORRELATIONS -->
+      <main id="tab-correlations" class="tab-pane hidden">
+        <!-- Correlation Controls Bar -->
+        <section class="correlation-controls-bar" aria-label="Correlation Model Configuration">
+          <div class="correlation-universe-row">
+            <div class="universe-header-row">
+              <span class="control-label-bold">Selected Assets for Correlation Matrix:</span>
+              <div class="universe-quick-actions">
+                <button type="button" class="btn-universe-action" id="btn-corr-select-core">Select Core 5</button>
+                <button type="button" class="btn-universe-action" id="btn-corr-select-all">Select All</button>
+                <button type="button" class="btn-universe-action" id="btn-corr-clear-all">Clear All</button>
+              </div>
+            </div>
+            <!-- Universe Toggle Chips -->
+            <div class="corr-chips-container" id="corr-universe-chips">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <div class="correlation-controls-grid">
+            <div class="control-item">
+              <label for="corr-horizon-select">Time Horizon</label>
+              <select id="corr-horizon-select" class="control-select">
+                <option value="all" selected>All Available History</option>
+                <option value="10y">Last 10 Years</option>
+                <option value="5y">Last 5 Years</option>
+                <option value="3y">Last 3 Years</option>
+                <option value="1y">Last 1 Year</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="corr-window-select">Rolling Correlation Period</label>
+              <select id="corr-window-select" class="control-select">
+                <option value="12">12 Months (1 Year)</option>
+                <option value="24">24 Months (2 Years)</option>
+                <option value="36" selected>36 Months (3 Years)</option>
+                <option value="60">60 Months (5 Years)</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="corr-focus-pair-a">Rolling Chart Asset A</label>
+              <select id="corr-focus-pair-a" class="control-select">
+                <!-- Dynamically populated via JS -->
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="corr-focus-pair-b">Rolling Chart Asset B</label>
+              <select id="corr-focus-pair-b" class="control-select">
+                <!-- Dynamically populated via JS -->
+              </select>
+            </div>
+          </div>
+
+          <div class="screener-actions-row">
+            <span class="screener-status-text" id="corr-status-text">Analyzing assets across common history</span>
+            <div class="screener-btns-right">
+              <button type="button" class="btn-tool-primary" id="btn-export-corr-csv">📥 Export Matrix CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Correlation Matrix Card -->
+        <section class="analytics-card" style="margin-top: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Asset Correlation Matrix &amp; Diversification Heatmap</h3>
+              <span class="card-subtitle">Values range from -1.00 (inverse) to +1.00 (identical co-movement). Click any correlation cell to plot its rolling history below.</span>
+            </div>
+          </div>
+
+          <div class="corr-table-wrapper">
+            <table class="corr-table" id="corr-results-table">
+              <!-- Populated dynamically via JS -->
+            </table>
+          </div>
+        </section>
+
+        <!-- Rolling Correlation Canvas Card -->
+        <section class="analytics-card" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3 id="corr-chart-title">Rolling Correlation Over Time</h3>
+              <span class="card-subtitle" id="corr-chart-subtitle">Historical co-movement regimes with zero-correlation equilibrium line.</span>
+            </div>
+            <div class="chart-legend-box" id="corr-chart-legend">
+              <span class="legend-pill" id="corr-legend-pair"><span class="legend-dot" style="background: #2dd4bf;"></span> <span id="corr-legend-text">QQQ vs VOO Rolling 36M</span></span>
+            </div>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="correlation-canvas" height="340"></canvas>
+            <div class="canvas-tooltip hidden" id="correlation-tooltip"></div>
+          </div>
+
+          <div class="chart-stats-banner" id="corr-stats-banner">
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Current Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-current">0.00</span>
+            </div>
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Mean Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-mean">0.00</span>
+            </div>
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Min Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-min">0.00</span>
+            </div>
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Max Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-max">0.00</span>
+            </div>
           </div>
         </section>
       </main>

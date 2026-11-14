@@ -1498,7 +1498,244 @@ th.active-sort .sort-icon {
 
 @media (max-width: 768px) {
   .screener-controls-grid,
-  .rankings-controls-grid {
+  .rankings-controls-grid,
+  .correlation-controls-grid {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Phase 3: Asset Correlation Studio Styles
+   ========================================================================== */
+
+.correlation-controls-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.correlation-universe-row {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.universe-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.control-label-bold {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.universe-quick-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.btn-universe-action {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.btn-universe-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.corr-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.corr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.corr-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.corr-chip.active {
+  background: rgba(45, 212, 191, 0.12);
+  border-color: rgba(45, 212, 191, 0.4);
+  color: var(--text-primary);
+}
+
+.correlation-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+/* Correlation Table Wrapper & Table */
+.corr-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: #0f172a;
+}
+
+.corr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.corr-table th {
+  background: #1e293b;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.corr-table th.th-asset-meta {
+  text-align: left;
+}
+
+.corr-table td {
+  padding: 0.65rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  font-variant-numeric: tabular-nums;
+  transition: all 0.15s ease;
+}
+
+.corr-table td.cell-asset-name {
+  text-align: left;
+  font-weight: 600;
+  background: #1e293b;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.corr-table td.cell-summary-stat {
+  font-weight: 700;
+  background: rgba(15, 23, 42, 0.6);
+  border-left: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* Heatmap Correlation Values */
+.cell-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.cell-clickable:hover {
+  outline: 2px solid var(--accent);
+  z-index: 2;
+  transform: scale(1.04);
+}
+
+.cell-self {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.cell-active-pair {
+  outline: 2px solid var(--accent);
+  box-shadow: inset 0 0 8px rgba(45, 212, 191, 0.35);
+}
+
+.corr-pos-high {
+  background: rgba(16, 185, 129, 0.28);
+  color: #6ee7b7;
+  font-weight: 700;
+}
+
+.corr-pos-mid {
+  background: rgba(16, 185, 129, 0.14);
+  color: #a7f3d0;
+  font-weight: 600;
+}
+
+.corr-neutral {
+  background: rgba(255, 255, 255, 0.02);
+  color: #cbd5e1;
+}
+
+.corr-neg-mid {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+  font-weight: 600;
+}
+
+.corr-neg-high {
+  background: rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+/* Chart Stats Banner */
+.chart-stats-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.chart-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chart-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.chart-stat-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
