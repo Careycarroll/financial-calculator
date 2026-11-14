@@ -609,6 +609,97 @@ mark.search-highlight {
   padding: 0 2px;
 }
 
+/* ===== BADGE POPOVER (OPTION A) ===== */
+.suite-tool-badge,
+.workflow-card-badge {
+  cursor: help;
+  user-select: none;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.suite-tool-badge:hover,
+.workflow-card-badge:hover,
+.suite-tool-badge:focus-visible,
+.workflow-card-badge:focus-visible {
+  transform: scale(1.06);
+  box-shadow: 0 0 10px rgba(45, 212, 191, 0.35);
+  outline: none;
+}
+
+.badge-popover {
+  position: absolute;
+  z-index: 1000;
+  width: 300px;
+  max-width: 90vw;
+  background: #0b1120;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 0.95rem 1.15rem;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(45, 212, 191, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.badge-popover.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.popover-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.popover-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+
+.popover-desc {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Popover Arrow */
+.popover-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #0b1120;
+  border: 1px solid var(--accent);
+  transform: rotate(45deg);
+  left: calc(50% - 5px);
+}
+
+.badge-popover.arrow-bottom .popover-arrow {
+  bottom: -6px;
+  border-top: none;
+  border-left: none;
+}
+
+.badge-popover.arrow-top .popover-arrow {
+  top: -6px;
+  border-bottom: none;
+  border-right: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .suite-hub-grid {
