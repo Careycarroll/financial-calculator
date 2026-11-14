@@ -228,6 +228,7 @@ Phase 14: Multi-Factor Fund Screener & Performance Rankings -- Completed Novembe
 Phase 15: Asset Correlation Studio & Rolling Correlation Chart -- Completed November 2026. Standalone correlation engine (asset-analytics/correlation-engine.js), interactive multi-asset universe chips, N×N Pearson correlation heatmap matrix with cell-click pair selection, High-DPI rolling correlation canvas chart with zero baseline and dynamic tooltips.
 Phase 16: Autocorrelation & Cointegration Lab -- Completed November 2026. Standalone time-series engine (asset-analytics/timeseries-engine.js), multi-lag rolling autocorrelation (Lags 1, 3, 12) with zero-line area shading, Engle-Granger two-step cointegration with Augmented Dickey-Fuller (ADF) regression, MacKinnon response surface p-values, pairs mean-reverting spread and residual z-score chart with +/- 1σ and +/- 2σ statistical arbitrage bands.
 Phase 17: Screener Two-Tier PV Taxonomy & Criteria -- Completed November 2026. Added 11 canonical PV asset classes, dynamic sub-category drill-downs, Fund Type inference (ETF, Mutual Fund, CEF), and Expense Ratio threshold filtering to Fund Screener and Performance Rankings.
+Phase 18: Unified Searchable Asset Modal -- Completed November 2026. Built standalone shared asset modal component (js/asset-modal.js, css/asset-modal.css) with live search, presets, categories, and CSV dropzone; integrated into Fund Regression and DCA Comparator.
 
 ## Prompt Maintenance
 
