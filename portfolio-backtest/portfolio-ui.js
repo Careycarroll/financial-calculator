@@ -237,7 +237,7 @@ function updateWeightTotals() {
       statusEl.textContent = '(Inactive)';
     } else if (Math.abs(sum - 100) < 0.05) {
       statusEl.classList.add('valid');
-      statusEl.textContent = '✓ 100%';
+      statusEl.textContent = '✓ Valid';
     } else {
       statusEl.classList.add('invalid');
       statusEl.textContent = sum < 100 ? `${(100 - sum).toFixed(1)}% Left` : `+${(sum - 100).toFixed(1)}% Over`;
@@ -1449,6 +1449,12 @@ function attachEventListeners() {
         const val = Math.max(0, parseFloat(e.target.value) || 0);
         state.rows[rowIdx][col] = val;
         updateWeightTotals();
+      }
+    });
+
+    elements.allocationsTbody.addEventListener('focusin', (e) => {
+      if (e.target.classList.contains('weight-input')) {
+        e.target.select();
       }
     });
 
