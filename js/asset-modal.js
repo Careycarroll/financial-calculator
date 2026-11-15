@@ -38,9 +38,16 @@ function ensureModalDOM() {
   if (!document.querySelector('link[href*="asset-modal.css"]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    const isSubdir = document.location.pathname.includes('/fund-regression/') ||
-                     document.location.pathname.includes('/dca-comparator/') ||
-                     document.location.pathname.includes('/asset-analytics/');
+    const path = window.location?.pathname || '';
+    const isSubdir = path.includes('/portfolio-optimization/') ||
+                     path.includes('/fund-regression/') ||
+                     path.includes('/dca-comparator/') ||
+                     path.includes('/asset-analytics/') ||
+                     path.includes('/fixed-income/') ||
+                     path.includes('/tactical-allocation/') ||
+                     path.includes('/monte-carlo/') ||
+                     path.includes('/pages/') ||
+                     (path.split('/').filter(Boolean).length > 1 && !path.endsWith('/index.html'));
     link.href = isSubdir ? '../css/asset-modal.css' : 'css/asset-modal.css';
     document.head.appendChild(link);
   }
