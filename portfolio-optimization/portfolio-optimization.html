@@ -178,6 +178,7 @@
                 <option value="min-vol">🛡️ Mean Variance - Minimize Volatility (GMV)</option>
                 <option value="risk-parity">⚖️ Risk Parity (Equal Risk Contribution / ERC)</option>
                 <option value="hrp">🌳 Hierarchical Risk Parity (HRP / Machine Learning)</option>
+                <option value="max-utility">💡 Bodie Expected Utility Maximization (CRRA Risk Aversion A)</option>
                 <option value="min-cvar">🔻 Tail Risk - Minimize Conditional Value-at-Risk (95% CVaR)</option>
                 <option value="target-return">📈 Mean Variance - Minimize Volatility for Target Return</option>
                 <option value="target-vol">📉 Mean Variance - Maximize Return for Target Volatility</option>
@@ -201,6 +202,10 @@
             <div class="setting-item" id="wrap-target-val" style="display: none;">
               <label for="input-target-val" id="lbl-target-val">Target Return (%)</label>
               <input type="number" id="input-target-val" class="setting-input" value="10.0" step="0.5" />
+            </div>
+            <div class="setting-item" id="wrap-risk-aversion" style="display: none;">
+              <label for="opt-risk-aversion" id="lbl-risk-aversion">Risk Aversion (A = <span id="lbl-risk-aversion-opt-val">3.0</span>)</label>
+              <input type="range" id="opt-risk-aversion" class="setting-range" min="1.0" max="10.0" step="0.5" value="3.0" style="width: 100%; margin-top: 0.4rem;" />
             </div>
             <div class="setting-item">
               <label for="opt-rf-input">Risk-Free Rate (%)</label>

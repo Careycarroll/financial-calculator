@@ -417,6 +417,10 @@
   border-top: 3px solid #10b981;
 }
 
+.flagship-card.cal-card {
+  border-top: 3px solid #a855f7;
+}
+
 .card-title-row {
   display: flex;
   align-items: center;
@@ -453,6 +457,12 @@
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.card-pill.cal {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .card-metrics-grid {

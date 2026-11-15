@@ -14,6 +14,8 @@ import {
   solveTangencyPortfolio,
   solveRiskParity,
   solveHRP,
+  solveMaxUtilityPortfolio,
+  calculateExpectedUtility,
   solveMinCVaR,
   solveTargetReturnPortfolio,
   solveTargetRiskPortfolio,
@@ -47,6 +49,7 @@ const state = {
     QQQ: { min: 0, max: 100 }
   },
   goal: 'max-sharpe',
+  riskAversion: 3.0,
   baseline: 'equal',
   covarianceEstimator: 'ledoit-wolf',
   targetValue: 0.10,
@@ -82,6 +85,9 @@ const elements = {
   wrapTargetVal: document.getElementById('wrap-target-val'),
   lblTargetVal: document.getElementById('lbl-target-val'),
   inputTargetVal: document.getElementById('input-target-val'),
+  wrapRiskAversion: document.getElementById('wrap-risk-aversion'),
+  inputRiskAversion: document.getElementById('opt-risk-aversion'),
+  lblRiskAversionVal: document.getElementById('lbl-risk-aversion-opt-val'),
   inputRf: document.getElementById('opt-rf-input'),
   selectStartDate: document.getElementById('opt-start-date'),
   selectEndDate: document.getElementById('opt-end-date'),
@@ -218,6 +224,16 @@ function init() {
     });
   }
 
+  // Risk Aversion input
+  if (elements.inputRiskAversion) {
+    elements.inputRiskAversion.addEventListener('input', () => {
+      state.riskAversion = parseFloat(elements.inputRiskAversion.value) || 3.0;
+      if (elements.lblRiskAversionVal) {
+        elements.lblRiskAversionVal.textContent = state.riskAversion.toFixed(1);
+      }
+    });
+  }
+
   // Subscribe to session fund updates
   subscribeSessionFunds(() => {
     renderAssetTable();
@@ -257,12 +273,18 @@ function updateGoalUI() {
     elements.wrapTargetVal.style.display = 'flex';
     elements.lblTargetVal.textContent = 'Target Return (%)';
     elements.inputTargetVal.value = '10.0';
+    if (elements.wrapRiskAversion) elements.wrapRiskAversion.style.display = 'none';
   } else if (goal === 'target-vol') {
     elements.wrapTargetVal.style.display = 'flex';
     elements.lblTargetVal.textContent = 'Target Volatility (%)';
     elements.inputTargetVal.value = '12.0';
+    if (elements.wrapRiskAversion) elements.wrapRiskAversion.style.display = 'none';
+  } else if (goal === 'max-utility') {
+    elements.wrapTargetVal.style.display = 'none';
+    if (elements.wrapRiskAversion) elements.wrapRiskAversion.style.display = 'flex';
   } else {
     elements.wrapTargetVal.style.display = 'none';
+    if (elements.wrapRiskAversion) elements.wrapRiskAversion.style.display = 'none';
   }
 }
 
@@ -412,6 +434,9 @@ function syncInputsToState() {
   if (elements.inputTargetVal) {
     state.targetValue = (parseFloat(elements.inputTargetVal.value) || 10.0) / 100;
   }
+  if (elements.inputRiskAversion) {
+    state.riskAversion = parseFloat(elements.inputRiskAversion.value) || 3.0;
+  }
 }
 
 function updateTimelineSelects() {
@@ -511,6 +536,8 @@ function runOptimization() {
       optimal = solveRiskParity(stats.expectedReturns, stats.covarianceMatrix, optOptions);
     } else if (goal === 'hrp') {
       optimal = solveHRP(stats.expectedReturns, stats.covarianceMatrix, stats.correlationMatrix, optOptions);
+    } else if (goal === 'max-utility') {
+      optimal = solveMaxUtilityPortfolio(stats.expectedReturns, stats.covarianceMatrix, state.riskAversion, optOptions);
     } else if (goal === 'min-cvar') {
       optimal = solveMinCVaR(stats.expectedReturns, stats.monthlyReturns, stats.covarianceMatrix, optOptions);
     } else if (goal === 'target-return') {
