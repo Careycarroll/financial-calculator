@@ -31,7 +31,10 @@ import {
   matrixMultiply,
   computeImpliedEquilibriumReturns,
   solveBlackLitterman,
-  runRollingOptimization
+  runRollingOptimization,
+  jacobiEigenvalues,
+  calculateMatrixConditionNumber,
+  ledoitWolfConstantCorrelation
 } from '../portfolio-optimization/optimization-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 
@@ -297,5 +300,57 @@ console.log(`Strategy Final Value:       $${rollingResult.trajectory[nSteps].toF
 console.log(`Baseline Final Value:       $${rollingResult.baseTrajectory[nSteps].toFixed(2)} | CAGR: ${(rollingResult.baselineStats.cagr * 100).toFixed(2)}% | Sharpe: ${rollingResult.baselineStats.sharpeRatio.toFixed(3)}`);
 console.log(`Annualized Turnover:        ${(rollingResult.strategyStats.avgAnnualTurnover * 100).toFixed(1)}%/yr`);
 console.log('✅ PASS: Walk-forward rolling out-of-sample simulation, rebalancing drift, and turnover verified');
+
+// TEST 12: Ledoit-Wolf Covariance Shrinkage & Condition Number Stabilization
+console.log('\n--- TEST 12: Ledoit-Wolf Optimal Shrinkage & Condition Number ---');
+const fourFunds = [
+  PRESET_BENCHMARKS.find(f => f.ticker === 'VOO'),
+  PRESET_BENCHMARKS.find(f => f.ticker === 'QQQ'),
+  PRESET_BENCHMARKS.find(f => f.ticker === 'SCHD'),
+  PRESET_BENCHMARKS.find(f => f.ticker === 'BND')
+];
+
+// 1. Condition number calculator verification
+const diag2 = [[4, 0], [0, 2]];
+const cond2 = calculateMatrixConditionNumber(diag2);
+assert(Math.abs(cond2.conditionNumber - 2.0) < 1e-6, `2x2 diagonal condition number is 2.0 (got ${cond2.conditionNumber})`);
+assert(Math.abs(cond2.maxEigenvalue - 4.0) < 1e-6, 'Max eigenvalue is 4.0');
+assert(Math.abs(cond2.minEigenvalue - 2.0) < 1e-6, 'Min eigenvalue is 2.0');
+console.log('✅ PASS: Matrix condition number calculator verified on known diagonal matrix');
+
+// 2. Full history Ledoit-Wolf statistics
+const lwStats = computeAssetStatistics(fourFunds, { riskFreeRate: 0.03, covarianceEstimator: 'ledoit-wolf' });
+assert(lwStats.covarianceEstimator === 'ledoit-wolf', 'Active estimator is ledoit-wolf');
+assert(lwStats.shrinkageIntensity >= 0 && lwStats.shrinkageIntensity <= 1.0, `Shrinkage intensity delta* in [0, 1] (got ${lwStats.shrinkageIntensity})`);
+assert(lwStats.averageCorrelation > 0 && lwStats.averageCorrelation < 1.0, `Average correlation rBar is realistic (got ${lwStats.averageCorrelation.toFixed(3)})`);
+assert(lwStats.shrunkConditionNumber < lwStats.sampleConditionNumber, `Shrunk condition number (${lwStats.shrunkConditionNumber.toFixed(2)}) is strictly less than sample (${lwStats.sampleConditionNumber.toFixed(2)})`);
+assert(lwStats.conditionImprovementPercent > 50, `Condition improvement exceeds 50% (got ${lwStats.conditionImprovementPercent.toFixed(1)}%)`);
+
+// Verify positive definiteness: all eigenvalues of shrunk covariance must be strictly positive
+const { eigenvalues: lwEvals } = jacobiEigenvalues(lwStats.shrunkCovarianceMatrix);
+lwEvals.forEach((ev, idx) => {
+  assert(ev > 0, `Eigenvalue ${idx} of shrunk covariance is positive (${ev})`);
+});
+console.log(`Full History (T=179): delta* = ${lwStats.shrinkageIntensity.toFixed(4)} | rBar = ${lwStats.averageCorrelation.toFixed(4)}`);
+console.log(`Condition Number: kappa(S) = ${lwStats.sampleConditionNumber.toFixed(2)} -> kappa(Sigma) = ${lwStats.shrunkConditionNumber.toFixed(2)} (${lwStats.conditionImprovementPercent.toFixed(1)}% improvement)`);
+console.log('✅ PASS: Ledoit-Wolf shrinkage produces strictly positive definite well-conditioned matrix');
+
+// 3. Short sample noise stress test (T=12 observations)
+const shortReturns = lwStats.monthlyReturns.map(r => r.slice(-12));
+const shortLw = ledoitWolfConstantCorrelation(shortReturns, { annualize: true });
+assert(shortLw.shrinkageIntensity > lwStats.shrinkageIntensity, `Short-window delta* (${shortLw.shrinkageIntensity.toFixed(4)}) exceeds full-history delta* (${lwStats.shrinkageIntensity.toFixed(4)})`);
+assert(shortLw.conditionImprovementPercent > 80, `Short-window condition improvement exceeds 80% (got ${shortLw.conditionImprovementPercent.toFixed(1)}%)`);
+console.log(`Short Sample (T=12):  delta* = ${shortLw.shrinkageIntensity.toFixed(4)} | kappa(S) = ${shortLw.sampleConditionNumber.toFixed(2)} -> kappa(Sigma) = ${shortLw.shrunkConditionNumber.toFixed(2)} (${shortLw.conditionImprovementPercent.toFixed(1)}% improvement)`);
+console.log('✅ PASS: Ledoit-Wolf aggressively increases shrinkage intensity in short-sample noisy regimes');
+
+// 4. Optimization stability check with shrunk covariance
+const tangencySample = solveTangencyPortfolio(lwStats.expectedReturns, lwStats.sampleCovarianceMatrix, { riskFreeRate: 0.03 });
+const tangencyShrunk = solveTangencyPortfolio(lwStats.expectedReturns, lwStats.shrunkCovarianceMatrix, { riskFreeRate: 0.03 });
+assert(tangencyShrunk.weights.every(w => w >= -1e-6 && w <= 1.000001), 'Tangency weights feasible under shrunk covariance');
+const sumWeightsShrunk = tangencyShrunk.weights.reduce((a, b) => a + b, 0);
+assert(Math.abs(sumWeightsShrunk - 1.0) < 1e-5, 'Tangency weights sum to 100% under shrunk covariance');
+console.log('Sample Tangency:  VOO: ' + (tangencySample.weights[0]*100).toFixed(1) + '% | QQQ: ' + (tangencySample.weights[1]*100).toFixed(1) + '% | SCHD: ' + (tangencySample.weights[2]*100).toFixed(1) + '% | BND: ' + (tangencySample.weights[3]*100).toFixed(1) + '%');
+console.log('Shrunk Tangency:  VOO: ' + (tangencyShrunk.weights[0]*100).toFixed(1) + '% | QQQ: ' + (tangencyShrunk.weights[1]*100).toFixed(1) + '% | SCHD: ' + (tangencyShrunk.weights[2]*100).toFixed(1) + '% | BND: ' + (tangencyShrunk.weights[3]*100).toFixed(1) + '%');
+console.log('✅ PASS: Mean-variance optimization successfully solves with stabilized shrunk covariance');
 
 console.log('\n🎉 ALL PORTFOLIO OPTIMIZATION TESTS PASSED SUCCESSFULLY!');

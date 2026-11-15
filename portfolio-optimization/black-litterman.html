@@ -158,6 +158,11 @@
           <span class="status-sub" id="status-total-months">(0 Months)</span>
         </div>
         <div class="status-pill">
+          <span>Covariance:</span>
+          <strong id="status-bl-cov-name">Ledoit-Wolf Shrunk</strong>
+          <span class="status-sub" id="status-bl-cov-cond">&kappa; = --</span>
+        </div>
+        <div class="status-pill">
           <span>Risk Aversion (δ):</span>
           <strong id="status-delta-val">--</strong>
         </div>
@@ -223,6 +228,13 @@
 
           <!-- Model Parameter Controls -->
           <div class="settings-grid">
+            <div class="setting-item">
+              <label for="bl-cov-estimator">Covariance Estimator</label>
+              <select id="bl-cov-estimator" class="setting-select">
+                <option value="ledoit-wolf" selected>🔬 Ledoit-Wolf Shrunk (Institutional)</option>
+                <option value="sample">📊 Sample Covariance (Unshrunk)</option>
+              </select>
+            </div>
             <div class="setting-item">
               <label for="bl-market-return">Expected Market Return (%)</label>
               <input type="number" id="bl-market-return" class="setting-input" value="8.0" step="0.5" />

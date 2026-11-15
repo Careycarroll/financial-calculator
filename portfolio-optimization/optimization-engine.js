@@ -79,6 +79,301 @@ export function findCommonDateRange(funds) {
 }
 
 /**
+ * Computes eigenvalues and eigenvectors of a real symmetric K x K matrix
+ * using the classical Jacobi rotation method with quadratic convergence.
+ *
+ * @param {Array<Array<number>>} A - Symmetric K x K matrix
+ * @param {number} [maxSweeps=50]
+ * @param {number} [tol=1e-12]
+ * @returns {{ eigenvalues: Array<number>, eigenvectors: Array<Array<number>> }}
+ */
+export function jacobiEigenvalues(A, maxSweeps = 50, tol = 1e-12) {
+  const K = A.length;
+  if (K === 0) return { eigenvalues: [], eigenvectors: [] };
+  if (K === 1) return { eigenvalues: [A[0][0]], eigenvectors: [[1]] };
+
+  // Clone A into working matrix S
+  const S = Array.from({ length: K }, (_, r) => Float64Array.from(A[r]));
+
+  // Initialize V to identity matrix I_K
+  const V = Array.from({ length: K }, (_, r) => {
+    const row = new Float64Array(K);
+    row[r] = 1.0;
+    return row;
+  });
+
+  for (let sweep = 0; sweep < maxSweeps; sweep++) {
+    let maxOffDiag = 0;
+    for (let i = 0; i < K - 1; i++) {
+      for (let j = i + 1; j < K; j++) {
+        const absVal = Math.abs(S[i][j]);
+        if (absVal > maxOffDiag) maxOffDiag = absVal;
+      }
+    }
+
+    if (maxOffDiag < tol) break;
+
+    for (let p = 0; p < K - 1; p++) {
+      for (let q = p + 1; q < K; q++) {
+        const spq = S[p][q];
+        if (Math.abs(spq) < tol) continue;
+
+        const spp = S[p][p];
+        const sqq = S[q][q];
+        const theta = (sqq - spp) / (2.0 * spq);
+        const t = Math.sign(theta || 1.0) / (Math.abs(theta) + Math.sqrt(theta * theta + 1.0));
+        const c = 1.0 / Math.sqrt(t * t + 1.0);
+        const s = t * c;
+        const tau = s / (1.0 + c);
+
+        S[p][p] = spp - t * spq;
+        S[q][q] = sqq + t * spq;
+        S[p][q] = 0.0;
+        S[q][p] = 0.0;
+
+        for (let r = 0; r < K; r++) {
+          if (r !== p && r !== q) {
+            const s_rp = S[r][p];
+            const s_rq = S[r][q];
+            S[r][p] = s_rp - s * (s_rq + tau * s_rp);
+            S[p][r] = S[r][p];
+            S[r][q] = s_rq + s * (s_rp - tau * s_rq);
+            S[q][r] = S[r][q];
+          }
+        }
+
+        for (let r = 0; r < K; r++) {
+          const v_rp = V[r][p];
+          const v_rq = V[r][q];
+          V[r][p] = v_rp - s * (v_rq + tau * v_rp);
+          V[r][q] = v_rq + s * (v_rp - tau * v_rq);
+        }
+      }
+    }
+  }
+
+  const rawEvals = Array.from({ length: K }, (_, i) => S[i][i]);
+  const indices = Array.from({ length: K }, (_, i) => i);
+  indices.sort((a, b) => rawEvals[b] - rawEvals[a]);
+
+  const sortedEvals = indices.map(i => rawEvals[i]);
+  const sortedEvecs = Array.from({ length: K }, (_, r) => indices.map(col => V[r][col]));
+
+  return { eigenvalues: sortedEvals, eigenvectors: sortedEvecs };
+}
+
+/**
+ * Computes the 2-norm condition number kappa(A) of a symmetric positive semi-definite matrix.
+ * kappa(A) = lambda_max / lambda_min
+ *
+ * @param {Array<Array<number>>} matrix
+ * @returns {{ conditionNumber: number, maxEigenvalue: number, minEigenvalue: number }}
+ */
+export function calculateMatrixConditionNumber(matrix) {
+  const K = matrix.length;
+  if (K === 0) return { conditionNumber: 1, maxEigenvalue: 0, minEigenvalue: 0 };
+  if (K === 1) return { conditionNumber: 1, maxEigenvalue: matrix[0][0], minEigenvalue: matrix[0][0] };
+
+  const { eigenvalues } = jacobiEigenvalues(matrix);
+  const maxEigenvalue = eigenvalues[0];
+  const minEigenvalue = Math.max(1e-12, eigenvalues[eigenvalues.length - 1]);
+  const conditionNumber = maxEigenvalue / minEigenvalue;
+
+  return { conditionNumber, maxEigenvalue, minEigenvalue };
+}
+
+/**
+ * Computes the Ledoit & Wolf (2004) constant-correlation covariance shrinkage estimator.
+ * Solves analytically for the optimal shrinkage intensity delta* minimizing Frobenius loss:
+ * Sigma_shrunk = delta* F + (1 - delta*) S
+ *
+ * @param {Array<Array<number>>} returns - N assets by T monthly return observations
+ * @param {Object} [options]
+ * @param {boolean} [options.annualize=true] - Whether to annualize covariance matrices (* 12)
+ * @returns {Object} Shrinkage results, target, condition numbers, and shrunk covariance
+ */
+export function ledoitWolfConstantCorrelation(returns, options = {}) {
+  const annualize = options.annualize !== false;
+  const N = returns.length;
+  const T = returns[0].length;
+
+  if (N < 2) {
+    throw new Error('At least 2 assets are required for Ledoit-Wolf shrinkage.');
+  }
+  if (T < 3) {
+    throw new Error('At least 3 observations are required for covariance estimation.');
+  }
+
+  // 1. De-mean returns: y_{i,t} = r_{i,t} - mean(r_i)
+  const means = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    let sum = 0;
+    for (let t = 0; t < T; t++) sum += returns[i][t];
+    means[i] = sum / T;
+  }
+
+  const y = [];
+  for (let i = 0; i < N; i++) {
+    const row = new Float64Array(T);
+    for (let t = 0; t < T; t++) {
+      row[t] = returns[i][t] - means[i];
+    }
+    y.push(row);
+  }
+
+  // 2. Sample covariance matrix S: s_{i,j} = (1 / T) * sum_t (y_{i,t} * y_{j,t})
+  const S = [];
+  for (let i = 0; i < N; i++) {
+    S[i] = new Float64Array(N);
+  }
+
+  for (let i = 0; i < N; i++) {
+    for (let j = i; j < N; j++) {
+      let sum = 0;
+      for (let t = 0; t < T; t++) {
+        sum += y[i][t] * y[j][t];
+      }
+      const s_ij = sum / T;
+      S[i][j] = s_ij;
+      S[j][i] = s_ij;
+    }
+  }
+
+  // Variances and standard deviations
+  const std = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    std[i] = Math.sqrt(Math.max(1e-12, S[i][i]));
+  }
+
+  // Sample correlation matrix R
+  const R = [];
+  for (let i = 0; i < N; i++) {
+    R[i] = new Float64Array(N);
+    for (let j = 0; j < N; j++) {
+      R[i][j] = S[i][j] / (std[i] * std[j]);
+    }
+  }
+
+  // 3. Average correlation: rBar = 2 / (N * (N - 1)) * sum_{i < j} r_{i,j}
+  let sumCorr = 0;
+  let countPairs = 0;
+  for (let i = 0; i < N - 1; i++) {
+    for (let j = i + 1; j < N; j++) {
+      sumCorr += R[i][j];
+      countPairs++;
+    }
+  }
+  const rBar = countPairs > 0 ? sumCorr / countPairs : 0;
+
+  // 4. Target matrix F: f_{i,i} = s_{i,i}, f_{i,j} = rBar * std_i * std_j
+  const F = [];
+  for (let i = 0; i < N; i++) {
+    F[i] = new Float64Array(N);
+    for (let j = 0; j < N; j++) {
+      if (i === j) {
+        F[i][j] = S[i][j];
+      } else {
+        F[i][j] = rBar * std[i] * std[j];
+      }
+    }
+  }
+
+  // 5. Asymptotic variance components:
+  let piHat = 0;
+  const piMat = [];
+  for (let i = 0; i < N; i++) {
+    piMat[i] = new Float64Array(N);
+    for (let j = 0; j < N; j++) {
+      let sumSq = 0;
+      for (let t = 0; t < T; t++) {
+        const dev = y[i][t] * y[j][t] - S[i][j];
+        sumSq += dev * dev;
+      }
+      const p_ij = sumSq / T;
+      piMat[i][j] = p_ij;
+      piHat += p_ij;
+    }
+  }
+
+  // gammaHat = sum_{i,j} (f_{i,j} - s_{i,j})^2
+  let gammaHat = 0;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const diff = F[i][j] - S[i][j];
+      gammaHat += diff * diff;
+    }
+  }
+
+  // rhoHat = sum_i piMat_{i,i} + sum_{i != j} rhoOff_{i,j}
+  let rhoDiag = 0;
+  for (let i = 0; i < N; i++) {
+    rhoDiag += piMat[i][i];
+  }
+
+  let rhoOff = 0;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      if (i === j) continue;
+      let sumThetaI = 0;
+      let sumThetaJ = 0;
+      for (let t = 0; t < T; t++) {
+        const prodDev = y[i][t] * y[j][t] - S[i][j];
+        sumThetaI += (y[i][t] * y[i][t] - S[i][i]) * prodDev;
+        sumThetaJ += (y[j][t] * y[j][t] - S[j][j]) * prodDev;
+      }
+      const thetaI = sumThetaI / T;
+      const thetaJ = sumThetaJ / T;
+      const rho_ij = (rBar / 2) * ((std[j] / std[i]) * thetaI + (std[i] / std[j]) * thetaJ);
+      rhoOff += rho_ij;
+    }
+  }
+
+  const rhoHat = rhoDiag + rhoOff;
+
+  // 6. Optimal shrinkage intensity delta^*:
+  let deltaStar = 0;
+  if (gammaHat > 1e-15) {
+    const kappa = (piHat - rhoHat) / gammaHat;
+    deltaStar = Math.max(0, Math.min(1, kappa / T));
+  }
+
+  // 7. Shrunk covariance matrix: Sigma = deltaStar * F + (1 - deltaStar) * S
+  const Sigma = [];
+  for (let i = 0; i < N; i++) {
+    Sigma[i] = new Float64Array(N);
+    for (let j = 0; j < N; j++) {
+      Sigma[i][j] = deltaStar * F[i][j] + (1 - deltaStar) * S[i][j];
+    }
+  }
+
+  // Scale by 12 if annualize requested
+  const scale = annualize ? 12 : 1;
+  const sampleCov = S.map(r => Array.from(r).map(v => v * scale));
+  const targetCov = F.map(r => Array.from(r).map(v => v * scale));
+  const shrunkCov = Sigma.map(r => Array.from(r).map(v => v * scale));
+
+  // Condition numbers
+  const sampleCond = calculateMatrixConditionNumber(sampleCov);
+  const shrunkCond = calculateMatrixConditionNumber(shrunkCov);
+
+  return {
+    shrinkageIntensity: deltaStar,
+    averageCorrelation: rBar,
+    piHat: piHat * (scale * scale),
+    rhoHat: rhoHat * (scale * scale),
+    gammaHat: gammaHat * (scale * scale),
+    sampleCovariance: sampleCov,
+    targetCovariance: targetCov,
+    shrunkCovariance: shrunkCov,
+    sampleConditionNumber: sampleCond.conditionNumber,
+    shrunkConditionNumber: shrunkCond.conditionNumber,
+    conditionImprovementPercent: sampleCond.conditionNumber > 0
+      ? ((sampleCond.conditionNumber - shrunkCond.conditionNumber) / sampleCond.conditionNumber) * 100
+      : 0
+  };
+}
+
+/**
  * Computes asset return series, annualized mean returns, covariance matrix,
  * correlation matrix, and individual asset risk metrics.
  * Follows Portfolio Visualizer's ex-ante arithmetic monthly mean convention:
@@ -197,6 +492,11 @@ export function computeAssetStatistics(assets, options = {}) {
     sharpeRatios[i] = volatilities[i] > 0 ? (expectedReturns[i] - annualRf) / volatilities[i] : 0;
   }
 
+  // 5. Ledoit & Wolf (2004) Constant-Correlation Covariance Shrinkage
+  const lw = ledoitWolfConstantCorrelation(monthlyReturns, { annualize: true });
+  const estimator = options.covarianceEstimator === 'ledoit-wolf' ? 'ledoit-wolf' : 'sample';
+  const activeCovariance = estimator === 'ledoit-wolf' ? lw.shrunkCovariance : covarianceMatrix;
+
   return {
     dateRange: { start, end, totalMonths: totalPeriods },
     numAssets,
@@ -206,7 +506,16 @@ export function computeAssetStatistics(assets, options = {}) {
     expectedReturns,
     volatilities,
     sharpeRatios,
-    covarianceMatrix,
+    covarianceMatrix: activeCovariance,
+    sampleCovarianceMatrix: covarianceMatrix,
+    shrunkCovarianceMatrix: lw.shrunkCovariance,
+    targetCovarianceMatrix: lw.targetCovariance,
+    shrinkageIntensity: lw.shrinkageIntensity,
+    averageCorrelation: lw.averageCorrelation,
+    sampleConditionNumber: lw.sampleConditionNumber,
+    shrunkConditionNumber: lw.shrunkConditionNumber,
+    conditionImprovementPercent: lw.conditionImprovementPercent,
+    covarianceEstimator: estimator,
     correlationMatrix,
     monthlyReturns
   };
@@ -1508,19 +1817,25 @@ export function runRollingOptimization(assets, options = {}) {
       const inSampleMeans = inSampleReturns.map(r => r.reduce((a, b) => a + b, 0) / lookbackMonths);
       const inSampleExpectedReturns = inSampleMeans.map(m => m * 12);
 
-      const inSampleCov = [];
-      for (let i = 0; i < numAssets; i++) {
-        inSampleCov[i] = new Array(numAssets).fill(0);
-      }
-      for (let i = 0; i < numAssets; i++) {
-        for (let j = i; j < numAssets; j++) {
-          let sumP = 0;
-          for (let m = 0; m < lookbackMonths; m++) {
-            sumP += (inSampleReturns[i][m] - inSampleMeans[i]) * (inSampleReturns[j][m] - inSampleMeans[j]);
+      let inSampleCov;
+      if (options.covarianceEstimator === 'ledoit-wolf') {
+        const lw = ledoitWolfConstantCorrelation(inSampleReturns, { annualize: true });
+        inSampleCov = lw.shrunkCovariance;
+      } else {
+        inSampleCov = [];
+        for (let i = 0; i < numAssets; i++) {
+          inSampleCov[i] = new Array(numAssets).fill(0);
+        }
+        for (let i = 0; i < numAssets; i++) {
+          for (let j = i; j < numAssets; j++) {
+            let sumP = 0;
+            for (let m = 0; m < lookbackMonths; m++) {
+              sumP += (inSampleReturns[i][m] - inSampleMeans[i]) * (inSampleReturns[j][m] - inSampleMeans[j]);
+            }
+            const covAnnual = (sumP / (lookbackMonths - 1)) * 12;
+            inSampleCov[i][j] = covAnnual;
+            inSampleCov[j][i] = covAnnual;
           }
-          const covAnnual = (sumP / (lookbackMonths - 1)) * 12;
-          inSampleCov[i][j] = covAnnual;
-          inSampleCov[j][i] = covAnnual;
         }
       }
 

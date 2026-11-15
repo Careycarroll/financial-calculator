@@ -86,9 +86,9 @@
               <p>• <strong>The 60/40 Fallacy</strong>: A 60/40 portfolio derives ~90% of its risk from equities.<br>• <strong>Equal Risk Contribution (ERC)</strong>: Allocates more weight to low-volatility assets so every asset contributes equally to risk.</p>
             </div>
             <div class="cheat-item">
-              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
-              <strong>Tail-Risk CVaR vs Sharpe</strong>
-              <p>• <strong>Max Sharpe</strong>: Maximizes mean efficiency during standard market regimes.<br>• <strong>Min CVaR (Expected Shortfall)</strong>: Minimizes losses in the worst 5% crash months during systemic liquidity crises.</p>
+              <div class="cheat-badge scale-hedge">💡 Institutional Covariance</div>
+              <strong>Ledoit-Wolf Shrinkage &amp; Condition Number</strong>
+              <p>• <strong>Error Maximization</strong>: Inverting raw sample covariances amplifies estimation error into extreme corner bets.<br>• <strong>Ledoit-Wolf Target ($F$)</strong>: Asymptotically shrinks covariance toward constant-correlation matrix ($\Sigma^* = \delta^* F + (1-\delta^*)S$).<br>• <strong>Condition Number $\kappa(\Sigma)$</strong>: Measures invertibility stability before and after shrinkage.</p>
             </div>
           </div>
         </div>
@@ -108,6 +108,11 @@
         <div class="status-pill">
           <span>Baseline:</span>
           <strong id="status-baseline-name">Equal Weighted (1/N)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Covariance:</span>
+          <strong id="status-cov-name">Ledoit-Wolf Shrunk</strong>
+          <span class="status-sub" id="status-cov-cond">&kappa; = --</span>
         </div>
         <div class="status-pill">
           <span>Risk-Free Rate:</span>
@@ -183,6 +188,13 @@
                 <option value="equal" selected>Equal Weighted (1/N)</option>
                 <option value="inv-vol">Inverse Volatility Weighted</option>
                 <option value="benchmark">Core Asset Benchmark (e.g. VOO or BND)</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label for="select-cov-estimator">Covariance Estimator</label>
+              <select id="select-cov-estimator" class="setting-select">
+                <option value="ledoit-wolf" selected>🔬 Ledoit-Wolf Shrunk (Institutional)</option>
+                <option value="sample">📊 Sample Covariance (Unshrunk)</option>
               </select>
             </div>
             <div class="setting-item" id="wrap-target-val" style="display: none;">
