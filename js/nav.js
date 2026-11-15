@@ -20,6 +20,7 @@
         { id: "time-series", name: "Time Series Lab", icon: "⏱️", path: "asset-analytics/time-series.html", desc: "Autocorrelation, momentum persistence, seasonality & cointegration ADF test" },
         { id: "fixed-income", name: "Fixed Income & Duration", icon: "🏛️", path: "fixed-income/index.html", desc: "Bond pricing, YTM solver, Macaulay/Modified duration, convexity & immunization" },
         { id: "yield-curve", name: "Term Structure & Forwards", icon: "📈", path: "fixed-income/yield-curve.html", desc: "Theoretical zero-coupon spot bootstrapping, 1Y forward rates & expectations" },
+        { id: "key-rate-duration", name: "Key Rate Duration (KRD)", icon: "📊", path: "fixed-income/key-rate-duration.html", desc: "Key rate duration profile & non-parallel yield curve shift stress testing" },
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" }
       ],
       bridges: [

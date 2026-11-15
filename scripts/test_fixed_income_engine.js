@@ -16,7 +16,13 @@ import {
   bootstrapSpotCurve,
   calculateForwardCurve,
   getSpecificForwardRate,
-  analyzeTermStructureTheories
+  analyzeTermStructureTheories,
+  KEY_RATE_TENORS,
+  calculateTriangularWeights,
+  calculateBondKeyRateDuration,
+  calculatePortfolioKeyRateDuration,
+  estimateNonParallelPriceChange,
+  CURVE_SHIFT_PRESETS
 } from '../fixed-income/fixed-income-engine.js';
 
 let passed = 0;
@@ -239,6 +245,58 @@ const lpt = analyzeTermStructureTheories(bootstrapped, forwardCurve, { liquidity
 assert(lpt.forwardDecomposition.length === 10, `Decomposed 10 forward tenors`);
 assert(lpt.forwardDecomposition[4].liquidityPremium > 0, `Year 5 has positive liquidity premium (Actual: ${(lpt.forwardDecomposition[4].liquidityPremium * 100).toFixed(3)}%)`);
 assert(lpt.forwardDecomposition[4].expectedSpotRate < lpt.forwardDecomposition[4].forwardRate, `Expected future spot rate is less than forward rate due to term premium`);
+
+// --- TEST 15: Triangular Weight Partition of Unity ---
+console.log('\n--- TEST 15: Triangular Weight Partition of Unity ---');
+const testTimes = [0.1, 0.25, 1.0, 2.0, 3.5, 5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0];
+let allPartitionValid = true;
+testTimes.forEach(t => {
+  const weights = calculateTriangularWeights(t, KEY_RATE_TENORS);
+  const sum = weights.reduce((acc, w) => acc + w, 0);
+  if (Math.abs(sum - 1.0) > 1e-6) allPartitionValid = false;
+});
+assert(allPartitionValid, `Triangular weights sum to exactly 1.000 across all test cash flow tenors`);
+
+// --- TEST 16: Bond KRD Sum to Effective Duration Identity ---
+console.log('\n--- TEST 16: KRD Sum to Effective Duration Identity ---');
+const krdBond10Y = calculateBondKeyRateDuration({
+  parValue: 1000,
+  couponRate: 0.05,
+  maturityYears: 10,
+  ytm: 0.05,
+  frequency: 2
+});
+const krdSum = krdBond10Y.krd.reduce((acc, k) => acc + k.duration, 0);
+assert(Math.abs(krdSum - krdBond10Y.effectiveDuration) < 1e-5, `Sum of Key Rate Durations equals Effective Duration (${krdSum.toFixed(4)} == ${krdBond10Y.effectiveDuration.toFixed(4)})`);
+const tenYearKrd = krdBond10Y.krd.find(k => k.tenor === 10);
+assert(tenYearKrd.duration > 5.0, `10Y bond has predominant KRD concentration at 10Y tenor (${tenYearKrd.duration.toFixed(2)}Y of ${krdSum.toFixed(2)}Y)`);
+
+// --- TEST 17: Barbell vs Bullet Non-Parallel Butterfly Shift ---
+console.log('\n--- TEST 17: Barbell vs Bullet Butterfly Sensitivity ---');
+// 10Y Bullet
+const bulletHolding = [{ parValue: 1000, couponRate: 0.045, maturityYears: 10, ytm: 0.045, frequency: 2, quantity: 100 }];
+const bulletAnalysis = calculatePortfolioKeyRateDuration(bulletHolding);
+
+// 2Y + 30Y Barbell matching the same ~7.8Y duration
+const barbellHoldings = [
+  { parValue: 1000, couponRate: 0.045, maturityYears: 2, ytm: 0.045, frequency: 2, quantity: 65 },
+  { parValue: 1000, couponRate: 0.045, maturityYears: 30, ytm: 0.045, frequency: 2, quantity: 35 }
+];
+const barbellAnalysis = calculatePortfolioKeyRateDuration(barbellHoldings);
+
+// Butterfly twist shift (5Y/10Y belly rises by 50 bps, 2Y and 30Y wings unchanged)
+const butterflyShift = CURVE_SHIFT_PRESETS['butterfly-twist'].shifts;
+const bulletShock = estimateNonParallelPriceChange(bulletAnalysis.krd, butterflyShift, 100000);
+const barbellShock = estimateNonParallelPriceChange(barbellAnalysis.krd, butterflyShift, 100000);
+
+assert(bulletShock.predictedReturnPct < -0.015, `10Y Bullet suffers significant loss in belly selloff (${(bulletShock.predictedReturnPct * 100).toFixed(2)}%)`);
+assert(barbellShock.predictedReturnPct > bulletShock.predictedReturnPct, `Barbell outperforms bullet in butterfly belly selloff (${(barbellShock.predictedReturnPct * 100).toFixed(2)}% vs ${(bulletShock.predictedReturnPct * 100).toFixed(2)}%)`);
+
+// --- TEST 18: Bull Steepener vs Bear Flattener Regimes ---
+console.log('\n--- TEST 18: Non-Parallel Curve Scenarios ---');
+const steepenerShift = CURVE_SHIFT_PRESETS['bull-steepener'].shifts;
+const steepenerImpact = estimateNonParallelPriceChange(bulletAnalysis.krd, steepenerShift, 100000);
+assert(steepenerImpact.predictedReturnPct > 0, `Bull steepener generates positive price return (${(steepenerImpact.predictedReturnPct * 100).toFixed(2)}%)`);
 
 console.log('\n=============================================');
 if (failed === 0) {
