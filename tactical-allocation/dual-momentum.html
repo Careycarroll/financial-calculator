@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dual Momentum Model (Gary Antonacci GEM) | Tactical Asset Allocation</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="tactical.css" />
+  </head>
+  <body class="tactical-page" data-default-model="dual-momentum" data-default-preset="dual-momentum-gem">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio</a>
+          <a href="index.html" class="top-nav-link active">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="tactical-container">
+      <!-- Header -->
+      <header class="tactical-header">
+        <h1>🚀 Dual Momentum Model (Gary Antonacci GEM)</h1>
+        <p class="tactical-tagline">
+          Backtest Gary Antonacci's Global Equity Momentum (GEM) across 54 years of market cycles (1972–Present).
+          Combines Relative Momentum (US vs International Equities) with Absolute Momentum (Cash/T-Bill hurdle)
+          to harvest equity momentum while stepping aside to Aggregate Bonds or Treasuries during devastating bear markets.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Tactical Asset Allocation Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Hub</a>
+        <a href="market-valuation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🏛️ Market Valuation</a>
+        <a href="moving-averages.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">📈 Moving Averages</a>
+        <a href="momentum-rotation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔄 Momentum Rotation</a>
+        <a href="dual-momentum.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">🚀 Dual Momentum</a>
+        <a href="adaptive-allocation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Adaptive Allocation</a>
+        <a href="target-volatility.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Target Volatility</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-tactical" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Dual Momentum (GEM) Crash Avoidance &amp; Outperformance</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🎯 Executive Purpose</div>
+              <strong>Systematic Crash Avoidance</strong>
+              <p>Eliminate 50%+ catastrophic bear market drawdowns. Standard 60/40 or buy-and-hold suffers brutal drawdowns during secular crashes (2000-2002 Dot-com, 2008 GFC). Dual Momentum enforces rule-based risk offloading to safe-haven bonds before capital is destroyed.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">📋 How to Use</div>
+              <strong>Relative + Absolute Momentum Rules</strong>
+              <p>1. <strong>Relative Momentum</strong>: Rank US Stocks vs International Stocks over trailing 12 months.<br>2. <strong>Absolute Momentum</strong>: If winner beats Cash/T-Bills (&gt; 0% excess return), hold 100% in the winner.<br>3. <strong>Capital Defense</strong>: If winner trails Cash, rotate 100% to Aggregate Bonds / Treasuries.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🔍 What to Expect</div>
+              <strong>Regime Shift Dynamics</strong>
+              <p>• <strong>Secular Equity Bulls</strong>: Captures winning region (e.g., International in 1980s &amp; 2000s; US Large Cap in 2010s).<br>• <strong>Severe Bear Crashes</strong>: Completely steps aside to bonds/cash in 2008 and 2000, slashing max drawdown from -50% to -25%.<br>• <strong>Turnover</strong>: Extremely low (&le; 1.4 trades/year), minimizing taxable friction.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">💡 Executive Output Decoder</div>
+              <strong>Downside Protection &amp; Sharpe Alpha</strong>
+              <p>• <strong>Sharpe &gt; 0.80</strong>: Significantly exceeds S&amp;P 500 (~0.58) and 60/40 (~0.55).<br>• <strong>Max Drawdown Cut in Half</strong>: Prevents sequence-of-returns catastrophe for portfolios in accumulation or decumulation.<br>• <strong>Institutional Governance</strong>: Removes emotional panic and guesswork from asset allocation.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status Bar -->
+      <section class="tactical-status-bar" id="tactical-status-bar">
+        <div class="status-pill highlight">
+          <span>Active Strategy:</span>
+          <strong id="status-strategy-name">Dual Momentum (Gary Antonacci GEM)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Timing Model:</span>
+          <strong id="status-timing-model">DUAL-MOMENTUM</strong>
+        </div>
+        <div class="status-pill">
+          <span>Timeline:</span>
+          <strong id="status-timeline-range">1972-01 to 2026-08</strong>
+          <span class="status-sub" id="status-total-months">(656 M)</span>
+        </div>
+        <div class="status-pill" id="status-regime-pill">
+          <span>Current Regime:</span>
+          <strong id="status-current-regime">BULL: RISK ASSETS</strong>
+        </div>
+        <div class="status-pill">
+          <span>Initial Capital:</span>
+          <strong id="status-initial-cap">$10,000</strong>
+        </div>
+        <div style="margin-left: auto;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-toggle-config">
+            ⚙️ Strategy Settings
+          </button>
+        </div>
+      </section>
+
+      <!-- Current Tactical Signal Banner -->
+      <section class="current-signal-banner" id="current-signal-banner">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <div class="signal-badge signal-bull" id="banner-signal-badge">
+            ⚡ ACTIVE SIGNAL: BULL REGIME
+          </div>
+          <div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc;" id="banner-signal-title">
+              Current Target Holding: 100% Total US Stock Market
+            </div>
+            <div style="font-size: 0.8rem; color: #94a3b8;" id="banner-signal-sub">
+              Relative Momentum winner (US Stocks) exceeds cash hurdle. Fully invested in equity momentum.
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-jump-trade-log">
+            📜 View Trade History
+          </button>
+        </div>
+      </section>
+
+      <!-- Strategy Configuration Card -->
+      <section class="chart-card" id="config-card">
+        <div class="chart-header">
+          <div>
+            <h3>🛠️ Dual Momentum Model Configuration</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Select canonical GEM presets or adjust momentum lookback, safe haven bonds, and cash hurdle asset.
+            </p>
+          </div>
+        </div>
+
+        <!-- Strategy Presets -->
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; font-weight: 700; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem;">
+            Quick Dual Momentum Presets:
+          </label>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="preset-buttons-container">
+            <button type="button" class="preset-btn active" data-preset="dual-momentum-gem">
+              🚀 Dual Momentum Flagship GEM (SPY vs VEU vs BND)
+            </button>
+            <button type="button" class="preset-btn" data-preset="dual-momentum-extended">
+              🏛️ All-Cap Dual Momentum (Large Cap, Small Cap, Intl)
+            </button>
+            <button type="button" class="preset-btn" data-preset="dual-momentum-all-weather">
+              🏆 All-Weather Dual Momentum (Stocks vs Gold vs Long Treasuries)
+            </button>
+          </div>
+        </div>
+
+        <!-- Parameters Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label for="select-lookback" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Momentum Lookback:
+            </label>
+            <select id="select-lookback" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="6">6 Months</option>
+              <option value="10">10 Months</option>
+              <option value="12" selected>12 Months (Canonical GEM)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="select-safe-haven" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Safe Haven Asset (Bear Defense):
+            </label>
+            <select id="select-safe-haven" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="TotalBond" selected>Total Bond Market (BND / AGG)</option>
+              <option value="IntermediateTreasury">10-Year Intermediate Treasury (IEF)</option>
+              <option value="LongTreasury">20-Year Long Treasury (TLT)</option>
+              <option value="Cash">Cash / 3-Month T-Bills (BIL)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="input-initial-capital" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Initial Portfolio Capital ($):
+            </label>
+            <input type="number" id="input-initial-capital" value="10000" min="1000" step="1000" class="form-input" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;" />
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+          <button type="button" class="btn-primary" id="btn-run-tactical">
+            ⚡ Run Dual Momentum Backtest
+          </button>
+        </div>
+      </section>
+
+      <!-- Scorecards Grid -->
+      <section class="scorecards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div class="scorecard">
+          <div class="scorecard-label">Compound Annual Growth (CAGR)</div>
+          <div class="scorecard-value" id="card-cagr">--%</div>
+          <div class="scorecard-sub">SPY: <span id="card-cagr-spy">--%</span> | 60/40: <span id="card-cagr-6040">--%</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Maximum Drawdown</div>
+          <div class="scorecard-value danger" id="card-max-dd">--%</div>
+          <div class="scorecard-sub">Shield: <span id="card-dd-shield" class="success">+0.0%</span> saved vs SPY</div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Sharpe Ratio (Rf=3%)</div>
+          <div class="scorecard-value" id="card-sharpe">--</div>
+          <div class="scorecard-sub">SPY: <span id="card-sharpe-spy">--</span> | 60/40: <span id="card-sharpe-6040">--</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Sortino Ratio</div>
+          <div class="scorecard-value" id="card-sortino">--</div>
+          <div class="scorecard-sub">Downside volatility risk-adjusted</div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Annualized Volatility</div>
+          <div class="scorecard-value" id="card-vol">--%</div>
+          <div class="scorecard-sub">SPY: <span id="card-vol-spy">--%</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Win Rate &amp; Trades</div>
+          <div class="scorecard-value" id="card-win-rate">--%</div>
+          <div class="scorecard-sub">Total Trades: <span id="card-total-trades">0</span></div>
+        </div>
+      </section>
+
+      <!-- Chart 1: Portfolio Growth -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h3>📈 Portfolio Cumulative Growth of $10,000 (1972–Present)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Dual Momentum Strategy vs US Stock Market (SPY) vs Vanguard 60/40 Balanced Benchmark
+            </p>
+          </div>
+          <div class="scale-toggle" style="display: inline-flex; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 2px;">
+            <button type="button" class="scale-btn active" id="btn-scale-linear">Linear</button>
+            <button type="button" class="scale-btn" id="btn-scale-log">Logarithmic</button>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-growth" style="height: 380px; position: relative;">
+          <canvas id="tactical-growth-canvas"></canvas>
+          <div id="tooltip-tactical-growth" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 2: Historical Asset Allocation Ribbon -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>🎨 Historical Asset Allocation Ribbon (% Portfolio Exposure Over Time)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Visualizes dynamic switches between US Stocks, International Stocks, and Safe-Haven Bonds across economic cycles.
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-allocation" style="height: 240px; position: relative;">
+          <canvas id="tactical-allocation-canvas"></canvas>
+          <div id="tooltip-tactical-allocation" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 3: Underwater Drawdowns -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>🛡️ Underwater Portfolio Drawdown (% Loss From All-Time Peak)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Highlighting how Dual Momentum cuts severe bear market drawdown depth during 1973, 2000, 2008, and 2020.
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-drawdown" style="height: 280px; position: relative;">
+          <canvas id="tactical-drawdown-canvas"></canvas>
+          <div id="tooltip-tactical-drawdown" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 4: Annual Returns -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>📊 Annual Returns Comparison (Calendar Years 1972–2026)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Side-by-side annual returns: Dual Momentum vs S&amp;P 500 vs 60/40 Benchmark
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-annual" style="height: 280px; position: relative;">
+          <canvas id="tactical-annual-canvas"></canvas>
+          <div id="tooltip-tactical-annual" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Performance Scorecard Table -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>📋 Performance &amp; Risk Modern Portfolio Theory (MPT) Metrics</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              54-year backtest risk statistics across all market regimes
+            </p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-performance-csv">
+            📥 Export Performance CSV
+          </button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Portfolio Strategy</th>
+                <th style="text-align: right;">Final Balance</th>
+                <th style="text-align: right;">CAGR</th>
+                <th style="text-align: right;">StDev (Vol)</th>
+                <th style="text-align: right;">Best Year</th>
+                <th style="text-align: right;">Worst Year</th>
+                <th style="text-align: right;">Max Drawdown</th>
+                <th style="text-align: right;">Sharpe (3%)</th>
+                <th style="text-align: right;">Sortino</th>
+                <th style="text-align: right;">Market Corr</th>
+              </tr>
+            </thead>
+            <tbody id="mpt-scorecard-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Historical Regime Shifts & Trade Execution Log -->
+      <section class="chart-card" id="trade-log-section" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>📜 Historical Regime Shifts &amp; Trade Execution Log</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Chronological ledger of every single tactical rotation, signal date, and defense shift
+            </p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-trades-csv">
+            📥 Export Trades CSV
+          </button>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead style="position: sticky; top: 0; background: #1e293b;">
+              <tr>
+                <th style="text-align: left;">Month Date</th>
+                <th style="text-align: left;">Regime Signal</th>
+                <th style="text-align: left;">Allocations Target</th>
+                <th style="text-align: right;">1-Month Return</th>
+                <th style="text-align: right;">Portfolio Value</th>
+                <th style="text-align: left;">Quantitative Rationale</th>
+              </tr>
+            </thead>
+            <tbody id="trade-log-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Strategy Diagnostics -->
+      <section class="chart-card" style="margin-bottom: 2rem;">
+        <div class="chart-header">
+          <h3>🔬 Quantitative Strategy Diagnostics &amp; Factor Sensitivity</h3>
+        </div>
+        <div id="strategy-diagnostic-content" style="color: #94a3b8; font-size: 0.88rem; line-height: 1.6;">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="tactical-ui.js"></script>
+  </body>
+</html>

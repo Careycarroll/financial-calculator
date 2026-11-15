@@ -21,10 +21,16 @@ const rootDir = path.resolve(__dirname, '..');
 console.log('=== RUNNING TACTICAL ASSET ALLOCATION UI & INTEGRATION TESTS ===\n');
 
 // 1. HTML DOM Structure & Element IDs
-console.log('--- TEST 1: HTML Structure & Element IDs ---');
-const htmlPath = path.join(rootDir, 'tactical-allocation/index.html');
-assert.ok(fs.existsSync(htmlPath), 'tactical-allocation/index.html exists on disk');
-const html = fs.readFileSync(htmlPath, 'utf8');
+console.log('--- TEST 1: HTML Structure & Element IDs Across All 7 Tactical Pages ---');
+const tacticalPages = [
+  { file: 'index.html', model: 'dual-momentum' },
+  { file: 'market-valuation.html', model: 'market-valuation' },
+  { file: 'moving-averages.html', model: 'moving-average' },
+  { file: 'momentum-rotation.html', model: 'momentum-rotation' },
+  { file: 'dual-momentum.html', model: 'dual-momentum' },
+  { file: 'adaptive-allocation.html', model: 'adaptive-allocation' },
+  { file: 'target-volatility.html', model: 'target-volatility' }
+];
 
 const requiredIds = [
   'status-strategy-name',
@@ -41,12 +47,9 @@ const requiredIds = [
   'banner-signal-title',
   'banner-signal-sub',
   'btn-jump-trade-log',
-  'timing-model-control',
   'preset-buttons-container',
   'select-lookback',
   'select-safe-haven',
-  'select-top-n',
-  'input-target-vol',
   'input-initial-capital',
   'btn-run-tactical',
   'card-cagr',
@@ -80,17 +83,44 @@ const requiredIds = [
   'trade-log-table-body',
   'strategy-diagnostic-content',
   'btn-export-performance-csv',
-  'btn-export-trades-csv'
+  'btn-export-trades-csv',
+  'executive-guide-tactical',
+  'executive-guide-toggle',
+  'executive-guide-body',
+  'executive-guide-arrow'
 ];
 
-requiredIds.forEach(id => {
-  assert.ok(html.includes(`id="${id}"`), `HTML contains required element ID: "${id}"`);
-});
-console.log(`✅ PASS: All ${requiredIds.length} required UI element IDs verified in tactical-allocation/index.html`);
+tacticalPages.forEach(page => {
+  const pagePath = path.join(rootDir, 'tactical-allocation', page.file);
+  assert.ok(fs.existsSync(pagePath), `tactical-allocation/${page.file} exists on disk`);
+  const content = fs.readFileSync(pagePath, 'utf8');
 
-// 2. All 6 Strategy Presets Execution
-console.log('\n--- TEST 2: All 6 Strategy Presets Execution ---');
-assert.strictEqual(TACTICAL_STRATEGY_PRESETS.length, 6, 'Exactly 6 canonical presets configured');
+  // Verify elements
+  requiredIds.forEach(id => {
+    assert.ok(content.includes(`id="${id}"`), `${page.file} contains required element ID: "${id}"`);
+  });
+
+  // Verify suite-subnav
+  assert.ok(content.includes('class="suite-subnav"'), `${page.file} has .suite-subnav`);
+  assert.ok(content.includes('dual-momentum.html'), `${page.file} suite-subnav links to dual-momentum.html`);
+  assert.ok(content.includes('moving-averages.html'), `${page.file} suite-subnav links to moving-averages.html`);
+  assert.ok(content.includes('momentum-rotation.html'), `${page.file} suite-subnav links to momentum-rotation.html`);
+  assert.ok(content.includes('market-valuation.html'), `${page.file} suite-subnav links to market-valuation.html`);
+  assert.ok(content.includes('adaptive-allocation.html'), `${page.file} suite-subnav links to adaptive-allocation.html`);
+  assert.ok(content.includes('target-volatility.html'), `${page.file} suite-subnav links to target-volatility.html`);
+
+  // Verify executive decision framework
+  assert.ok(content.includes('Executive Purpose'), `${page.file} has Executive Purpose quadrant`);
+  assert.ok(content.includes('How to Use'), `${page.file} has How to Use quadrant`);
+  assert.ok(content.includes('What to Expect'), `${page.file} has What to Expect quadrant`);
+  assert.ok(content.includes('Executive Output Decoder'), `${page.file} has Executive Output Decoder quadrant`);
+});
+
+console.log(`✅ PASS: Verified HTML structure, ${requiredIds.length} IDs, and Executive Decision Framework across all 7 tactical pages`);
+
+// 2. All Strategy Presets Execution
+console.log('\n--- TEST 2: All Strategy Presets Execution ---');
+assert.ok(TACTICAL_STRATEGY_PRESETS.length >= 6, `At least 6 canonical presets configured (found ${TACTICAL_STRATEGY_PRESETS.length})`);
 
 TACTICAL_STRATEGY_PRESETS.forEach(preset => {
   const res = runTacticalBacktest({

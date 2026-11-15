@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Target Volatility Model (Constant Risk Budgeting) | Tactical Asset Allocation</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="tactical.css" />
+  </head>
+  <body class="tactical-page" data-default-model="target-volatility" data-default-preset="target-volatility-10">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio</a>
+          <a href="index.html" class="top-nav-link active">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="tactical-container">
+      <!-- Header -->
+      <header class="tactical-header">
+        <h1>🎯 Target Volatility Model (Constant Risk Budgeting)</h1>
+        <p class="tactical-tagline">
+          Backtest dynamic volatility targeting and constant risk budgeting across 54 years (1972–Present).
+          Dynamically de-levers equity exposure into a Cash buffer during high-volatility market turbulence,
+          then scales exposure back up in tranquil bull markets to maintain a constant portfolio risk target.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Tactical Asset Allocation Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Hub</a>
+        <a href="market-valuation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🏛️ Market Valuation</a>
+        <a href="moving-averages.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">📈 Moving Averages</a>
+        <a href="momentum-rotation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔄 Momentum Rotation</a>
+        <a href="dual-momentum.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🚀 Dual Momentum</a>
+        <a href="adaptive-allocation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Adaptive Allocation</a>
+        <a href="target-volatility.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Target Volatility</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-tactical" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Volatility Budgeting &amp; Left-Tail Crash Cushioning</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🎯 Executive Purpose</div>
+              <strong>Dynamic Volatility Budgeting</strong>
+              <p>Financial risk is non-constant: volatility clusters in violent bursts during market panics, followed by long periods of calm compounding. Volatility targeting caps total portfolio volatility at a specified threshold, de-risking automatically before crashes deepen.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">📋 How to Use</div>
+              <strong>Dynamic Leverage Scaling</strong>
+              <p>1. <strong>Target Volatility</strong>: Set risk budget (e.g. 10% or 12% annualized vol).<br>2. <strong>Measure Trailing Volatility</strong>: Compute realized volatility of US Equities over trailing 3 months ($\sigma_{\text{realized}}$).<br>3. <strong>Scale Weight</strong>: Set equity weight $w = \min(1.0, \sigma_{\text{target}} / \sigma_{\text{realized}})$ and allocate remainder $(1 - w)$ to Cash.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🔍 What to Expect</div>
+              <strong>Regime Shift Dynamics</strong>
+              <p>• <strong>Calm Bull Expansions</strong>: When market volatility drops to 8–12%, holds 100% equity exposure.<br>• <strong>Crisis Spikes (2008, 2020)</strong>: Realized volatility spikes to 30–50%; model rapidly cuts equity weight to ~25–35%, moving into cash.<br>• <strong>Crash Cushioning</strong>: Slashes portfolio drawdown severity during market freefalls.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">💡 Executive Output Decoder</div>
+              <strong>Risk Stabilization &amp; Sharpe Ratio</strong>
+              <p>• <strong>Tightly Controlled Risk</strong>: Achieves realized volatility close to budget (~11.9% vs target 10.0%), eliminating panic selling.<br>• <strong>Enhanced Sharpe Ratio</strong>: Eliminating catastrophic negative returns improves overall capital efficiency.<br>• <strong>Ideal for Decumulation</strong>: Prevents sequence-of-returns drawdown shocks during retirement distribution phase.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status Bar -->
+      <section class="tactical-status-bar" id="tactical-status-bar">
+        <div class="status-pill highlight">
+          <span>Active Strategy:</span>
+          <strong id="status-strategy-name">Target Volatility (10% Risk Budget)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Timing Model:</span>
+          <strong id="status-timing-model">TARGET-VOLATILITY</strong>
+        </div>
+        <div class="status-pill">
+          <span>Timeline:</span>
+          <strong id="status-timeline-range">1972-01 to 2026-08</strong>
+          <span class="status-sub" id="status-total-months">(656 M)</span>
+        </div>
+        <div class="status-pill" id="status-regime-pill">
+          <span>Current Regime:</span>
+          <strong id="status-current-regime">BULL: RISK ASSETS</strong>
+        </div>
+        <div class="status-pill">
+          <span>Initial Capital:</span>
+          <strong id="status-initial-cap">$10,000</strong>
+        </div>
+        <div style="margin-left: auto;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-toggle-config">
+            ⚙️ Strategy Settings
+          </button>
+        </div>
+      </section>
+
+      <!-- Current Tactical Signal Banner -->
+      <section class="current-signal-banner" id="current-signal-banner">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <div class="signal-badge signal-bull" id="banner-signal-badge">
+            ⚡ ACTIVE SIGNAL: VOLATILITY TARGETING
+          </div>
+          <div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc;" id="banner-signal-title">
+              Current Target Holding: Scaled Equity Exposure + Cash Buffer
+            </div>
+            <div style="font-size: 0.8rem; color: #94a3b8;" id="banner-signal-sub">
+              Allocation dynamically sized based on trailing realized volatility relative to target risk budget.
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-jump-trade-log">
+            📜 View Trade History
+          </button>
+        </div>
+      </section>
+
+      <!-- Strategy Configuration Card -->
+      <section class="chart-card" id="config-card">
+        <div class="chart-header">
+          <div>
+            <h3>🛠️ Target Volatility Model Configuration</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Configure annualized volatility target %, volatility lookback window, and safe haven buffer.
+            </p>
+          </div>
+        </div>
+
+        <!-- Strategy Presets -->
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; font-weight: 700; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem;">
+            Quick Volatility Target Presets:
+          </label>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="preset-buttons-container">
+            <button type="button" class="preset-btn active" data-preset="target-volatility-10">
+              🎯 Target Volatility (10% Risk Budget)
+            </button>
+            <button type="button" class="preset-btn" data-preset="target-volatility-12">
+              🚀 Target Volatility (12% Growth Budget)
+            </button>
+            <button type="button" class="preset-btn" data-preset="target-volatility-8">
+              🛡️ Target Volatility (8% Conservative Shield)
+            </button>
+          </div>
+        </div>
+
+        <!-- Parameters Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label for="input-target-vol" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Target Annualized Volatility (%):
+            </label>
+            <input type="number" id="input-target-vol" value="10" min="5" max="25" step="1" class="form-input" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;" />
+          </div>
+
+          <div>
+            <label for="select-lookback" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Volatility Estimation Window:
+            </label>
+            <select id="select-lookback" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="1">1 Month (Fast Response)</option>
+              <option value="3" selected>3 Months (Standard)</option>
+              <option value="6">6 Months (Smooth)</option>
+              <option value="12">12 Months (Long-Term)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="select-safe-haven" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Safe Haven Cash Buffer:
+            </label>
+            <select id="select-safe-haven" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="Cash" selected>Cash / 3-Month T-Bills (BIL)</option>
+              <option value="ShortTreasury">Short-Term Treasury (SHY)</option>
+              <option value="TotalBond">Total Bond Market (BND / AGG)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="input-initial-capital" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Initial Capital ($):
+            </label>
+            <input type="number" id="input-initial-capital" value="10000" min="1000" step="1000" class="form-input" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;" />
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+          <button type="button" class="btn-primary" id="btn-run-tactical">
+            ⚡ Run Target Volatility Backtest
+          </button>
+        </div>
+      </section>
+
+      <!-- Scorecards Grid -->
+      <section class="scorecards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div class="scorecard">
+          <div class="scorecard-label">Compound Annual Growth (CAGR)</div>
+          <div class="scorecard-value" id="card-cagr">--%</div>
+          <div class="scorecard-sub">SPY: <span id="card-cagr-spy">--%</span> | 60/40: <span id="card-cagr-6040">--%</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Maximum Drawdown</div>
+          <div class="scorecard-value danger" id="card-max-dd">--%</div>
+          <div class="scorecard-sub">Shield: <span id="card-dd-shield" class="success">+0.0%</span> saved vs SPY</div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Sharpe Ratio (Rf=3%)</div>
+          <div class="scorecard-value" id="card-sharpe">--</div>
+          <div class="scorecard-sub">SPY: <span id="card-sharpe-spy">--</span> | 60/40: <span id="card-sharpe-6040">--</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Sortino Ratio</div>
+          <div class="scorecard-value" id="card-sortino">--</div>
+          <div class="scorecard-sub">Downside volatility risk-adjusted</div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Realized Volatility</div>
+          <div class="scorecard-value" id="card-vol">--%</div>
+          <div class="scorecard-sub">Target: <span id="status-target-vol-display">10.0%</span> | SPY: <span id="card-vol-spy">--%</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Win Rate &amp; Trades</div>
+          <div class="scorecard-value" id="card-win-rate">--%</div>
+          <div class="scorecard-sub">Total Trades: <span id="card-total-trades">0</span></div>
+        </div>
+      </section>
+
+      <!-- Chart 1: Portfolio Growth -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h3>📈 Portfolio Cumulative Growth of $10,000 (1972–Present)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Target Volatility Strategy vs US Stock Market (SPY) vs Vanguard 60/40 Balanced Benchmark
+            </p>
+          </div>
+          <div class="scale-toggle" style="display: inline-flex; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 2px;">
+            <button type="button" class="scale-btn active" id="btn-scale-linear">Linear</button>
+            <button type="button" class="scale-btn" id="btn-scale-log">Logarithmic</button>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-growth" style="height: 380px; position: relative;">
+          <canvas id="tactical-growth-canvas"></canvas>
+          <div id="tooltip-tactical-growth" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 2: Historical Asset Allocation Ribbon -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>🎨 Historical Asset Allocation Ribbon (% Portfolio Exposure Over Time)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Visualizes dynamic equity exposure scaling and cash buffer over 54 years of market cycles.
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-allocation" style="height: 240px; position: relative;">
+          <canvas id="tactical-allocation-canvas"></canvas>
+          <div id="tooltip-tactical-allocation" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 3: Underwater Drawdowns -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>🛡️ Underwater Portfolio Drawdown (% Loss From All-Time Peak)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Target volatility prevents deep tail-risk drawdowns by cutting equity exposure before crashes escalate.
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-drawdown" style="height: 280px; position: relative;">
+          <canvas id="tactical-drawdown-canvas"></canvas>
+          <div id="tooltip-tactical-drawdown" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 4: Annual Returns -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>📊 Annual Returns Comparison (Calendar Years 1972–2026)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Side-by-side annual returns: Target Volatility vs S&amp;P 500 vs 60/40 Benchmark
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-annual" style="height: 280px; position: relative;">
+          <canvas id="tactical-annual-canvas"></canvas>
+          <div id="tooltip-tactical-annual" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Performance Scorecard Table -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>📋 Performance &amp; Risk Modern Portfolio Theory (MPT) Metrics</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              54-year backtest risk statistics across all market regimes
+            </p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-performance-csv">
+            📥 Export Performance CSV
+          </button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Portfolio Strategy</th>
+                <th style="text-align: right;">Final Balance</th>
+                <th style="text-align: right;">CAGR</th>
+                <th style="text-align: right;">StDev (Vol)</th>
+                <th style="text-align: right;">Best Year</th>
+                <th style="text-align: right;">Worst Year</th>
+                <th style="text-align: right;">Max Drawdown</th>
+                <th style="text-align: right;">Sharpe (3%)</th>
+                <th style="text-align: right;">Sortino</th>
+                <th style="text-align: right;">Market Corr</th>
+              </tr>
+            </thead>
+            <tbody id="mpt-scorecard-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Historical Regime Shifts & Trade Execution Log -->
+      <section class="chart-card" id="trade-log-section" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>📜 Historical Regime Shifts &amp; Trade Execution Log</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Chronological ledger of equity weights and cash de-leveraging adjustments
+            </p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-trades-csv">
+            📥 Export Trades CSV
+          </button>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead style="position: sticky; top: 0; background: #1e293b;">
+              <tr>
+                <th style="text-align: left;">Month Date</th>
+                <th style="text-align: left;">Regime Signal</th>
+                <th style="text-align: left;">Allocations Target</th>
+                <th style="text-align: right;">1-Month Return</th>
+                <th style="text-align: right;">Portfolio Value</th>
+                <th style="text-align: left;">Quantitative Rationale</th>
+              </tr>
+            </thead>
+            <tbody id="trade-log-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Strategy Diagnostics -->
+      <section class="chart-card" style="margin-bottom: 2rem;">
+        <div class="chart-header">
+          <h3>🔬 Quantitative Strategy Diagnostics &amp; Volatility Statistics</h3>
+        </div>
+        <div id="strategy-diagnostic-content" style="color: #94a3b8; font-size: 0.88rem; line-height: 1.6;">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="tactical-ui.js"></script>
+  </body>
+</html>

@@ -42,12 +42,69 @@
       </header>
 
       <!-- Suite Sub-Navigation -->
-      <nav class="suite-subnav" aria-label="Portfolio Backtest Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
-        <a href="../portfolio-backtest/index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">💼 Portfolio Backtest (Tickers)</a>
-        <a href="../portfolio-backtest/asset-class-allocation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🏛️ Asset Class Allocation (1972–Present)</a>
-        <a href="../portfolio-backtest/dynamic-allocation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔄 Dynamic Allocation Studio</a>
-        <a href="index.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Allocation Studio</a>
+      <nav class="suite-subnav" aria-label="Tactical Asset Allocation Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Hub</a>
+        <a href="market-valuation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🏛️ Market Valuation</a>
+        <a href="moving-averages.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">📈 Moving Averages</a>
+        <a href="momentum-rotation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔄 Momentum Rotation</a>
+        <a href="dual-momentum.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🚀 Dual Momentum</a>
+        <a href="adaptive-allocation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Adaptive Allocation</a>
+        <a href="target-volatility.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Target Volatility</a>
       </nav>
+
+      <!-- Tactical Allocation Models Taxonomy Directory (PV Layout) -->
+      <section class="tactical-directory-card">
+        <div class="tactical-directory-header">
+          <h2>⚡ Tactical Asset Allocation Models</h2>
+          <p>
+            Compare and test tactical allocation models based on moving averages, momentum, market valuation, and volatility targeting across 54 years of market cycles (1972–Present).
+          </p>
+        </div>
+        <div class="tactical-directory-grid">
+          <a href="market-valuation.html" class="tactical-model-link-card">
+            <div class="tactical-model-card-top">
+              <span class="tactical-model-card-title">🏛️ Market Valuation</span>
+              <span class="tactical-model-card-arrow">»</span>
+            </div>
+            <p class="tactical-model-card-desc">Counter-cyclical equity tilt based on Shiller CAPE and valuation multiples to buy low and avoid peak bubbles.</p>
+          </a>
+          <a href="moving-averages.html" class="tactical-model-link-card">
+            <div class="tactical-model-card-top">
+              <span class="tactical-model-card-title">📈 Moving Averages</span>
+              <span class="tactical-model-card-arrow">»</span>
+            </div>
+            <p class="tactical-model-card-desc">Meb Faber 10-month &amp; 200-day trend-following filters to systematically dodge catastrophic bear market drawdowns.</p>
+          </a>
+          <a href="momentum-rotation.html" class="tactical-model-link-card">
+            <div class="tactical-model-card-top">
+              <span class="tactical-model-card-title">🔄 Momentum Rotation</span>
+              <span class="tactical-model-card-arrow">»</span>
+            </div>
+            <p class="tactical-model-card-desc">Cross-sectional relative strength rotation (IVY 5) holding the top performing asset classes with positive absolute trend.</p>
+          </a>
+          <a href="dual-momentum.html" class="tactical-model-link-card">
+            <div class="tactical-model-card-top">
+              <span class="tactical-model-card-title">🚀 Dual Momentum</span>
+              <span class="tactical-model-card-arrow">»</span>
+            </div>
+            <p class="tactical-model-card-desc">Gary Antonacci GEM combining Relative Momentum (US vs Intl) with Absolute Momentum (Cash hurdle) for maximum Sharpe.</p>
+          </a>
+          <a href="adaptive-allocation.html" class="tactical-model-link-card">
+            <div class="tactical-model-card-top">
+              <span class="tactical-model-card-title">⚖️ Adaptive Allocation</span>
+              <span class="tactical-model-card-arrow">»</span>
+            </div>
+            <p class="tactical-model-card-desc">ReSolve Asset Management model pairing cross-sectional momentum ranking with Inverse Volatility / Risk Parity weighting.</p>
+          </a>
+          <a href="target-volatility.html" class="tactical-model-link-card">
+            <div class="tactical-model-card-top">
+              <span class="tactical-model-card-title">🎯 Target Volatility</span>
+              <span class="tactical-model-card-arrow">»</span>
+            </div>
+            <p class="tactical-model-card-desc">Constant risk budgeting (e.g. 10% target vol) that automatically de-levers into Cash during market shocks.</p>
+          </a>
+        </div>
+      </section>
 
       <!-- Executive Decision Framework (Collapsible) -->
       <section class="cheat-sheet-card" id="executive-guide-tactical" style="margin-bottom: 1.25rem;">
