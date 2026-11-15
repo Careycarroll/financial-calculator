@@ -59,6 +59,10 @@ allHtmlFiles.forEach(f => {
   const norm = f.replace(/\\/g, '/').replace(/^\.\//, '');
   const content = fs.readFileSync(f, 'utf8');
 
+  // All pages must load nav.js and font-scale.js to ensure UI scaling & dynamic nav work uniformly
+  assert(content.includes('nav.js'), `${norm} must load nav.js script`);
+  assert(content.includes('font-scale.js'), `${norm} must load font-scale.js script`);
+
   if (norm === 'index.html') {
     assert(content.includes('📰 News Feed'), 'index.html should have News Feed link');
     assert(!content.includes('💼 Portfolio'), 'index.html should NOT have suite tabs in global bar');
