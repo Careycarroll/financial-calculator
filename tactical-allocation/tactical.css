@@ -120,6 +120,8 @@ body.tactical-page {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
+  min-height: 84px;
+  box-sizing: border-box;
 }
 
 .current-signal-banner.defensive {
@@ -152,14 +154,14 @@ body.tactical-page {
 }
 
 /* Scorecards */
-.scorecard-grid-6 {
+.scorecard-grid-6, .scorecards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
-.scorecard-card {
+.scorecard-card, .scorecard {
   background: var(--bg-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
@@ -169,7 +171,7 @@ body.tactical-page {
   gap: 0.35rem;
 }
 
-.scorecard-title {
+.scorecard-title, .scorecard-label {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-secondary);
