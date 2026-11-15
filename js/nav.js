@@ -204,7 +204,22 @@
     const existingSep = navLeft.querySelector(".nav-breadcrumb-sep");
     if (existingSep) existingSep.remove();
 
-    // Create dropdown wrapper
+    // On home page, keep header clean: logo + view switcher + News Feed (no suite dropdown or suite tabs)
+    if (ctx.isHome) {
+      const navLinks = navInner.querySelector(".top-nav-links");
+      if (navLinks) {
+        const fontBtn = navLinks.querySelector("#font-scale-btn");
+        navLinks.innerHTML = `
+          <a href="${root}pages/news.html" class="top-nav-link" title="Market News Feed">📰 News Feed</a>
+        `;
+        if (fontBtn) {
+          navLinks.appendChild(fontBtn);
+        }
+      }
+      return;
+    }
+
+    // Create dropdown wrapper (inner tool pages only)
     const dropdownWrapper = document.createElement("div");
     dropdownWrapper.className = "nav-category-dropdown";
 
