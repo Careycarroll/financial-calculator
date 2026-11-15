@@ -259,6 +259,18 @@ export const TOOLS_CATALOG = [
     keywords: ["yield curve", "term structure", "spot rate", "forward rate", "bootstrapping", "expectations hypothesis", "liquidity preference", "treasury", "bodie", "rates"]
   },
   {
+    id: "key-rate-duration",
+    title: "Key Rate Duration (KRD) & Non-Parallel Risk Studio",
+    shortTitle: "Key Rate Duration",
+    path: "fixed-income/key-rate-duration.html",
+    icon: "📊",
+    badge: "STUDIO",
+    desc: "Decompose fixed-income interest rate sensitivity across key tenors (3M–30Y) and stress-test non-parallel yield curve shifts: Bull/Bear Steepener, Flattener, and Butterfly Curvature.",
+    suiteId: "portfolio",
+    workflowId: "quant-risk",
+    keywords: ["key rate duration", "krd", "non-parallel", "yield curve", "twist", "butterfly", "steepener", "flattener", "barbell", "bullet", "fixed income", "bodie", "rates"]
+  },
+  {
     id: "asset-class-allocation",
     title: "Backtest Asset Class Allocation Studio",
     shortTitle: "Asset Class Backtest",

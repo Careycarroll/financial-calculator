@@ -757,3 +757,299 @@ export function analyzeTermStructureTheories(spotCurve, forwardCurve, { liquidit
   };
 }
 
+// ===================================================================
+// 4. Key Rate Duration & Non-Parallel Curve Risk (Institutional Desk)
+// ===================================================================
+
+export const KEY_RATE_TENORS = [0.25, 2, 5, 10, 20, 30];
+
+export const CURVE_SHIFT_PRESETS = {
+  'bull-steepener': {
+    name: 'Bull Steepener (Fed Rate Easing)',
+    desc: 'Front-end yields plummet on aggressive rate cuts while long yields hold steady.',
+    shifts: [
+      { tenor: 0.25, bps: -150 },
+      { tenor: 2, bps: -100 },
+      { tenor: 5, bps: -50 },
+      { tenor: 10, bps: -20 },
+      { tenor: 20, bps: 0 },
+      { tenor: 30, bps: 0 }
+    ]
+  },
+  'bear-flattener': {
+    name: 'Bear Flattener (Fed Policy Tightening)',
+    desc: 'Short-term yields surge as central banks hike rates to tame inflation.',
+    shifts: [
+      { tenor: 0.25, bps: +150 },
+      { tenor: 2, bps: +120 },
+      { tenor: 5, bps: +75 },
+      { tenor: 10, bps: +25 },
+      { tenor: 20, bps: 0 },
+      { tenor: 30, bps: 0 }
+    ]
+  },
+  'bear-steepener': {
+    name: 'Bear Steepener (Fiscal Supply / Term Premium Shock)',
+    desc: 'Long yields surge due to massive government debt issuance or inflation risk premium.',
+    shifts: [
+      { tenor: 0.25, bps: 0 },
+      { tenor: 2, bps: +15 },
+      { tenor: 5, bps: +45 },
+      { tenor: 10, bps: +85 },
+      { tenor: 20, bps: +120 },
+      { tenor: 30, bps: +135 }
+    ]
+  },
+  'bull-flattener': {
+    name: 'Bull Flattener (Long-End Safe-Haven Rally)',
+    desc: 'Long-term bonds rally sharply as economic growth decelerates into contraction.',
+    shifts: [
+      { tenor: 0.25, bps: 0 },
+      { tenor: 2, bps: -20 },
+      { tenor: 5, bps: -50 },
+      { tenor: 10, bps: -90 },
+      { tenor: 20, bps: -120 },
+      { tenor: 30, bps: -130 }
+    ]
+  },
+  'butterfly-twist': {
+    name: 'Butterfly Curvature (Belly Selloff)',
+    desc: '5Y and 10Y intermediate yields sell off relative to the 2Y and 30Y wings.',
+    shifts: [
+      { tenor: 0.25, bps: 0 },
+      { tenor: 2, bps: +10 },
+      { tenor: 5, bps: +60 },
+      { tenor: 10, bps: +50 },
+      { tenor: 20, bps: +15 },
+      { tenor: 30, bps: 0 }
+    ]
+  }
+};
+
+/**
+ * Computes the triangular (tent) interpolation weights for a cash flow at time `t`
+ * across the specified key rate tenors.
+ * Mathematical Identity: sum_{k=0}^{K-1} w_k(t) = 1.0 for any positive t.
+ * 
+ * @param {number} t - Cash flow time in years
+ * @param {Array<number>} [keyTenors=KEY_RATE_TENORS]
+ * @returns {Array<number>} Array of sensitivity weights corresponding to each key tenor
+ */
+export function calculateTriangularWeights(t, keyTenors = KEY_RATE_TENORS) {
+  const K = keyTenors.length;
+  const weights = new Array(K).fill(0);
+
+  if (t <= keyTenors[0]) {
+    weights[0] = 1;
+    return weights;
+  }
+  if (t >= keyTenors[K - 1]) {
+    weights[K - 1] = 1;
+    return weights;
+  }
+
+  for (let k = 0; k < K - 1; k++) {
+    const tLower = keyTenors[k];
+    const tUpper = keyTenors[k + 1];
+
+    if (t >= tLower && t <= tUpper) {
+      const span = tUpper - tLower;
+      const wUpper = (t - tLower) / span;
+      const wLower = 1 - wUpper;
+      weights[k] = wLower;
+      weights[k + 1] = wUpper;
+      break;
+    }
+  }
+
+  return weights;
+}
+
+/**
+ * Calculates Key Rate Durations (KRD) for a single bond across key tenors.
+ * Uses analytical cash-flow attribution: KRD_k = sum_{i=1}^N [ w_k(t_i) * (t_i * CF_i / (1 + y/m)^i) ] / (Price * (1 + y/m))
+ * 
+ * @param {Object} bond
+ * @param {number} [bond.parValue=1000]
+ * @param {number} [bond.couponRate=0.05]
+ * @param {number} [bond.maturityYears=10]
+ * @param {number} [bond.ytm=0.05]
+ * @param {number} [bond.frequency=2]
+ * @param {Array<number>} [keyTenors=KEY_RATE_TENORS]
+ * @returns {{price: number, effectiveDuration: number, krd: Array<{tenor: number, duration: number, pctOfTotal: number, dv01: number}>}}
+ */
+export function calculateBondKeyRateDuration({
+  parValue = 1000,
+  couponRate = 0.05,
+  maturityYears = 10,
+  ytm = 0.05,
+  frequency = 2,
+  keyTenors = KEY_RATE_TENORS
+} = {}) {
+  const m = Math.max(1, parseInt(frequency, 10) || 2);
+  const n = Math.max(1, Math.round(maturityYears * m));
+  const c = (parValue * couponRate) / m;
+  const periodicYield = ytm / m;
+
+  let price = 0;
+  const K = keyTenors.length;
+  const krdWeightedTime = new Array(K).fill(0);
+  let totalWeightedTime = 0;
+
+  for (let i = 1; i <= n; i++) {
+    const t = i / m;
+    const isLast = (i === n);
+    const cf = c + (isLast ? parValue : 0);
+    const df = Math.pow(1 + periodicYield, -i);
+    const pv = cf * df;
+
+    price += pv;
+    totalWeightedTime += t * pv;
+
+    const weights = calculateTriangularWeights(t, keyTenors);
+    for (let k = 0; k < K; k++) {
+      krdWeightedTime[k] += weights[k] * t * pv;
+    }
+  }
+
+  const effectiveDuration = price > 0 ? (totalWeightedTime / price) / (1 + periodicYield) : 0;
+
+  const krd = keyTenors.map((tenor, k) => {
+    const krdVal = price > 0 ? (krdWeightedTime[k] / price) / (1 + periodicYield) : 0;
+    const pctOfTotal = effectiveDuration > 0 ? (krdVal / effectiveDuration) * 100 : 0;
+    const dv01 = price * krdVal * 0.0001;
+
+    return {
+      tenor,
+      duration: krdVal,
+      pctOfTotal,
+      dv01
+    };
+  });
+
+  return {
+    price,
+    effectiveDuration,
+    krd
+  };
+}
+
+/**
+ * Computes portfolio-level Key Rate Duration profile for a basket of bonds or bond ETFs.
+ * 
+ * @param {Array<Object>} holdings - Array of bond configurations with optional `weight` or `quantity`
+ * @param {Array<number>} [keyTenors=KEY_RATE_TENORS]
+ * @returns {{totalValue: number, effectiveDuration: number, totalDv01: number, krd: Array<{tenor: number, duration: number, pctOfTotal: number, dv01: number}>, holdingsAnalysis: Array<Object>}}
+ */
+export function calculatePortfolioKeyRateDuration(holdings = [], keyTenors = KEY_RATE_TENORS) {
+  if (!holdings.length) {
+    return {
+      totalValue: 0,
+      effectiveDuration: 0,
+      totalDv01: 0,
+      krd: keyTenors.map(tenor => ({ tenor, duration: 0, pctOfTotal: 0, dv01: 0 })),
+      holdingsAnalysis: []
+    };
+  }
+
+  let totalValue = 0;
+  const analyzedHoldings = holdings.map(h => {
+    const bondAnalysis = calculateBondKeyRateDuration({ ...h, keyTenors });
+    const qty = h.quantity || (h.weight ? h.weight * 100 : 1);
+    const positionValue = bondAnalysis.price * qty;
+    totalValue += positionValue;
+
+    return {
+      ...h,
+      price: bondAnalysis.price,
+      positionValue,
+      effectiveDuration: bondAnalysis.effectiveDuration,
+      krd: bondAnalysis.krd
+    };
+  });
+
+  if (totalValue <= 0) {
+    return {
+      totalValue: 0,
+      effectiveDuration: 0,
+      totalDv01: 0,
+      krd: keyTenors.map(tenor => ({ tenor, duration: 0, pctOfTotal: 0, dv01: 0 })),
+      holdingsAnalysis: analyzedHoldings
+    };
+  }
+
+  const K = keyTenors.length;
+  const portfolioKrdValues = new Array(K).fill(0);
+  let portfolioEffectiveDuration = 0;
+  let totalDv01 = 0;
+
+  analyzedHoldings.forEach(h => {
+    const weight = h.positionValue / totalValue;
+    h.weight = weight;
+    portfolioEffectiveDuration += weight * h.effectiveDuration;
+
+    h.krd.forEach((item, k) => {
+      portfolioKrdValues[k] += weight * item.duration;
+      totalDv01 += (h.positionValue * item.duration * 0.0001);
+    });
+  });
+
+  const krd = keyTenors.map((tenor, k) => {
+    const duration = portfolioKrdValues[k];
+    const pctOfTotal = portfolioEffectiveDuration > 0 ? (duration / portfolioEffectiveDuration) * 100 : 0;
+    const dv01 = totalValue * duration * 0.0001;
+
+    return {
+      tenor,
+      duration,
+      pctOfTotal,
+      dv01
+    };
+  });
+
+  return {
+    totalValue,
+    effectiveDuration: portfolioEffectiveDuration,
+    totalDv01,
+    krd,
+    holdingsAnalysis: analyzedHoldings
+  };
+}
+
+/**
+ * Predicts portfolio price return and dollar P&L under arbitrary non-parallel curve shifts.
+ * Formula: % dP ≈ - sum_{k=1}^K [ KRD_k * (dy_k) ]
+ * 
+ * @param {Array<{tenor: number, duration: number}>} krdProfile
+ * @param {Array<{tenor: number, bps: number}>} shifts
+ * @param {number} [portfolioValue=100000]
+ * @returns {{predictedReturnPct: number, dollarPnL: number, tenorBreakdown: Array<Object>}}
+ */
+export function estimateNonParallelPriceChange(krdProfile, shifts, portfolioValue = 100000) {
+  let totalPctChange = 0;
+  const shiftMap = new Map(shifts.map(s => [s.tenor, s.bps]));
+
+  const tenorBreakdown = krdProfile.map(item => {
+    const shiftBps = shiftMap.get(item.tenor) || 0;
+    const deltaYield = shiftBps / 10000;
+    const contributionPct = -item.duration * deltaYield;
+    const contributionDollar = portfolioValue * contributionPct;
+    totalPctChange += contributionPct;
+
+    return {
+      tenor: item.tenor,
+      krd: item.duration,
+      shiftBps,
+      contributionPct,
+      contributionDollar
+    };
+  });
+
+  return {
+    predictedReturnPct: totalPctChange,
+    dollarPnL: portfolioValue * totalPctChange,
+    tenorBreakdown
+  };
+}
+
+

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Key Rate Duration (KRD) &amp; Non-Parallel Risk — Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="./fixed-income.css" />
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/nav.js"></script>
+  </head>
+  <body class="fixed-income-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <div class="top-nav-left">
+          <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+          <span class="nav-breadcrumb-sep">/</span>
+          <div class="nav-category-dropdown">
+            <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
+              <span class="nav-category-icon">🏛️</span>
+              <span class="nav-category-label">Portfolio &amp; Allocation</span>
+              <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M2.5 4.5L6 8L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu" id="navDropdownMenu" role="menu"></div>
+          </div>
+        </div>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link active">💼 Portfolio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+          <button id="font-scale-btn" class="font-scale-btn" aria-label="Cycle font size" title="Font size: medium">A</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container fixed-income-container">
+      <!-- Header -->
+      <header class="studio-header">
+        <h1>📊 Key Rate Duration (KRD) &amp; Non-Parallel Risk</h1>
+        <p class="studio-tagline">
+          Institutional rate risk decomposition across key tenors (3M, 2Y, 5Y, 10Y, 20Y, 30Y).
+          Stress-test non-parallel yield curve shifts: Bull Steepener, Bear Flattener, and Butterfly Curvature.
+        </p>
+      </header>
+
+      <!-- Suite Subnav -->
+      <nav class="suite-subnav" aria-label="Fixed Income Studio Sub-Navigation">
+        <a href="index.html" class="suite-subnav-link">🏛️ Bond Valuation &amp; Sensitivity</a>
+        <a href="yield-curve.html" class="suite-subnav-link">📈 Term Structure &amp; Forward Rates</a>
+        <a href="key-rate-duration.html" class="suite-subnav-link active">📊 Key Rate Duration (KRD)</a>
+        <a href="../monte-carlo/asset-liability.html" class="suite-subnav-link">⚖️ Asset-Liability Modeling</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-krd" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Non-Parallel Rate Sensitivity</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>Overcoming the Parallel Shift Fallacy</strong>
+              <p>Yield curves rarely shift in parallel. A bullet portfolio (100% in 10Y) and a barbell (50% in 2Y + 50% in 30Y) can have the exact same duration (~7.8Y), yet behave oppositely during yield curve steepeners or flatteners.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>Curve Stress Workflow</strong>
+              <p>1. <strong>Select Target Portfolio</strong>: Choose IEF, TLT, SHY, BND, or Barbell.<br>2. <strong>Pick Shift Scenario</strong>: Select Bull Steepener, Bear Flattener, or Butterfly Twist.<br>3. <strong>Inspect P&amp;L Breakdown</strong>: Pinpoint which tenor contributed to profit or loss.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>KRD Sum Identity</strong>
+              <p>• <strong>Mathematical Law</strong>: $\sum_{k} KRD_k = D_{\text{eff}}$. Under a parallel shift, KRD gives the exact same result as modified duration.<br>• <strong>Non-Parallel Power</strong>: $\% \Delta P \approx -\sum KRD_k \cdot \Delta y_k$.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+              <strong>Institutional Regime Behavior</strong>
+              <p>• <strong>Bull Steepener</strong>: Short rates fall faster $\rightarrow$ Barbells and short notes outperform.<br>• <strong>Butterfly Belly Selloff</strong>: 5Y/10Y intermediate yields spike $\rightarrow$ Bullets suffer while barbells preserve capital.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Portfolio Presets Bar -->
+      <div class="fi-card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+        <div class="presets-wrap" style="margin: 0;">
+          <span class="presets-label">Target Bond Portfolio / Structure:</span>
+          <div class="presets-buttons">
+            <button class="btn-preset btn-preset-krd active" data-preset="ief-10y" type="button">IEF (7–10Y Intermediate)</button>
+            <button class="btn-preset btn-preset-krd" data-preset="tlt-long" type="button">TLT (20+ Year Long Bond)</button>
+            <button class="btn-preset btn-preset-krd" data-preset="shy-short" type="button">SHY (1–3 Year Short Note)</button>
+            <button class="btn-preset btn-preset-krd" data-preset="bnd-aggregate" type="button">BND (Total Bond Market)</button>
+            <button class="btn-preset btn-preset-krd" data-preset="barbell-match" type="button">Barbell (2Y + 30Y Match)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Layout Grid -->
+      <div class="fi-layout-grid">
+        <!-- Configuration & Sliders Column -->
+        <div class="fi-card">
+          <div class="fi-card-header">
+            <h3 class="fi-card-title">
+              <span>⚡</span>
+              <span>Yield Curve Shift Simulator</span>
+            </h3>
+            <span class="fi-badge gold">Non-Parallel</span>
+          </div>
+
+          <!-- Scenario Presets -->
+          <div class="presets-wrap">
+            <span class="presets-label">Institutional Curve Scenarios:</span>
+            <div class="presets-buttons">
+              <button class="btn-preset btn-scenario-preset active" data-scenario="bull-steepener" type="button">Bull Steepener</button>
+              <button class="btn-preset btn-scenario-preset" data-scenario="bear-flattener" type="button">Bear Flattener</button>
+              <button class="btn-preset btn-scenario-preset" data-scenario="bear-steepener" type="button">Bear Steepener</button>
+              <button class="btn-preset btn-scenario-preset" data-scenario="bull-flattener" type="button">Bull Flattener</button>
+              <button class="btn-preset btn-scenario-preset" data-scenario="butterfly-twist" type="button">Butterfly Twist</button>
+            </div>
+          </div>
+
+          <!-- Capital Input -->
+          <div class="fi-form-group" style="margin-top: 1rem;">
+            <label for="inp-portfolio-capital">Portfolio Position Capital ($)</label>
+            <input type="number" id="inp-portfolio-capital" class="fi-input" value="100000" step="10000" min="1000" />
+          </div>
+
+          <!-- Key Rate Sliders -->
+          <div style="margin-top: 1.25rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1rem;">
+            <span class="presets-label">Custom Key Rate Tenor Shocks:</span>
+
+            <div class="fi-form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                <span>3-Month Shift:</span>
+                <strong id="val-shift-0_25" class="highlight-blue">-150 bps</strong>
+              </div>
+              <input type="range" id="slider-shift-0_25" min="-300" max="300" step="5" value="-150" style="width: 100%;" />
+            </div>
+
+            <div class="fi-form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                <span>2-Year Shift:</span>
+                <strong id="val-shift-2" class="highlight-blue">-100 bps</strong>
+              </div>
+              <input type="range" id="slider-shift-2" min="-300" max="300" step="5" value="-100" style="width: 100%;" />
+            </div>
+
+            <div class="fi-form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                <span>5-Year Shift:</span>
+                <strong id="val-shift-5" class="highlight-blue">-50 bps</strong>
+              </div>
+              <input type="range" id="slider-shift-5" min="-300" max="300" step="5" value="-50" style="width: 100%;" />
+            </div>
+
+            <div class="fi-form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                <span>10-Year Shift:</span>
+                <strong id="val-shift-10" class="highlight-blue">-20 bps</strong>
+              </div>
+              <input type="range" id="slider-shift-10" min="-300" max="300" step="5" value="-20" style="width: 100%;" />
+            </div>
+
+            <div class="fi-form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                <span>20-Year Shift:</span>
+                <strong id="val-shift-20" class="highlight-blue">0 bps</strong>
+              </div>
+              <input type="range" id="slider-shift-20" min="-300" max="300" step="5" value="0" style="width: 100%;" />
+            </div>
+
+            <div class="fi-form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                <span>30-Year Shift:</span>
+                <strong id="val-shift-30" class="highlight-blue">0 bps</strong>
+              </div>
+              <input type="range" id="slider-shift-30" min="-300" max="300" step="5" value="0" style="width: 100%;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytical Charts & Breakdown Column -->
+        <div class="fi-results-column">
+          <!-- Top KPI Scorecards -->
+          <div class="metrics-row">
+            <div class="kpi-box">
+              <span class="kpi-label">Effective Duration</span>
+              <span class="kpi-val highlight-blue" id="kpi-krd-eff-dur">7.42 Yrs</span>
+              <span class="kpi-sub">$\sum KRD_k$ Parallel Sensitivity</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">Predicted Return %</span>
+              <span class="kpi-val highlight-green" id="kpi-krd-return">+1.85%</span>
+              <span class="kpi-sub">Non-Parallel Shift Impact</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">Estimated P&amp;L ($)</span>
+              <span class="kpi-val highlight-green" id="kpi-krd-dollar-pnl">+$1,850</span>
+              <span class="kpi-sub">Dollar Gain / Loss</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">Portfolio DV01</span>
+              <span class="kpi-val highlight-gold" id="kpi-krd-dv01">$74.20</span>
+              <span class="kpi-sub">$ Sensitivity per 1 bps move</span>
+            </div>
+          </div>
+
+          <!-- Two Charts Grid -->
+          <div class="charts-grid-2col">
+            <div class="fi-card">
+              <div class="canvas-container">
+                <canvas id="canvas-krd-bars"></canvas>
+              </div>
+            </div>
+            <div class="fi-card">
+              <div class="canvas-container">
+                <canvas id="canvas-curve-shift"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tenor P&L Attribution Table -->
+          <div class="fi-card">
+            <div class="fi-card-header">
+              <h3 class="fi-card-title">
+                <span>📋</span>
+                <span>Key Rate Attribution &amp; Tenor P&amp;L Contribution</span>
+              </h3>
+              <span class="fi-badge gold">Institutional Decomposition</span>
+            </div>
+            <div class="fi-table-wrap">
+              <table class="fi-table">
+                <thead>
+                  <tr>
+                    <th>Key Tenor</th>
+                    <th>Key Rate Duration</th>
+                    <th>% of Total Duration</th>
+                    <th>Applied Shift</th>
+                    <th>Return Contribution %</th>
+                    <th>Dollar P&amp;L Contribution</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-krd-breakdown">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UI Logic Script -->
+    <script type="module" src="./key-rate-ui.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>

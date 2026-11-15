@@ -42,9 +42,10 @@ const studioPages = [
   'monte-carlo/financial-goals.html',
   'monte-carlo/asset-liability.html',
 
-  // Fixed Income Suite (2)
+  // Fixed Income Suite (3)
   'fixed-income/index.html',
   'fixed-income/yield-curve.html',
+  'fixed-income/key-rate-duration.html',
 
   // Retirement & Decumulation (4)
   'pages/drawdown-engine.html',
