@@ -20,13 +20,17 @@
     } catch (e) {}
   }
 
-  // 1. Prefetch on link hover (subnav, top nav, dropdown items)
-  document.addEventListener("mouseover", (e) => {
+  // 1. Prefetch on link hover & pointer touch (subnav, top nav, dropdown items)
+  const onPointerEvent = (e) => {
     const a = e.target.closest("a");
     if (a && a.href) {
       prefetchUrl(a.getAttribute("href"));
     }
-  }, { passive: true });
+  };
+
+  document.addEventListener("mouseover", onPointerEvent, { passive: true });
+  document.addEventListener("pointerdown", onPointerEvent, { passive: true });
+  document.addEventListener("touchstart", onPointerEvent, { passive: true });
 
   // 2. Prefetch sibling sub-nav links during browser idle time
   function prefetchSubnav() {
