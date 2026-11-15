@@ -17,7 +17,9 @@ import {
   computeRollingManagerMetrics,
   computeRelativeDrawdowns,
   computeManagerSkillConfidence,
-  analyzeManagerPerformance
+  analyzeManagerPerformance,
+  calculateBrinsonAttribution,
+  BRINSON_PRESETS
 } from '../fund-regression/manager-engine.js';
 
 console.log('=== RUNNING MANAGER PERFORMANCE ANALYSIS ENGINE TESTS ===\n');
@@ -160,5 +162,58 @@ assert(bndVsVoo.regimes.downMarket.captureRatio < 10, 'BND has near-zero downsid
 assert(bndVsVoo.skill.tStat < 0, 't-statistic correctly identifies underperformance vs equity baseline');
 console.log(`BND Down-Market Capture: ${bndVsVoo.regimes.downMarket.captureRatio.toFixed(1)}% (Capital Preservation verified)`);
 console.log('✅ PASS: Defensive asymmetric profile and capital preservation metrics confirmed');
+
+// --- TEST 11: Brinson Performance Attribution (Bodie Chapter 24) ---
+console.log('\n--- TEST 11: Brinson Performance Attribution (BF & BHB Models) ---');
+
+// 1. Active Growth Preset Validation (Brinson-Fachler)
+const growthPreset = BRINSON_PRESETS['active-growth'];
+assert(growthPreset && growthPreset.sectors.length === 10, 'Active growth preset contains 10 sectors/classes');
+
+const bf = calculateBrinsonAttribution(growthPreset.sectors, { model: 'brinson-fachler' });
+assert(bf.identityVerified, 'Brinson-Fachler exact mathematical identity verified: A + S + I = Rp - Rb');
+assert(Math.abs(bf.residual) < 1e-12, `Residual is strictly zero (got ${bf.residual})`);
+assert(bf.portfolioReturn > bf.benchmarkReturn, 'Active manager outperforms benchmark');
+assert(bf.totalAllocation > 0, 'Asset allocation added positive active excess return');
+assert(bf.totalSelection > 0, 'Security selection added positive active excess return');
+
+console.log('Brinson-Fachler Decomposition (Active Growth):');
+console.log(`  Portfolio Return:  ${(bf.portfolioReturn * 100).toFixed(2)}%`);
+console.log(`  Benchmark Return:  ${(bf.benchmarkReturn * 100).toFixed(2)}%`);
+console.log(`  Active Return:     ${(bf.activeReturn * 100).toFixed(2)}%`);
+console.log(`  Allocation Effect: +${(bf.totalAllocation * 100).toFixed(2)}% (${((bf.totalAllocation/bf.activeReturn)*100).toFixed(1)}% of Alpha)`);
+console.log(`  Selection Effect:  +${(bf.totalSelection * 100).toFixed(2)}% (${((bf.totalSelection/bf.activeReturn)*100).toFixed(1)}% of Alpha)`);
+console.log(`  Interaction Effect: +${(bf.totalInteraction * 100).toFixed(2)}% (${((bf.totalInteraction/bf.activeReturn)*100).toFixed(1)}% of Alpha)`);
+console.log(`  Identity Check:    ${(bf.totalSum * 100).toFixed(4)}% == ${(bf.activeReturn * 100).toFixed(4)}% (Diff: ${bf.residual})`);
+console.log('✅ PASS: Brinson-Fachler 3-factor decomposition satisfies exact mathematical identity');
+
+// 2. Brinson-Hood-Beebower Equivalence at Portfolio Level
+const bhb = calculateBrinsonAttribution(growthPreset.sectors, { model: 'brinson-hood-beebower' });
+assert(bhb.identityVerified, 'BHB satisfies exact identity A + S + I = Rp - Rb');
+assert(Math.abs(bhb.totalAllocation - bf.totalAllocation) < 1e-12, 'Portfolio-level Allocation Effect in BHB strictly equals BF');
+assert(Math.abs(bhb.totalSelection - bf.totalSelection) < 1e-12, 'Portfolio-level Selection Effect in BHB strictly equals BF');
+console.log('✅ PASS: Brinson-Hood-Beebower total allocation effect strictly equals Brinson-Fachler');
+
+// 3. Directional Attribution Mechanics
+// Technology: Overweight (48% vs 30%), Sector beat market (22% vs 13.29%) -> Positive Allocation
+const techRow = bf.rows.find(r => r.name === 'Information Technology');
+assert(techRow.allocation > 0, 'Overweighting outperforming sector yields positive allocation effect');
+assert(techRow.selection > 0, 'Manager outperforming sector benchmark yields positive selection effect');
+
+// Industrials: Underweight (4% vs 9%), Sector underperformed market (13% vs 13.29%) -> Positive Allocation
+const indRow = bf.rows.find(r => r.name === 'Industrials');
+assert(indRow.activeWeight < 0, 'Industrials is underweight');
+
+// 4. 2-Factor Combined Selection Equivalence
+assert(Math.abs(bf.totalCombinedSelection - (bf.totalSelection + bf.totalInteraction)) < 1e-12, 'Combined selection strictly equals Selection + Interaction');
+assert(Math.abs(bf.totalAllocation + bf.totalCombinedSelection - bf.activeReturn) < 1e-12, '2-factor Allocation + Combined Selection = Active Return');
+console.log('✅ PASS: 2-factor Brinson decomposition (Allocation + Combined Selection) confirmed');
+
+// 5. Global Multi-Asset & Value Presets Verification
+['global-multi-asset', 'value-dividend'].forEach(key => {
+  const res = calculateBrinsonAttribution(BRINSON_PRESETS[key].sectors);
+  assert(res.identityVerified, `Preset ${key} verified with zero residual`);
+});
+console.log('✅ PASS: All institutional attribution presets validated with zero residual');
 
 console.log('\n🎉 ALL MANAGER PERFORMANCE ENGINE TESTS PASSED SUCCESSFULLY!');

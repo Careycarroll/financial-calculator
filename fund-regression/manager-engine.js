@@ -561,3 +561,171 @@ export function analyzeManagerPerformance(managerFund, benchmarkFund, options = 
     skill
   };
 }
+
+/**
+ * Canonical institutional presets for Brinson performance attribution.
+ */
+export const BRINSON_PRESETS = {
+  'active-growth': {
+    label: 'US Large Growth vs S&P 500 (GICS Sectors)',
+    description: 'Active growth equity manager with significant technology overweight and financial/industrial underweight.',
+    sectors: [
+      { name: 'Information Technology', portfolioWeight: 0.48, benchmarkWeight: 0.30, portfolioReturn: 0.26, benchmarkReturn: 0.22 },
+      { name: 'Communication Services', portfolioWeight: 0.16, benchmarkWeight: 0.09, portfolioReturn: 0.19, benchmarkReturn: 0.15 },
+      { name: 'Consumer Discretionary', portfolioWeight: 0.14, benchmarkWeight: 0.10, portfolioReturn: 0.14, benchmarkReturn: 0.12 },
+      { name: 'Financials', portfolioWeight: 0.04, benchmarkWeight: 0.13, portfolioReturn: 0.12, benchmarkReturn: 0.10 },
+      { name: 'Health Care', portfolioWeight: 0.08, benchmarkWeight: 0.12, portfolioReturn: 0.08, benchmarkReturn: 0.07 },
+      { name: 'Industrials', portfolioWeight: 0.04, benchmarkWeight: 0.09, portfolioReturn: 0.11, benchmarkReturn: 0.13 },
+      { name: 'Energy', portfolioWeight: 0.01, benchmarkWeight: 0.04, portfolioReturn: 0.05, benchmarkReturn: 0.06 },
+      { name: 'Consumer Staples', portfolioWeight: 0.02, benchmarkWeight: 0.06, portfolioReturn: 0.04, benchmarkReturn: 0.05 },
+      { name: 'Utilities & Real Estate', portfolioWeight: 0.01, benchmarkWeight: 0.05, portfolioReturn: 0.02, benchmarkReturn: 0.04 },
+      { name: 'Cash & Equivalents', portfolioWeight: 0.02, benchmarkWeight: 0.02, portfolioReturn: 0.045, benchmarkReturn: 0.045 }
+    ]
+  },
+  'global-multi-asset': {
+    label: 'Global Multi-Asset Endowment vs 60/40',
+    description: 'Diversified institutional endowment competing against a canonical 60% US Equity / 40% Aggregate Bond benchmark.',
+    sectors: [
+      { name: 'US Equities (Large Cap)', portfolioWeight: 0.40, benchmarkWeight: 0.60, portfolioReturn: 0.16, benchmarkReturn: 0.15 },
+      { name: 'International Developed', portfolioWeight: 0.18, benchmarkWeight: 0.00, portfolioReturn: 0.12, benchmarkReturn: 0.09 },
+      { name: 'Emerging Market Equities', portfolioWeight: 0.10, benchmarkWeight: 0.00, portfolioReturn: 0.14, benchmarkReturn: 0.08 },
+      { name: 'Core Fixed Income', portfolioWeight: 0.15, benchmarkWeight: 0.40, portfolioReturn: 0.03, benchmarkReturn: 0.02 },
+      { name: 'Private Real Estate / Infrastructure', portfolioWeight: 0.12, benchmarkWeight: 0.00, portfolioReturn: 0.10, benchmarkReturn: 0.05 },
+      { name: 'Cash & Short T-Bills', portfolioWeight: 0.05, benchmarkWeight: 0.00, portfolioReturn: 0.045, benchmarkReturn: 0.045 }
+    ]
+  },
+  'value-dividend': {
+    label: 'Value / Quality vs S&P 500',
+    description: 'Defensive dividend strategy overweighting cash-generative Financials, Staples, and Industrials.',
+    sectors: [
+      { name: 'Financials', portfolioWeight: 0.28, benchmarkWeight: 0.13, portfolioReturn: 0.15, benchmarkReturn: 0.12 },
+      { name: 'Industrials', portfolioWeight: 0.20, benchmarkWeight: 0.09, portfolioReturn: 0.14, benchmarkReturn: 0.12 },
+      { name: 'Consumer Staples', portfolioWeight: 0.18, benchmarkWeight: 0.06, portfolioReturn: 0.09, benchmarkReturn: 0.06 },
+      { name: 'Health Care', portfolioWeight: 0.14, benchmarkWeight: 0.12, portfolioReturn: 0.10, benchmarkReturn: 0.08 },
+      { name: 'Energy', portfolioWeight: 0.10, benchmarkWeight: 0.04, portfolioReturn: 0.12, benchmarkReturn: 0.07 },
+      { name: 'Information Technology', portfolioWeight: 0.08, benchmarkWeight: 0.30, portfolioReturn: 0.20, benchmarkReturn: 0.24 },
+      { name: 'Communication Services', portfolioWeight: 0.02, benchmarkWeight: 0.09, portfolioReturn: 0.11, benchmarkReturn: 0.16 }
+    ]
+  }
+};
+
+/**
+ * Calculates single-period Brinson-Fachler (BF) and Brinson-Hood-Beebower (BHB)
+ * performance attribution:
+ *
+ * 1. Allocation Effect:
+ *    - BF:  A_i = (w_{p,i} - w_{b,i}) * (R_{b,i} - R_b)
+ *    - BHB: A_i = (w_{p,i} - w_{b,i}) * R_{b,i}
+ * 2. Selection Effect:
+ *    - S_i = w_{b,i} * (R_{p,i} - R_{b,i})
+ * 3. Interaction Effect:
+ *    - I_i = (w_{p,i} - w_{b,i}) * (R_{p,i} - R_{b,i})
+ * 4. Combined Selection (2-Factor):
+ *    - S_{comb,i} = S_i + I_i = w_{p,i} * (R_{p,i} - R_{b,i})
+ *
+ * Mathematical Identity:
+ * A_total + S_total + I_total = R_p - R_b (Active Return)
+ *
+ * References: Bodie, Kane & Marcus, Investments, Chapter 24, Section 24.5.
+ *
+ * @param {Array<{name: string, portfolioWeight: number, benchmarkWeight: number, portfolioReturn: number, benchmarkReturn: number}>} sectors
+ * @param {Object} [options={}]
+ * @param {('brinson-fachler'|'brinson-hood-beebower')} [options.model='brinson-fachler']
+ * @returns {Object} Complete attribution decomposition with exact identity check
+ */
+export function calculateBrinsonAttribution(sectors, options = {}) {
+  const model = options.model === 'brinson-hood-beebower' ? 'brinson-hood-beebower' : 'brinson-fachler';
+
+  if (!Array.isArray(sectors) || sectors.length === 0) {
+    return {
+      model,
+      portfolioReturn: 0,
+      benchmarkReturn: 0,
+      activeReturn: 0,
+      totalAllocation: 0,
+      totalSelection: 0,
+      totalInteraction: 0,
+      totalCombinedSelection: 0,
+      totalSum: 0,
+      residual: 0,
+      identityVerified: true,
+      rows: []
+    };
+  }
+
+  // Normalize weights if needed
+  const rawSumWp = sectors.reduce((acc, s) => acc + (Number(s.portfolioWeight) || 0), 0);
+  const rawSumWb = sectors.reduce((acc, s) => acc + (Number(s.benchmarkWeight) || 0), 0);
+  const sumWp = rawSumWp > 0 ? rawSumWp : 1;
+  const sumWb = rawSumWb > 0 ? rawSumWb : 1;
+
+  const normSectors = sectors.map(s => ({
+    name: s.name || 'Unnamed Sector',
+    wp: (Number(s.portfolioWeight) || 0) / sumWp,
+    wb: (Number(s.benchmarkWeight) || 0) / sumWb,
+    rp: Number(s.portfolioReturn) || 0,
+    rb: Number(s.benchmarkReturn) || 0
+  }));
+
+  const totalRp = normSectors.reduce((acc, s) => acc + s.wp * s.rp, 0);
+  const totalRb = normSectors.reduce((acc, s) => acc + s.wb * s.rb, 0);
+  const activeReturn = totalRp - totalRb;
+
+  let totalAllocation = 0;
+  let totalSelection = 0;
+  let totalInteraction = 0;
+
+  const rows = normSectors.map(s => {
+    const activeWeight = s.wp - s.wb;
+    const activeSectorReturn = s.rp - s.rb;
+
+    let allocation;
+    if (model === 'brinson-hood-beebower') {
+      allocation = activeWeight * s.rb;
+    } else {
+      allocation = activeWeight * (s.rb - totalRb);
+    }
+
+    const selection = s.wb * activeSectorReturn;
+    const interaction = activeWeight * activeSectorReturn;
+    const combinedSelection = selection + interaction;
+    const totalEffect = allocation + selection + interaction;
+
+    totalAllocation += allocation;
+    totalSelection += selection;
+    totalInteraction += interaction;
+
+    return {
+      name: s.name,
+      portfolioWeight: s.wp,
+      benchmarkWeight: s.wb,
+      activeWeight,
+      portfolioReturn: s.rp,
+      benchmarkReturn: s.rb,
+      activeSectorReturn,
+      allocation,
+      selection,
+      interaction,
+      combinedSelection,
+      totalEffect
+    };
+  });
+
+  const totalSum = totalAllocation + totalSelection + totalInteraction;
+  const residual = activeReturn - totalSum;
+
+  return {
+    model,
+    portfolioReturn: totalRp,
+    benchmarkReturn: totalRb,
+    activeReturn,
+    totalAllocation,
+    totalSelection,
+    totalInteraction,
+    totalCombinedSelection: totalSelection + totalInteraction,
+    totalSum,
+    residual,
+    identityVerified: Math.abs(residual) < 1e-10,
+    rows
+  };
+}
