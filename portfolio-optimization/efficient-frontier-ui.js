@@ -279,45 +279,15 @@ function initEducationGuide() {
 
   if (!guideCard) return;
 
-  // Restore persistence
+  // Restore persistence (hidden vs visible)
   try {
     const isHidden = localStorage.getItem('fc_frontier_edu_hidden') === 'true';
     if (isHidden) {
       guideCard.style.display = 'none';
       if (restorePill) restorePill.style.display = 'block';
     }
-
-    const isCollapsed = localStorage.getItem('fc_frontier_edu_collapsed') === 'true';
-    if (isCollapsed && guideToggle && guideArrow && guideBody) {
-      guideToggle.classList.remove('open');
-      guideArrow.classList.remove('open');
-      guideBody.classList.remove('open');
-      guideBody.style.display = 'none';
-    }
   } catch (e) {
     // Graceful fallback if localStorage is unavailable
-  }
-
-  // Toggle Collapse / Expand
-  if (guideToggle && guideArrow && guideBody) {
-    guideToggle.addEventListener('click', (e) => {
-      if (e.target && e.target.closest('#btn-hide-edu-guide')) return;
-
-      const isOpen = guideToggle.classList.contains('open');
-      if (isOpen) {
-        guideToggle.classList.remove('open');
-        guideArrow.classList.remove('open');
-        guideBody.classList.remove('open');
-        guideBody.style.display = 'none';
-        try { localStorage.setItem('fc_frontier_edu_collapsed', 'true'); } catch (err) {}
-      } else {
-        guideToggle.classList.add('open');
-        guideArrow.classList.add('open');
-        guideBody.classList.add('open');
-        guideBody.style.display = 'block';
-        try { localStorage.removeItem('fc_frontier_edu_collapsed'); } catch (err) {}
-      }
-    });
   }
 
   // Hide Guide completely
@@ -330,12 +300,15 @@ function initEducationGuide() {
     });
   }
 
-  // Restore Guide
+  // Restore Guide (and expand body if currently collapsed)
   if (btnShow && guideCard && restorePill) {
     btnShow.addEventListener('click', () => {
       guideCard.style.display = 'block';
       restorePill.style.display = 'none';
       try { localStorage.removeItem('fc_frontier_edu_hidden'); } catch (err) {}
+      if (guideBody && guideBody.style.display === 'none' && guideToggle) {
+        guideToggle.click();
+      }
     });
   }
 
