@@ -452,12 +452,16 @@
                   <span class="metric-row-val" id="m-ulcer">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Monthly 95% Value at Risk (VaR) <span class="info-tip tip-right" data-tooltip="Maximum expected 1-month loss with 95% confidence (19 of 20 months are better).">ℹ️</span></span>
+                  <span class="metric-row-label">Monthly 95% Value at Risk (VaR) <span class="info-tip tip-right" data-tooltip="Maximum expected 1-month loss with 95% confidence using Cornish-Fisher tail expansion (Bodie Chapter 5.5).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-var">0.0%</span>
                 </div>
                 <div class="metric-row">
-                  <span class="metric-row-label">Expected Shortfall (CVaR) <span class="info-tip tip-right" data-tooltip="Average loss suffered during the worst 5% tail-risk crash months.">ℹ️</span></span>
+                  <span class="metric-row-label">Expected Shortfall (CVaR 95%) <span class="info-tip tip-right" data-tooltip="Average loss suffered during the worst 5% tail-risk crash months (Cornish-Fisher integration).">ℹ️</span></span>
                   <span class="metric-row-val" id="m-cvar">0.0%</span>
+                </div>
+                <div class="metric-row">
+                  <span class="metric-row-label">Tail Risk Profile (Cornish-Fisher) <span class="info-tip tip-right" data-tooltip="Evaluates skewness and excess kurtosis fat tails beyond Gaussian normal assumptions.">ℹ️</span></span>
+                  <span class="metric-row-val" id="m-tail-severity" style="font-size: 0.8rem; font-weight: 600;">Near-Normal</span>
                 </div>
               </div>
             </div>

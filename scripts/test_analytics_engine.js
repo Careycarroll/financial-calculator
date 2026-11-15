@@ -16,6 +16,18 @@ import {
   generateSimpleVerdict,
   computeMonthlyReturns
 } from '../asset-analytics/analytics-engine.js';
+import {
+  inverseNormalCdf,
+  normalPdf,
+  calculateMoments,
+  calculateHistoricalVaR,
+  calculateHistoricalCVaR,
+  calculateParametricVaR,
+  calculateParametricCVaR,
+  calculateCornishFisherVaR,
+  calculateCornishFisherCVaR,
+  computeTailRiskMetrics
+} from '../asset-analytics/tail-risk.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 import { FINANCIAL_TERMS } from '../js/financial-terms.js';
 
@@ -138,5 +150,52 @@ const verdictWithFee = generateSimpleVerdict(dummyProfile, dummyBench, ddResult.
 assert(verdictWithFee.feeVerdict.includes('Expense Ratio'), 'Verdict includes expense ratio commentary');
 console.log(`✅ PASS: Fee drag calculated: Direct Fees $${feeDrag.totalFeesPaid} | Total Drag $${feeDrag.compoundedFeeDrag} | Opp Cost $${feeDrag.lostOpportunityCost}`);
 console.log(`   Fee Verdict: ${verdictWithFee.feeVerdict}`);
+
+// TEST 10: Value at Risk (VaR) & Expected Shortfall (CVaR) with Cornish-Fisher Tail Expansion (Issue #123)
+console.log('\n--- TEST 10: VaR, Expected Shortfall (CVaR) & Cornish-Fisher Expansion ---');
+
+// 1. Inverse Normal CDF Accuracy Check
+const z95 = inverseNormalCdf(0.95);
+const z99 = inverseNormalCdf(0.99);
+assert(Math.abs(z95 - 1.6448536) < 1e-6, `Inverse normal CDF 95% critical value: ${z95}`);
+assert(Math.abs(z99 - 2.3263479) < 1e-6, `Inverse normal CDF 99% critical value: ${z99}`);
+console.log(`✅ PASS: Acklam inverse normal CDF precision verified (z_95 = ${z95.toFixed(6)}, z_99 = ${z99.toFixed(6)})`);
+
+// 2. Normal Distribution Identity: Cornish-Fisher identically collapses to Gaussian when S = 0 and K = 0
+const testMean = 0.01;
+const testStd = 0.045;
+const paramVaR95 = calculateParametricVaR(testMean, testStd, 0.95);
+const cfVaR95_normal = calculateCornishFisherVaR(testMean, testStd, 0, 0, 0.95);
+assert(Math.abs(paramVaR95 - cfVaR95_normal) < 1e-10, `Normal identity: Parametric ${paramVaR95} == CF ${cfVaR95_normal}`);
+
+const paramCVaR95 = calculateParametricCVaR(testMean, testStd, 0.95);
+const cfCVaR95_normal = calculateCornishFisherCVaR(testMean, testStd, 0, 0, 0.95, 200);
+assert(Math.abs(paramCVaR95 - cfCVaR95_normal) < 0.0005, `Normal CVaR identity: Parametric ${paramCVaR95.toFixed(4)} matches integrated CF ${cfCVaR95_normal.toFixed(4)}`);
+console.log('✅ PASS: Cornish-Fisher expansion satisfies exact Gaussian identity when S = 0 and K = 0');
+
+// 3. Negative Skewness & Fat-Tail Stress Test (Bodie Section 5.5)
+// Negative skewness and positive kurtosis must strictly penalize the portfolio (mVaR > Parametric VaR)
+const fatTailSkew = -0.65; // negative left-tail crash skew
+const fatTailKurt = 3.50; // fat tails (leptokurtosis)
+const mVaR95 = calculateCornishFisherVaR(testMean, testStd, fatTailSkew, fatTailKurt, 0.95);
+const mCVaR95 = calculateCornishFisherCVaR(testMean, testStd, fatTailSkew, fatTailKurt, 0.95);
+assert(mVaR95 > paramVaR95, `Modified VaR (${(mVaR95*100).toFixed(2)}%) strictly exceeds Gaussian VaR (${(paramVaR95*100).toFixed(2)}%) under crash risk`);
+assert(mCVaR95 > mVaR95, `Expected Shortfall CVaR strictly exceeds VaR threshold (${(mCVaR95*100).toFixed(2)}% > ${(mVaR95*100).toFixed(2)}%)`);
+console.log(`✅ PASS: Left-tail crash risk penalizes VaR from ${(paramVaR95*100).toFixed(2)}% to ${(mVaR95*100).toFixed(2)}% (mCVaR = ${(mCVaR95*100).toFixed(2)}%)`);
+
+// 4. Real Benchmark Validation on VOO and QQQ Returns
+const vooRaw = vooReturns.map(r => r.return);
+const vooTail = computeTailRiskMetrics(vooRaw);
+assert(vooTail.hasSufficientData, 'VOO tail risk metrics computed');
+assert(vooTail.moments.count === vooRaw.length, 'Correct sample observation count');
+assert(vooTail.var95.historical > 0.02 && vooTail.var95.historical < 0.15, 'VOO Historical VaR 95% is realistic (2% - 15%)');
+assert(vooTail.cvar95.historical >= vooTail.var95.historical, 'VOO Historical CVaR >= VaR');
+assert(vooTail.var99.cornishFisher > vooTail.var95.cornishFisher, '99% VaR strictly exceeds 95% VaR');
+console.log(`VOO Tail Risk Report (N = ${vooTail.sampleSize} Months):`);
+console.log(`  Skewness: ${vooTail.moments.skewness.toFixed(3)} | Excess Kurtosis: ${vooTail.moments.excessKurtosis.toFixed(3)}`);
+console.log(`  95% Historical VaR: ${(vooTail.var95.historical * 100).toFixed(2)}% | 95% Cornish-Fisher VaR: ${(vooTail.var95.cornishFisher * 100).toFixed(2)}%`);
+console.log(`  95% Historical CVaR: ${(vooTail.cvar95.historical * 100).toFixed(2)}% | 95% Cornish-Fisher CVaR: ${(vooTail.cvar95.cornishFisher * 100).toFixed(2)}%`);
+console.log(`  Diagnosis: "${vooTail.tailRiskSeverity}" (Ratio CF/Param: ${vooTail.ratioCFtoParam95.toFixed(3)})`);
+console.log('✅ PASS: Real institutional fund tail risk validation complete');
 
 console.log('\n🎉 ALL ASSET ANALYTICS TESTS PASSED SUCCESSFULLY!');

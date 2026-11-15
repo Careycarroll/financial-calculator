@@ -508,6 +508,20 @@ function renderScorecardTable() {
       format: m => `<span style="color:#ef4444; font-weight:700;">${formatPct(m.maxDrawdown)}</span>`,
       findBest: arr => Math.max(...arr.map(m => m.maxDrawdown))
     },
+    {
+      label: 'Value at Risk (VaR 95%)',
+      format: m => m.monthlyVaR95 ? `<span style="color:#fbbf24; font-weight:600;">-${formatPct(m.monthlyVaR95)}</span>` : '--',
+      findBest: arr => Math.min(...arr.map(m => m.monthlyVaR95 || Infinity))
+    },
+    {
+      label: 'Expected Shortfall (CVaR 95%)',
+      format: m => m.monthlyCVaR95 ? `<span style="color:#ef4444; font-weight:700;">-${formatPct(m.monthlyCVaR95)}</span>` : '--',
+      findBest: arr => Math.min(...arr.map(m => m.monthlyCVaR95 || Infinity))
+    },
+    {
+      label: 'Tail Risk Profile (Cornish-Fisher)',
+      format: m => m.tailRisk ? `<span style="color:${m.tailRisk.tailRiskSeverity.includes('Severe') ? '#f43f5e' : (m.tailRisk.tailRiskSeverity.includes('Moderate') ? '#fbbf24' : '#34d399')}; font-size:0.8rem; font-weight:600;">${m.tailRisk.tailRiskSeverity}</span>` : '--'
+    },
     { label: 'Best Year', format: m => `${m.bestYear.year} (${formatPct(m.bestYear.return)})` },
     { label: 'Worst Year', format: m => `${m.worstYear.year} (${formatPct(m.worstYear.return)})` },
     { label: 'Rebalance Events', format: (m, p) => p ? `${p.rebalanceCount} times` : 'N/A' },

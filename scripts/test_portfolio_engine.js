@@ -107,10 +107,14 @@ assert(simAnnual.metrics.finalBalance > 10000, 'Final balance shows capital appr
 assert(simAnnual.metrics.cagr > 0.04 && simAnnual.metrics.cagr < 0.20, '60/40 CAGR is in realistic range');
 assert(simAnnual.metrics.annualVolatility > 0.05 && simAnnual.metrics.annualVolatility < 0.20, 'Volatility is reasonable');
 assert(simAnnual.metrics.maxDrawdown < 0, 'Max Drawdown is negative percentage');
+assert(simAnnual.metrics.monthlyVaR95 > 0.01 && simAnnual.metrics.monthlyVaR95 < 0.12, '60/40 monthly VaR 95% is between 1% and 12%');
+assert(simAnnual.metrics.monthlyCVaR95 >= simAnnual.metrics.monthlyVaR95, 'CVaR >= VaR');
+assert(simAnnual.metrics.tailRisk && simAnnual.metrics.tailRisk.hasSufficientData, 'Tail risk metrics computed');
 assert(simAnnual.rebalanceCount > 5, 'Annual rebalancing fired multiple times over holding period');
 
 console.log(`✅ PASS: 60/40 Portfolio: Initial $10k -> Final $${simAnnual.metrics.finalBalance.toLocaleString()}`);
 console.log(`   CAGR: ${(simAnnual.metrics.cagr * 100).toFixed(2)}% | Volatility: ${(simAnnual.metrics.annualVolatility * 100).toFixed(2)}% | Sharpe: ${simAnnual.metrics.sharpeRatio} | MaxDD: ${(simAnnual.metrics.maxDrawdown * 100).toFixed(1)}%`);
+console.log(`   Monthly VaR (95%): ${(simAnnual.metrics.monthlyVaR95 * 100).toFixed(2)}% | Monthly CVaR (95%): ${(simAnnual.metrics.monthlyCVaR95 * 100).toFixed(2)}% | Diagnosis: "${simAnnual.metrics.tailRisk.tailRiskSeverity}"`);
 
 // TEST 5: Rebalance vs No-Rebalance (Drift)
 console.log('\n--- TEST 5: Rebalancing vs Buy-and-Hold Drift ---');
