@@ -235,6 +235,18 @@ export const TOOLS_CATALOG = [
     keywords: ["portfolio", "backtest", "rebalance", "asset allocation", "60/40", "voo", "bnd", "qqq", "schd", "benchmark", "weights", "cagr", "volatility", "sharpe", "drawdown"]
   },
   {
+    id: "fixed-income",
+    title: "Fixed Income & Bond Analytics Studio",
+    shortTitle: "Fixed Income Studio",
+    path: "fixed-income/index.html",
+    icon: "🏛️",
+    badge: "STUDIO",
+    desc: "Institutional bond pricing, Newton-Raphson YTM solver, Macaulay & Modified Duration, convexity curvature, DV01 risk, and classical liability immunization.",
+    suiteId: "portfolio",
+    workflowId: "quant-risk",
+    keywords: ["fixed income", "bond", "yield to maturity", "ytm", "duration", "macaulay duration", "modified duration", "convexity", "dv01", "immunization", "treasury", "fabozzi", "bodie"]
+  },
+  {
     id: "asset-class-allocation",
     title: "Backtest Asset Class Allocation Studio",
     shortTitle: "Asset Class Backtest",

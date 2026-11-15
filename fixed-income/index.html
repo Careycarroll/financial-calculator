@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fixed Income & Bond Analytics Studio — Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="./fixed-income.css" />
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/nav.js"></script>
+  </head>
+  <body class="fixed-income-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <div class="top-nav-left">
+          <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+          <span class="nav-breadcrumb-sep">/</span>
+          <div class="nav-category-dropdown">
+            <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
+              <span class="nav-category-icon">🏛️</span>
+              <span class="nav-category-label">Portfolio &amp; Allocation</span>
+              <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M2.5 4.5L6 8L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu" id="navDropdownMenu" role="menu"></div>
+          </div>
+        </div>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link active">💼 Portfolio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+          <button id="font-scale-btn" class="font-scale-btn" aria-label="Cycle font size" title="Font size: medium">A</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container fixed-income-container">
+      <!-- Header -->
+      <header class="studio-header">
+        <h1>🏛️ Fixed Income &amp; Bond Analytics Studio</h1>
+        <p class="studio-tagline">
+          Institutional bond valuation, Newton-Raphson Yield to Maturity (YTM) solver, Macaulay &amp; Modified Duration,
+          2nd-order Taylor series convexity curvature, DV01 risk measurement, and classical liability immunization.
+        </p>
+      </header>
+
+      <!-- Suite Subnav -->
+      <nav class="suite-subnav" aria-label="Fixed Income Studio Sub-Navigation">
+        <a href="index.html" class="suite-subnav-link active">🏛️ Bond Valuation &amp; Sensitivity</a>
+        <a href="../monte-carlo/asset-liability.html" class="suite-subnav-link">⚖️ Asset-Liability Modeling</a>
+        <a href="../tactical-allocation/market-valuation.html" class="suite-subnav-link">📈 Treasury Yield Curve</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-fixed-income" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Bond Price Sensitivity &amp; Immunization</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>Institutional Rate Risk &amp; Duration Matching</strong>
+              <p>Quantify bond portfolio vulnerability to yield curve shifts. Calculate Macaulay Duration, Modified Duration, Convexity curvature, and DV01, or solve classical liability immunization barbells.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>Pricing &amp; Sensitivity Workflow</strong>
+              <p>1. <strong>Input or Preset</strong>: Choose 10Y Benchmark, 30Y Long, or Corporate IG.<br>2. <strong>Solver Mode</strong>: Solve Price from YTM or solve exact YTM from market price.<br>3. <strong>Sensitivity</strong>: Inspect the 2nd-order Taylor series shock curve across -300 to +300 bps.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>The Convexity Shield</strong>
+              <p>• <strong>Duration Linearity Fallacy</strong>: Duration alone underestimates bond prices when yields move significantly.<br>• <strong>Positive Curvature</strong>: Bond prices rise faster when yields drop than they fall when yields rise.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+              <strong>Classical Immunization (Bodie Ch. 16)</strong>
+              <p>• <strong>Duration Match</strong>: $D_A = D_L$ eliminates price sensitivity to parallel yield shifts.<br>• <strong>Convexity Shield</strong>: $C_A \ge C_L$ ensures asset values outgrow liability obligations under any yield shock.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Studio Tabs Nav -->
+      <div class="fi-tabs-nav">
+        <button class="fi-tab-btn active" data-tab="valuation" type="button">
+          <span>🧮</span>
+          <span>Bond Pricing &amp; Sensitivity Workbench</span>
+        </button>
+        <button class="fi-tab-btn" data-tab="immunization" type="button">
+          <span>⚖️</span>
+          <span>Liability Immunization Barbell</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: BOND VALUATION & SENSITIVITY -->
+      <section id="section-valuation">
+        <div class="fi-layout-grid">
+          <!-- Configuration Card -->
+          <div class="fi-card">
+            <div class="fi-card-header">
+              <h3 class="fi-card-title">
+                <span>⚙️</span>
+                <span>Bond Parameters</span>
+              </h3>
+              <span class="fi-badge">Cash Flow Model</span>
+            </div>
+
+            <!-- Presets -->
+            <div class="presets-wrap">
+              <span class="presets-label">Benchmark Presets:</span>
+              <div class="presets-buttons">
+                <button class="btn-preset" data-preset="treasury-10y" type="button">10Y Benchmark</button>
+                <button class="btn-preset" data-preset="treasury-30y" type="button">30Y Long</button>
+                <button class="btn-preset" data-preset="treasury-2y" type="button">2Y Short</button>
+                <button class="btn-preset" data-preset="corp-ig-7y" type="button">7Y Corp IG</button>
+                <button class="btn-preset" data-preset="zero-20y" type="button">20Y STRIPS</button>
+              </div>
+            </div>
+
+            <!-- Solver Mode Toggle -->
+            <div class="solver-mode-toggle">
+              <button class="solver-mode-btn active" id="btn-mode-price" type="button">Solve Price from YTM</button>
+              <button class="solver-mode-btn" id="btn-mode-ytm" type="button">Solve YTM from Price</button>
+            </div>
+
+            <!-- Inputs -->
+            <div class="fi-form-group">
+              <label for="inp-par-value">Par / Face Value ($)</label>
+              <input type="number" id="inp-par-value" class="fi-input" value="1000" step="100" min="100" />
+            </div>
+
+            <div class="fi-form-group">
+              <label for="inp-coupon-rate">Annual Coupon Rate (%)</label>
+              <input type="number" id="inp-coupon-rate" class="fi-input" value="4.50" step="0.1" min="0" max="25" />
+              <div class="fi-input-hint">Set to 0% for zero-coupon Treasury STRIPS.</div>
+            </div>
+
+            <div class="fi-form-group">
+              <label for="inp-maturity-years">Maturity (Years)</label>
+              <input type="number" id="inp-maturity-years" class="fi-input" value="10" step="0.5" min="0.5" max="50" />
+            </div>
+
+            <div class="fi-form-group">
+              <label for="inp-coupon-frequency">Payment Frequency</label>
+              <select id="inp-coupon-frequency" class="fi-select">
+                <option value="2" selected>Semi-Annual (US Treasury Standard)</option>
+                <option value="1">Annual (Eurobond Standard)</option>
+                <option value="4">Quarterly</option>
+                <option value="12">Monthly</option>
+              </select>
+            </div>
+
+            <div class="fi-form-group" id="wrap-inp-ytm">
+              <label for="inp-ytm">Yield to Maturity / Discount Rate (%)</label>
+              <input type="number" id="inp-ytm" class="fi-input" value="4.50" step="0.05" min="0.01" max="30" />
+            </div>
+
+            <div class="fi-form-group" id="wrap-inp-price" style="display: none;">
+              <label for="inp-market-price">Observed Market Price ($)</label>
+              <input type="number" id="inp-market-price" class="fi-input" value="1000.00" step="0.5" min="1" />
+              <div class="fi-input-hint">Newton-Raphson solver will compute exact annualized YTM.</div>
+            </div>
+          </div>
+
+          <!-- Analytical Results Column -->
+          <div class="fi-results-column">
+            <!-- KPI Scorecard -->
+            <div class="metrics-row">
+              <div class="kpi-box">
+                <span class="kpi-label">Bond Price</span>
+                <span class="kpi-val highlight-gold" id="kpi-bond-price">$1,000.00</span>
+                <span class="kpi-sub" id="kpi-bond-pct-par">100.00% (Par)</span>
+              </div>
+              <div class="kpi-box">
+                <span class="kpi-label">Yield to Maturity (YTM)</span>
+                <span class="kpi-val highlight-blue" id="kpi-bond-ytm">4.500%</span>
+                <span class="kpi-sub">Annualized Compounded</span>
+              </div>
+              <div class="kpi-box">
+                <span class="kpi-label">Modified Duration</span>
+                <span class="kpi-val highlight-green" id="kpi-bond-mod-dur">7.84 Yrs</span>
+                <span class="kpi-sub">%Δ per 100 bps shift</span>
+              </div>
+              <div class="kpi-box">
+                <span class="kpi-label">Macaulay Duration</span>
+                <span class="kpi-val" id="kpi-bond-mac-dur">8.02 Yrs</span>
+                <span class="kpi-sub">Cash-Flow Weighted Term</span>
+              </div>
+              <div class="kpi-box">
+                <span class="kpi-label">Annual Convexity</span>
+                <span class="kpi-val" id="kpi-bond-convexity">76.45</span>
+                <span class="kpi-sub">2nd-Order Curvature</span>
+              </div>
+              <div class="kpi-box">
+                <span class="kpi-label">DV01 / PV01</span>
+                <span class="kpi-val highlight-blue" id="kpi-bond-dv01">$0.784</span>
+                <span class="kpi-sub">$ Value of 1 bps move</span>
+              </div>
+            </div>
+
+            <!-- Two Visual Charts -->
+            <div class="charts-grid-2col">
+              <div class="fi-card">
+                <div class="canvas-container">
+                  <canvas id="canvas-cash-flows"></canvas>
+                </div>
+              </div>
+              <div class="fi-card">
+                <div class="canvas-container">
+                  <canvas id="canvas-sensitivity-curve"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Yield Shock Scenario Matrix Table -->
+            <div class="fi-card">
+              <div class="fi-card-header">
+                <h3 class="fi-card-title">
+                  <span>⚡</span>
+                  <span>Yield Shock Scenario Matrix (-300 bps to +300 bps)</span>
+                </h3>
+                <span class="fi-badge gold">Taylor 2nd-Order Expansion</span>
+              </div>
+              <div class="fi-table-wrap">
+                <table class="fi-table">
+                  <thead>
+                    <tr>
+                      <th>Shift (bps)</th>
+                      <th>Shocked YTM</th>
+                      <th>Exact Price</th>
+                      <th>Exact Return %</th>
+                      <th>Duration-Only</th>
+                      <th>Dur + Convexity</th>
+                      <th>Convexity Cushion</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-yield-shock">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: LIABILITY IMMUNIZATION BARBELL -->
+      <section id="section-immunization" style="display: none;">
+        <div class="fi-card">
+          <div class="fi-card-header">
+            <h3 class="fi-card-title">
+              <span>⚖️</span>
+              <span>Classical Multi-Period Liability Immunization</span>
+            </h3>
+            <span class="fi-badge green">Bodie Ch. 16 Duration Matching</span>
+          </div>
+
+          <div class="imm-summary-banner">
+            <span class="imm-banner-icon">🛡️</span>
+            <div class="imm-banner-content">
+              <h4>Immunization Status</h4>
+              <p id="imm-banner-summary">Calculating optimal immunization barbell...</p>
+            </div>
+          </div>
+
+          <!-- Conditions Cards -->
+          <div class="imm-conditions-grid">
+            <div class="condition-card">
+              <div class="condition-status">💼</div>
+              <div class="condition-title">Condition 1: Capital Solvency</div>
+              <div class="condition-detail" id="imm-cond-pv">$0</div>
+              <div class="fi-input-hint">PV of Assets $\ge$ PV of Liabilities</div>
+            </div>
+            <div class="condition-card">
+              <div class="condition-status">⏱️</div>
+              <div class="condition-title">Condition 2: Duration Match</div>
+              <div class="condition-detail" id="imm-cond-dur">D_A = D_L</div>
+              <div class="fi-input-hint">Portfolio rate sensitivity locked</div>
+            </div>
+            <div class="condition-card">
+              <div class="condition-status">🛡️</div>
+              <div class="condition-title">Condition 3: Convexity Shield</div>
+              <div class="condition-detail" id="imm-cond-convex">+0.00 Advantage</div>
+              <div class="fi-input-hint">Asset Convexity $\ge$ Liability Convexity</div>
+            </div>
+          </div>
+
+          <!-- Barbell Visual Bar -->
+          <div>
+            <span class="presets-label">Optimal Barbell Capital Allocation:</span>
+            <div class="barbell-visual-wrap">
+              <div class="barbell-bar-short" id="imm-bar-short" style="width: 50%;">Short Bond: 50%</div>
+              <div class="barbell-bar-long" id="imm-bar-long" style="width: 50%;">Long Bond: 50%</div>
+            </div>
+          </div>
+
+          <!-- Controls Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+            <div class="fi-form-group">
+              <label for="imm-discount-rate">Liability Discount Rate (%)</label>
+              <input type="number" id="imm-discount-rate" class="fi-input" value="4.50" step="0.25" min="0.5" max="15" />
+            </div>
+            <div class="fi-form-group">
+              <label for="imm-short-maturity">Short Bond Maturity (Years)</label>
+              <input type="number" id="imm-short-maturity" class="fi-input" value="3" step="1" min="1" max="10" />
+            </div>
+            <div class="fi-form-group">
+              <label for="imm-long-maturity">Long Bond Maturity (Years)</label>
+              <input type="number" id="imm-long-maturity" class="fi-input" value="20" step="1" min="11" max="40" />
+            </div>
+          </div>
+
+          <!-- Scheduled Liabilities Table -->
+          <div style="margin-top: 1.5rem;">
+            <span class="presets-label">Scheduled Liability Obligations:</span>
+            <div class="fi-table-wrap">
+              <table class="fi-table">
+                <thead>
+                  <tr>
+                    <th>Obligation Horizon</th>
+                    <th>Required Outflow</th>
+                    <th>Present Value ($)</th>
+                    <th>Discounted Duration</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-liabilities">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- UI Logic Script -->
+    <script type="module" src="./fixed-income-ui.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>

@@ -18,6 +18,7 @@
         { id: "asset-correlations", name: "Asset Correlations", icon: "🔗", path: "asset-analytics/asset-correlations.html", desc: "Pairwise correlation matrix, covariance & rolling co-movement regimes" },
         { id: "fund-screener", name: "Fund Screener & Rankings", icon: "🔍", path: "asset-analytics/fund-screener.html", desc: "Multi-factor ETF/fund screener, style classification & risk-adjusted leaderboards" },
         { id: "time-series", name: "Time Series Lab", icon: "⏱️", path: "asset-analytics/time-series.html", desc: "Autocorrelation, momentum persistence, seasonality & cointegration ADF test" },
+        { id: "fixed-income", name: "Fixed Income & Duration", icon: "🏛️", path: "fixed-income/index.html", desc: "Bond pricing, YTM solver, Macaulay/Modified duration, convexity & immunization" },
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" }
       ],
       bridges: [
