@@ -916,3 +916,118 @@
   color: #f8fafc;
   border-color: #64748b;
 }
+
+/* ===================================================================
+   INTERACTIVE COMPONENT HOVER EXPLAINERS & POPOVERS
+   =================================================================== */
+.info-explainer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: help;
+  position: relative;
+  margin-left: 0.45rem;
+  vertical-align: middle;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  transition: all 0.2s ease;
+  user-select: none;
+  line-height: 1;
+}
+
+.info-explainer:hover,
+.info-explainer:focus {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+  outline: none;
+}
+
+.info-explainer .info-popover {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: 290px;
+  max-width: 85vw;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 100;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: normal;
+  text-align: left;
+}
+
+.info-explainer .info-popover::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: #0f172a transparent transparent transparent;
+}
+
+.info-explainer:hover .info-popover,
+.info-explainer:focus .info-popover {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.info-popover-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 0.3rem;
+  font-size: 0.82rem;
+}
+
+.info-popover-text {
+  display: block;
+  color: #cbd5e1;
+  margin-bottom: 0.35rem;
+  font-size: 0.77rem;
+  line-height: 1.45;
+}
+
+.info-popover-takeaway {
+  display: block;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* Align popover to left or right when near container edges */
+.card-title-row .info-explainer .info-popover {
+  left: 0;
+  transform: translateY(4px);
+}
+.card-title-row .info-explainer:hover .info-popover,
+.card-title-row .info-explainer:focus .info-popover {
+  transform: translateY(0);
+}
+.card-title-row .info-explainer .info-popover::after {
+  left: 12px;
+}

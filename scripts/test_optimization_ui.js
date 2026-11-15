@@ -264,6 +264,31 @@ await runTest('Test 6: Educational Decision & Intuition component elements, tabs
   assert(html.includes('Complete portfolio <strong>C* slides down the CAL toward Cash'), 'Missing risk aversion intuition');
 });
 
+// -----------------------------------------------------------------
+// Test 7: Component Hover Explainer Popovers & Visual Annotations
+// -----------------------------------------------------------------
+await runTest('Test 7: Visual component hover explainers and popovers exist across cards, charts, and tables', () => {
+  const html = fs.readFileSync('portfolio-optimization/index.html', 'utf8');
+
+  // Verify info-explainer count
+  const explainerMatches = html.match(/class="info-explainer"/g) || [];
+  assert(explainerMatches.length >= 8, `Expected at least 8 info-explainer badges, found ${explainerMatches.length}`);
+
+  // Verify flagship card explainers
+  assert(html.includes('Tangency Portfolio (P*)'), 'Missing Tangency popover title');
+  assert(html.includes('Bodie Separation Property'), 'Missing Bodie Separation Property takeaway');
+  assert(html.includes('Global Minimum Volatility'), 'Missing GMV popover title');
+  assert(html.includes('Complete Portfolio (C*)'), 'Missing Complete Portfolio popover title');
+
+  // Verify chart explainers
+  assert(html.includes('Markowitz Frontier &amp; CAL'), 'Missing Frontier Chart popover');
+  assert(html.includes('Asset Allocation Transition Map'), 'Missing Transition Chart popover');
+
+  // Verify table explainers
+  assert(html.includes('Asset Characteristics'), 'Missing Asset Characteristics table popover');
+  assert(html.includes('Correlation Matrix (&rho;)'), 'Missing Correlation Matrix table popover');
+});
+
 console.log(`\nTests passed: ${passed} / ${passed + failed}`);
 if (failed > 0) {
   process.exit(1);

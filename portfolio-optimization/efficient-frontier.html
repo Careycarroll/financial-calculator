@@ -248,6 +248,12 @@
           <span>Active Timeline:</span>
           <strong id="status-timeline-range">-- to --</strong>
           <span class="status-sub" id="status-total-months">(0 Months)</span>
+          <span class="info-explainer" tabindex="0">ⓘ
+            <span class="info-popover">
+              <span class="info-popover-title">⏱️ Historical Common Horizon</span>
+              <span class="info-popover-text">Historical monthly resampling window. Automatically aligned to the inception date of the newest fund in your selected universe.</span>
+            </span>
+          </span>
         </div>
         <div class="status-pill">
           <span>Limiting Asset:</span>
@@ -256,11 +262,23 @@
         <div class="status-pill">
           <span>Risk-Free Rate:</span>
           <strong id="status-rf-rate">3.00%</strong>
+          <span class="info-explainer" tabindex="0">ⓘ
+            <span class="info-popover">
+              <span class="info-popover-title">💵 Risk-Free Hurdle Rate (Rf)</span>
+              <span class="info-popover-text">Yield on risk-free cash or 3-month T-Bills. Sets the baseline anchor for the Capital Allocation Line (CAL) and Sharpe ratio hurdle.</span>
+            </span>
+          </span>
         </div>
         <div class="status-pill">
           <span>Covariance:</span>
           <strong id="status-cov-name">Ledoit-Wolf Shrunk</strong>
           <span class="status-sub" id="status-cov-cond">&kappa; = --</span>
+          <span class="info-explainer" tabindex="0">ⓘ
+            <span class="info-popover">
+              <span class="info-popover-title">🔬 Covariance Regularization</span>
+              <span class="info-popover-text">Ledoit-Wolf shrinks noisy sample covariance toward a constant correlation prior, lowering condition number &kappa; and dampening extreme corner weights.</span>
+            </span>
+          </span>
         </div>
         <div class="status-pill">
           <span>Universe:</span>
@@ -378,7 +396,16 @@
           <!-- Maximum Sharpe Ratio (Tangency) Card -->
           <div class="flagship-card tangency-card">
             <div class="card-title-row">
-              <h3>⭐ Max Sharpe Ratio (Tangency)</h3>
+              <h3>
+                ⭐ Max Sharpe Ratio (Tangency)
+                <span class="info-explainer" tabindex="0">ⓘ
+                  <span class="info-popover">
+                    <span class="info-popover-title">⭐ Tangency Portfolio (P*)</span>
+                    <span class="info-popover-text">The single optimal risky portfolio on the frontier offering maximum risk-adjusted return (Sharpe = (Rp - Rf)/&sigma;p).</span>
+                    <span class="info-popover-takeaway">💡 Bodie Separation Property: All rational investors hold this identical risky basket and scale risk via cash.</span>
+                  </span>
+                </span>
+              </h3>
               <span class="card-pill tangency">Optimal Risk-Adjusted</span>
             </div>
             <div class="card-metrics-grid">
@@ -408,7 +435,16 @@
           <!-- Global Minimum Volatility (GMV) Card -->
           <div class="flagship-card gmv-card">
             <div class="card-title-row">
-              <h3>🛡️ Minimum Volatility (GMV)</h3>
+              <h3>
+                🛡️ Minimum Volatility (GMV)
+                <span class="info-explainer" tabindex="0">ⓘ
+                  <span class="info-popover">
+                    <span class="info-popover-title">🛡️ Global Minimum Volatility</span>
+                    <span class="info-popover-text">The absolute leftmost point on the frontier with the lowest achievable volatility across any portfolio mix.</span>
+                    <span class="info-popover-takeaway">✨ Free Lunch of Diversification: Low stock and bond correlation produces lower total volatility than holding 100% bonds alone!</span>
+                  </span>
+                </span>
+              </h3>
               <span class="card-pill gmv">Lowest Risk</span>
             </div>
             <div class="card-metrics-grid">
@@ -438,7 +474,16 @@
           <!-- Optimal Complete Portfolio (Bodie CAL + Utility) Card -->
           <div class="flagship-card cal-card">
             <div class="card-title-row">
-              <h3>🎯 Optimal Complete Portfolio</h3>
+              <h3>
+                🎯 Optimal Complete Portfolio
+                <span class="info-explainer" tabindex="0">ⓘ
+                  <span class="info-popover">
+                    <span class="info-popover-title">🎯 Complete Portfolio (C*)</span>
+                    <span class="info-popover-text">The investor's personal utility-maximizing point on the Capital Allocation Line, combining Tangency with cash lending or borrowing.</span>
+                    <span class="info-popover-takeaway">🧠 Bodie Utility U = E(r) - 0.5*A*&sigma;²: Balances return vs your personal risk aversion penalty (A).</span>
+                  </span>
+                </span>
+              </h3>
               <span class="card-pill cal" id="cal-card-pill">Bodie Utility (A=3.0)</span>
             </div>
             <div class="card-metrics-grid">
@@ -473,7 +518,14 @@
             <div class="chart-card-header">
               <div class="chart-card-title">
                 <span>📈</span>
-                <span>Markowitz Efficient Frontier & Capital Allocation Line (CAL)</span>
+                <span>Markowitz Efficient Frontier &amp; Capital Allocation Line (CAL)</span>
+                <span class="info-explainer" tabindex="0">ⓘ
+                  <span class="info-popover">
+                    <span class="info-popover-title">📈 Markowitz Frontier &amp; CAL</span>
+                    <span class="info-popover-text">Plots optimal annual expected return against annualized volatility. The curve is the frontier; the straight ray is the Capital Allocation Line.</span>
+                    <span class="info-popover-takeaway">🔍 How to read: Hover over any point, asset dot, or tangency star to inspect asset weights and risk-adjusted metrics.</span>
+                  </span>
+                </span>
               </div>
               <div class="chart-legend" id="frontier-legend">
                 <div class="legend-item"><span class="legend-swatch" style="background: #38bdf8;"></span> Frontier Curve</div>
@@ -497,6 +549,13 @@
               <div class="chart-card-title">
                 <span>📊</span>
                 <span>Efficient Frontier Asset Allocation Transition Map</span>
+                <span class="info-explainer" tabindex="0">ⓘ
+                  <span class="info-popover">
+                    <span class="info-popover-title">📊 Asset Allocation Transition Map</span>
+                    <span class="info-popover-text">Stacked area chart showing optimal asset weights across the entire volatility spectrum from GMV to maximum return.</span>
+                    <span class="info-popover-takeaway">💡 Intuition: Demonstrates how fixed income (BND) phases out as equity weights expand to drive higher expected returns.</span>
+                  </span>
+                </span>
               </div>
               <div class="chart-legend" id="transition-legend">
                 <!-- Dynamically generated asset legend items -->
@@ -516,6 +575,12 @@
             <div class="data-card-title">
               <span>📋</span>
               <span>Efficient Frontier Asset Characteristics</span>
+              <span class="info-explainer" tabindex="0">ⓘ
+                <span class="info-popover">
+                  <span class="info-popover-title">📋 Asset Characteristics</span>
+                  <span class="info-popover-text">Historical annualized compound returns, annualized volatility, standalone Sharpe ratios, and active weight constraints.</span>
+                </span>
+              </span>
             </div>
             <div class="data-table-scroll">
               <table class="opt-data-table">
@@ -540,6 +605,13 @@
             <div class="data-card-title">
               <span>🔥</span>
               <span>Asset Correlation Matrix</span>
+              <span class="info-explainer" tabindex="0">ⓘ
+                <span class="info-popover">
+                  <span class="info-popover-title">🔥 Correlation Matrix (&rho;)</span>
+                  <span class="info-popover-text">Measures linear co-movement between asset monthly returns from -1.0 (perfect hedge) to +1.0 (identical movement).</span>
+                  <span class="info-popover-takeaway">✨ Key Principle: Low or negative correlation bends the frontier leftward, unlocking diversification gains.</span>
+                </span>
+              </span>
             </div>
             <div class="data-table-scroll">
               <table class="opt-data-table" id="table-correlation-matrix">
@@ -553,6 +625,12 @@
             <div class="data-card-title">
               <span>📑</span>
               <span>Efficient Frontier Portfolios Schedule</span>
+              <span class="info-explainer" tabindex="0">ⓘ
+                <span class="info-popover">
+                  <span class="info-popover-title">📑 Frontier Schedule Table</span>
+                  <span class="info-popover-text">Granular numerical schedule of all 45 portfolios along the efficient frontier, detailing asset weights at each volatility step.</span>
+                </span>
+              </span>
             </div>
             <div class="data-table-scroll">
               <table class="opt-data-table" id="table-frontier-schedule">
