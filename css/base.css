@@ -906,3 +906,35 @@ footer {
   color: #2dd4bf;
 }
 
+/* ===================================================================
+   CROSS-DOCUMENT VIEW TRANSITIONS
+   Enables seamless zero-flash navigation between pages and sub-tabs.
+   Modern Chromium (126+) and Safari support.
+   =================================================================== */
+@view-transition {
+  navigation: auto;
+}
+
+.top-nav {
+  view-transition-name: top-nav;
+}
+
+.suite-subnav {
+  view-transition-name: suite-subnav;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.15s;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+
