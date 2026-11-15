@@ -14,6 +14,12 @@
  */
 
 import { computeMonthlyReturns, alignReturns, runCAPMRegression } from './regression-engine.js';
+import {
+  matrixTranspose,
+  matrixMultiply,
+  invertMatrix,
+  tDistPValue
+} from './factor-engine.js';
 
 export { computeMonthlyReturns, alignReturns };
 
@@ -558,7 +564,275 @@ export function analyzeManagerPerformance(managerFund, benchmarkFund, options = 
     annualExcess,
     rolling,
     drawdowns,
-    skill
+    skill,
+    marketTiming: {
+      treynorMazuy: calculateMarketTiming(aligned, { annualRf, model: 'treynor-mazuy' }),
+      henrikssonMerton: calculateMarketTiming(aligned, { annualRf, model: 'henriksson-merton' })
+    }
+  };
+}
+
+/**
+ * Computes Treynor-Mazuy (TM) and Henriksson-Merton (HM) Market Timing Regressions.
+ *
+ * References:
+ * - Treynor, J., & Mazuy, K. (1966). "Can Mutual Funds Outguess the Market?" Harvard Business Review, 44, 131–136.
+ * - Henriksson, R., & Merton, R. (1981). "On Market Timing and Investment Performance. II. Statistical Procedures for Evaluating Forecasting Skills." Journal of Business, 54(4), 513–533.
+ * - Bodie, Kane & Marcus, Investments, Chapter 24 (Section 24.4 Market Timing).
+ *
+ * Models:
+ * 1. Treynor-Mazuy Curvature Model:
+ *    (R_p - R_f) = alpha + beta * (R_m - R_f) + gamma * (R_m - R_f)^2 + epsilon
+ *    - gamma > 0 (p < 0.05) => Convex market timing (increases beta in bull markets, cuts beta in bear markets).
+ *
+ * 2. Henriksson-Merton Option Replication Model:
+ *    (R_p - R_f) = alpha + beta * (R_m - R_f) + gamma * max(0, R_f - R_m) + epsilon
+ *    - Downside beta = beta - gamma.
+ *    - gamma > 0 (p < 0.05) => Downside beta is lower than upside beta (replicates a protective put option).
+ *
+ * @param {Array<{date: string, rFund: number, rBench: number}>} alignedPairs
+ * @param {Object} [options={}]
+ * @param {number} [options.annualRf=0.03]
+ * @param {('treynor-mazuy'|'henriksson-merton')} [options.model='treynor-mazuy']
+ * @returns {Object} Complete market timing econometric report
+ */
+export function calculateMarketTiming(alignedPairs, options = {}) {
+  const model = options.model === 'henriksson-merton' ? 'henriksson-merton' : 'treynor-mazuy';
+  const annualRf = typeof options.annualRf === 'number' ? options.annualRf : 0.03;
+  const monthlyRf = annualRf / 12;
+
+  const N = Array.isArray(alignedPairs) ? alignedPairs.length : 0;
+  if (N < 4) {
+    return {
+      model,
+      hasSufficientData: false,
+      sampleSize: N,
+      degreesOfFreedom: 0,
+      annualRf,
+      capm: { alphaMonthly: 0, alphaAnnualized: 0, beta: 0, rSquared: 0 },
+      alpha: { monthly: 0, annualized: 0, stdError: 0, annualizedStdError: 0, tStat: 0, pValue: 1, isSignificant: false },
+      beta: { value: 0, stdError: 0, tStat: 0, pValue: 1, isSignificant: false, downsideBeta: 0 },
+      gamma: { value: 0, stdError: 0, tStat: 0, pValue: 1, isSignificant: false, interpretation: 'Insufficient Data' },
+      rSquared: 0,
+      adjRSquared: 0,
+      residualStdError: 0,
+      verdict: 'Insufficient historical return observations (N < 4).',
+      scatterPoints: [],
+      curvePoints: []
+    };
+  }
+
+  // 1. Construct design matrix X and dependent variable y
+  const X = [];
+  const y = [];
+  const scatterPoints = [];
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  let minX = Infinity;
+  let maxX = -Infinity;
+
+  for (let i = 0; i < N; i++) {
+    const pt = alignedPairs[i];
+    const x = pt.rBench - monthlyRf; // benchmark excess
+    const yVal = pt.rFund - monthlyRf; // fund excess
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+
+    sumX += x;
+    sumY += yVal;
+    sumXY += x * yVal;
+    sumXX += x * x;
+
+    let timingTerm;
+    if (model === 'treynor-mazuy') {
+      timingTerm = x * x; // quadratic curvature
+    } else {
+      timingTerm = Math.max(0, -x); // protective put option payoff: max(0, Rf - Rm)
+    }
+
+    X.push([1.0, x, timingTerm]);
+    y.push([yVal]);
+    scatterPoints.push({
+      date: pt.date,
+      x,
+      y: yVal,
+      timingTerm
+    });
+  }
+
+  // Baseline Linear CAPM (OLS)
+  const meanX = sumX / N;
+  const meanY = sumY / N;
+  let varX = 0;
+  let covXY = 0;
+  let capmRSS = 0;
+  let TSS = 0;
+
+  for (let i = 0; i < N; i++) {
+    const dx = scatterPoints[i].x - meanX;
+    const dy = scatterPoints[i].y - meanY;
+    varX += dx * dx;
+    covXY += dx * dy;
+    TSS += dy * dy;
+  }
+
+  const capmBeta = varX > 1e-12 ? covXY / varX : 0;
+  const capmAlphaMonthly = meanY - capmBeta * meanX;
+  const capmAlphaAnnualized = Math.pow(1 + capmAlphaMonthly, 12) - 1;
+
+  for (let i = 0; i < N; i++) {
+    const err = scatterPoints[i].y - (capmAlphaMonthly + capmBeta * scatterPoints[i].x);
+    capmRSS += err * err;
+  }
+  const capmRSquared = TSS > 0 ? Math.max(0, 1 - capmRSS / TSS) : 0;
+
+  // 2. Solve Multiple OLS Regression: theta = (X'X)^(-1) X'y
+  const Xt = matrixTranspose(X);
+  const XtX = matrixMultiply(Xt, X);
+  const XtX_inv = invertMatrix(XtX);
+  const Xty = matrixMultiply(Xt, y);
+  const theta = matrixMultiply(XtX_inv, Xty);
+
+  const alphaMonthly = theta[0][0];
+  const betaVal = theta[1][0];
+  const gammaVal = theta[2][0];
+
+  const alphaAnnualized = Math.pow(1 + alphaMonthly, 12) - 1;
+
+  // 3. Compute Residuals, RSS, and Goodness of Fit
+  let RSS = 0;
+  const df = N - 3;
+
+  for (let i = 0; i < N; i++) {
+    const yHat = theta[0][0] + theta[1][0] * X[i][1] + theta[2][0] * X[i][2];
+    const err = y[i][0] - yHat;
+    scatterPoints[i].fittedY = yHat;
+    scatterPoints[i].residual = err;
+    RSS += err * err;
+  }
+
+  const s2 = RSS / Math.max(1, df);
+  const residualStdErr = Math.sqrt(s2);
+  const rSquared = TSS > 0 ? Math.max(0, 1 - RSS / TSS) : 0;
+  const adjRSquared = TSS > 0 ? Math.max(0, 1 - (RSS / df) / (TSS / (N - 1))) : 0;
+
+  // Standard Errors & t-statistics
+  const alphaSE = Math.sqrt(Math.max(0, s2 * XtX_inv[0][0]));
+  const betaSE = Math.sqrt(Math.max(0, s2 * XtX_inv[1][1]));
+  const gammaSE = Math.sqrt(Math.max(0, s2 * XtX_inv[2][2]));
+
+  const alphaTStat = alphaSE > 0 ? alphaMonthly / alphaSE : 0;
+  const betaTStat = betaSE > 0 ? betaVal / betaSE : 0;
+  const gammaTStat = gammaSE > 0 ? gammaVal / gammaSE : 0;
+
+  const alphaPVal = tDistPValue(alphaTStat, df);
+  const betaPVal = tDistPValue(betaTStat, df);
+  const gammaPVal = tDistPValue(gammaTStat, df);
+
+  // Downside Beta for Henriksson-Merton
+  const downsideBeta = model === 'henriksson-merton' ? (betaVal - gammaVal) : null;
+
+  // 4. Quantitative Verdict
+  let interpretation = '';
+  let verdict = '';
+
+  if (model === 'treynor-mazuy') {
+    if (gammaVal > 0 && gammaPVal < 0.05) {
+      interpretation = 'Convex Bull Timing';
+      verdict = `Statistically Significant Convex Market Timing (γ = +${gammaVal.toFixed(2)}, t = ${gammaTStat.toFixed(2)}, p = ${gammaPVal.toFixed(4)}). The manager significantly expands beta during bull market rallies and reduces market beta during downturns.`;
+    } else if (gammaVal < 0 && gammaPVal < 0.05) {
+      interpretation = 'Perverse Negative Timing';
+      verdict = `Perverse Negative Market Timing (γ = ${gammaVal.toFixed(2)}, t = ${gammaTStat.toFixed(2)}, p = ${gammaPVal.toFixed(4)}). The manager exhibited concave market exposure, carrying higher beta into market crashes and under-participating in bull recoveries.`;
+    } else {
+      interpretation = 'Inconclusive / No Timing';
+      verdict = `No Statistically Significant Market Timing (γ = ${gammaVal >= 0 ? '+' : ''}${gammaVal.toFixed(2)}, p = ${gammaPVal.toFixed(3)}). Active returns are driven by stock selection alpha (α = ${(alphaAnnualized * 100).toFixed(2)}%/yr) rather than market timing curvature.`;
+    }
+  } else {
+    // Henriksson-Merton
+    if (gammaVal > 0 && gammaPVal < 0.05) {
+      interpretation = 'Protective Put Timing';
+      verdict = `Statistically Significant Downside Protection (γ = +${gammaVal.toFixed(2)}, t = ${gammaTStat.toFixed(2)}, p = ${gammaPVal.toFixed(4)}). Downside beta (${(downsideBeta).toFixed(2)}) is significantly lower than upside beta (${betaVal.toFixed(2)}), successfully replicating a synthetic protective put option.`;
+    } else if (gammaVal < 0 && gammaPVal < 0.05) {
+      interpretation = 'Adverse Downside Exposure';
+      verdict = `Adverse Downside Exposure (γ = ${gammaVal.toFixed(2)}, t = ${gammaTStat.toFixed(2)}, p = ${gammaPVal.toFixed(4)}). Downside beta (${(downsideBeta).toFixed(2)}) significantly exceeded upside beta (${betaVal.toFixed(2)}).`;
+    } else {
+      interpretation = 'Inconclusive / No Put Protection';
+      verdict = `No Significant Protective Put Replication (γ = ${gammaVal >= 0 ? '+' : ''}${gammaVal.toFixed(2)}, p = ${gammaPVal.toFixed(3)}). Downside beta (${(downsideBeta).toFixed(2)}) is not statistically distinct from upside beta (${betaVal.toFixed(2)}).`;
+    }
+  }
+
+  // 5. Generate smooth curve evaluation points across [minX, maxX]
+  const plotSpan = (maxX - minX);
+  const plotMin = minX - plotSpan * 0.08;
+  const plotMax = maxX + plotSpan * 0.08;
+  const numSteps = 80;
+  const curvePoints = [];
+
+  for (let k = 0; k <= numSteps; k++) {
+    const xVal = plotMin + (k / numSteps) * (plotMax - plotMin);
+    const linearY = capmAlphaMonthly + capmBeta * xVal;
+
+    let modelY;
+    if (model === 'treynor-mazuy') {
+      modelY = alphaMonthly + betaVal * xVal + gammaVal * (xVal * xVal);
+    } else {
+      modelY = alphaMonthly + betaVal * xVal + gammaVal * Math.max(0, -xVal);
+    }
+
+    curvePoints.push({
+      x: xVal,
+      linearY,
+      modelY
+    });
+  }
+
+  return {
+    model,
+    hasSufficientData: true,
+    sampleSize: N,
+    degreesOfFreedom: df,
+    annualRf,
+    capm: {
+      alphaMonthly: capmAlphaMonthly,
+      alphaAnnualized: capmAlphaAnnualized,
+      beta: capmBeta,
+      rSquared: capmRSquared
+    },
+    alpha: {
+      monthly: alphaMonthly,
+      annualized: alphaAnnualized,
+      stdError: alphaSE,
+      annualizedStdError: alphaSE * Math.sqrt(12),
+      tStat: alphaTStat,
+      pValue: alphaPVal,
+      isSignificant: alphaPVal < 0.05
+    },
+    beta: {
+      value: betaVal,
+      stdError: betaSE,
+      tStat: betaTStat,
+      pValue: betaPVal,
+      isSignificant: betaPVal < 0.05,
+      downsideBeta
+    },
+    gamma: {
+      value: gammaVal,
+      stdError: gammaSE,
+      tStat: gammaTStat,
+      pValue: gammaPVal,
+      isSignificant: gammaPVal < 0.05,
+      interpretation
+    },
+    rSquared,
+    adjRSquared,
+    residualStdError: residualStdErr,
+    verdict,
+    scatterPoints,
+    curvePoints
   };
 }
 
