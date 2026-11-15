@@ -16,10 +16,12 @@
         <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
         <div class="top-nav-links">
           <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
-          <a href="../dca-comparator/index.html" class="top-nav-link">📊 DCA Backtest</a>
-          <a href="../fund-regression/index.html" class="top-nav-link">📈 Regression Lab</a>
-          <a href="index.html" class="top-nav-link active">📊 Asset Analytics</a>
-          <a href="../pages/market-stress.html" class="top-nav-link nav-bridge-link" title="Stress test against historical crashes">⚡ Market Stress</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link active">💼 Portfolio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
         </div>
       </div>
     </nav>
@@ -27,12 +29,55 @@
     <div class="analytics-container">
       <!-- Studio Header -->
       <header class="studio-header">
-        <h1>📊 Asset Analytics Studio</h1>
+        <h1>📊 Fund Performance Studio</h1>
         <p class="studio-tagline">
           Institutional-grade fund performance deep-dive, cumulative compounding, underwater crash recovery,
           monthly return heatmaps, and rolling multi-year risk bands.
         </p>
       </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Asset Analytics Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#2dd4bf; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">📊 Fund Performance</a>
+        <a href="asset-correlations.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔗 Asset Correlations</a>
+        <a href="fund-screener.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔍 Fund Screener &amp; Rankings</a>
+        <a href="time-series.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⏱️ Time Series Lab</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-analytics" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Fund Performance Due Diligence &amp; Downside Recovery</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>Deep Manager Due Diligence</strong>
+              <p>Evaluate total historical compounding ($10k growth with DRIP vs price), underwater drawdown crash recovery, and 20-metric MPT risk efficiency against a market benchmark to verify whether a fund delivers true manager skill (Alpha) or just amplified market risk (Beta).</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>3-Step Rapid Workflow</strong>
+              <p>1. <strong>Select Fund &amp; Benchmark</strong>: Use searchable asset modals to select target fund (e.g. QQQ) and benchmark (VOO).<br>2. <strong>Time Horizon &amp; DRIP</strong>: Toggle 10Y/5Y/3Y/1Y horizons and dividend reinvestment.<br>3. <strong>Examine Crash Table &amp; Scorecard</strong>: Review exact recovery times from historical bear market bottoms.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>Regime Dynamics &amp; Fee Drag</strong>
+              <p>• <strong>Compounding Drag</strong>: Toggle gross vs net returns to see the severe compounding impact of expense ratios and advisory fees.<br>• <strong>Underwater Recovery</strong>: Tracks the precise duration required to return to all-time highs after major crashes (2000, 2008, 2020, 2022).<br>• <strong>Rolling Consistency</strong>: Rolling 36M return bands reveal whether outperformance was consistent or clustered in a single speculative bubble.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">💡 Executive Output Decoder</div>
+              <strong>Sharpe, Sortino &amp; Ulcer Index</strong>
+              <p>• <strong>Sharpe &gt; 0.80</strong>: Superior capital efficiency per unit of total volatility.<br>• <strong>Sortino &gt; 1.20</strong>: Strong upside capture with suppressed bad (downside) volatility.<br>• <strong>Ulcer Index &lt; 10%</strong>: Low psychological pain and fast recovery from portfolio drawdowns.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Studio Sub-Navigation Tabs -->
       <nav class="studio-tabs" aria-label="Asset Analytics Sub-Navigation">

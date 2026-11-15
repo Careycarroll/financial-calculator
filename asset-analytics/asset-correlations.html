@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Asset Correlations (Cross-Asset Diversification Matrix) | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="analytics.css" />
+  </head>
+  <body class="analytics-page" data-default-tab="correlations">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link active">💼 Portfolio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="analytics-container">
+      <!-- Studio Header -->
+      <header class="studio-header">
+        <h1>🔗 Asset Correlations Studio</h1>
+        <p class="studio-tagline">
+          Pairwise Pearson correlation matrix, covariance, rolling 36-month pair co-movement regimes,
+          and automated diversification narrative across historical market cycles.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Asset Analytics Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">📊 Fund Performance</a>
+        <a href="asset-correlations.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#2dd4bf; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">🔗 Asset Correlations</a>
+        <a href="fund-screener.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔍 Fund Screener &amp; Rankings</a>
+        <a href="time-series.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⏱️ Time Series Lab</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-correlations" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: True Cross-Asset Diversification vs False Overlap</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>Uncover True Diversification</strong>
+              <p>Eliminate cosmetic diversification. Holding 10 equity ETFs with 0.95+ correlation gives the illusion of safety while suffering 100% downside participation. Asset Correlations calculates real cross-asset diversification (bonds, cash, real estate, commodities) to insulate capital against systematic shocks.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>3-Step Correlation Matrix Workflow</strong>
+              <p>1. <strong>Configure Basket</strong>: Add 2 to 15 assets to the active basket.<br>2. <strong>Inspect Heatmap</strong>: Green/cyan cells (-0.20 to +0.20) indicate true shock absorbers; dark red (+0.80+) indicates redundant overlap.<br>3. <strong>Drill Down to Rolling Co-Movement</strong>: Click any table cell to graph its 36-month rolling correlation history.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>Regime Dynamics &amp; Flight-to-Quality</strong>
+              <p>• <strong>Crisis Correlation Spikes</strong>: During liquidity crunches (2008, 2020), equity sectors converge toward 1.0.<br>• <strong>Flight to Safety</strong>: High-grade Treasuries and Cash typically decouple or turn inverse during equities selloffs.<br>• <strong>Inflation Regimes (2022)</strong>: Both stocks and bonds plunged together, highlighting the necessity of commodities and cash hedges.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+              <strong>Average Correlation &amp; Diversification Benefit</strong>
+              <p>• <strong>Average Correlation &lt; 0.40</strong>: High structural diversification and reduced portfolio volatility.<br>• <strong>Rolling Stability Range</strong>: Narrow rolling range indicates reliable diversification; wide swings indicate regime vulnerability.<br>• <strong>Capital Efficiency</strong>: Pairing uncorrelated assets boosts Sharpe ratio without lowering long-term expected returns.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB CONTENT: ASSET CORRELATIONS -->
+      <main id="tab-correlations">
+        <!-- Collapsible Correlation Scale Reference Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-corr" style="margin-bottom: 1.25rem;">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-corr">
+            <div class="cheat-sheet-title">
+              <span>📊 Correlation Coefficient (&rho;) Quick Reference</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge scale-overlap">🔴 +0.80 to +1.00</div>
+                <strong>High Overlap (Co-Movement)</strong>
+                <p>Assets swing together. Holding both (e.g. VOO + SPY) increases sector risk without downside diversification.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-moderate">🟡 +0.20 to +0.60</div>
+                <strong>Moderate Diversification</strong>
+                <p>Typical cross-sector baseline. Reduces single-company risk while participating in broad market expansions.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🟢 -0.20 to +0.20</div>
+                <strong>True Uncorrelated Buffer</strong>
+                <p>Near-zero relationship (e.g. Equities vs Short Treasuries/BND). Dramatically smooths portfolio volatility.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-hedge">🟣 -0.20 to -1.00</div>
+                <strong>Inverse Hedge</strong>
+                <p>Moves in opposite directions during market panics. Serves as the ultimate portfolio shock-absorber.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Correlation Controls Bar -->
+        <section class="correlation-controls-bar" aria-label="Correlation Model Configuration">
+          <div class="correlation-universe-row">
+            <div class="universe-header-row">
+              <span class="control-label-bold">Active Correlation Basket:</span>
+              <div class="universe-quick-actions">
+                <button type="button" class="btn-universe-action" id="btn-corr-select-core">Core 5 Benchmarks</button>
+                <button type="button" class="btn-universe-action" id="btn-corr-clear-all">Reset to 2</button>
+              </div>
+            </div>
+            
+            <div class="corr-basket-bar">
+              <!-- Trigger button that opens the popup modal -->
+              <button type="button" class="asset-picker-btn" id="btn-corr-open-modal" style="min-width: 270px;">
+                <span class="picker-dot" style="background: var(--accent, #2dd4bf);"></span>
+                <span class="picker-ticker" id="corr-basket-count-label">5 Assets</span>
+                <span class="picker-name" id="corr-basket-preview-label">VOO, SPY, QQQ, SCHD, BND</span>
+                <span class="picker-arrow">🔍 Edit Basket</span>
+              </button>
+
+              <!-- Active Basket Chips Preview (only the selected 2-15 assets) -->
+              <div class="corr-active-chips-wrap" id="corr-active-chips-wrap">
+                <!-- Populated dynamically via JS with active pills only -->
+              </div>
+            </div>
+          </div>
+
+          <div class="correlation-controls-grid">
+            <div class="control-item">
+              <label for="corr-horizon-select">Time Horizon</label>
+              <select id="corr-horizon-select" class="control-select">
+                <option value="all" selected>All Available History</option>
+                <option value="10y">Last 10 Years</option>
+                <option value="5y">Last 5 Years</option>
+                <option value="3y">Last 3 Years</option>
+                <option value="1y">Last 1 Year</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="corr-window-select">Rolling Correlation Period</label>
+              <select id="corr-window-select" class="control-select">
+                <option value="12">12 Months (1 Year)</option>
+                <option value="24">24 Months (2 Years)</option>
+                <option value="36" selected>36 Months (3 Years)</option>
+                <option value="60">60 Months (5 Years)</option>
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="corr-focus-pair-a">Rolling Chart Asset A</label>
+              <select id="corr-focus-pair-a" class="control-select">
+                <!-- Dynamically populated via JS -->
+              </select>
+            </div>
+
+            <div class="control-item">
+              <label for="corr-focus-pair-b">Rolling Chart Asset B</label>
+              <select id="corr-focus-pair-b" class="control-select">
+                <!-- Dynamically populated via JS -->
+              </select>
+            </div>
+          </div>
+
+          <div class="screener-actions-row">
+            <span class="screener-status-text" id="corr-status-text">Analyzing assets across common history</span>
+            <div class="screener-btns-right">
+              <button type="button" class="btn-tool-primary" id="btn-export-corr-csv">📥 Export Matrix CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Dynamic Correlation Story Banner -->
+        <div class="story-takeaway-banner" id="corr-story-banner">
+          <span class="story-icon">💡</span>
+          <div class="story-text" id="corr-story-text">
+            Analyzing correlation matrix and diversification benefit...
+          </div>
+        </div>
+
+        <!-- Correlation Matrix Card -->
+        <section class="analytics-card" style="margin-top: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Asset Correlation Matrix &amp; Diversification Heatmap</h3>
+              <span class="card-subtitle">Values range from -1.00 (inverse) to +1.00 (identical co-movement). Click any correlation cell to plot its rolling history below.</span>
+            </div>
+          </div>
+
+          <div class="corr-table-wrapper">
+            <table class="corr-table" id="corr-results-table">
+              <!-- Populated dynamically via JS -->
+            </table>
+          </div>
+        </section>
+
+        <!-- Rolling Correlation Canvas Card -->
+        <section class="analytics-card" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3 id="corr-chart-title">Rolling Correlation Over Time</h3>
+              <span class="card-subtitle" id="corr-chart-subtitle">Historical co-movement regimes with zero-correlation equilibrium line.</span>
+            </div>
+            <div class="chart-legend-box" id="corr-chart-legend">
+              <span class="legend-pill" id="corr-legend-pair"><span class="legend-dot" style="background: #2dd4bf;"></span> <span id="corr-legend-text">QQQ vs VOO Rolling 36M</span></span>
+            </div>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="correlation-canvas" height="340"></canvas>
+            <div class="canvas-tooltip hidden" id="correlation-tooltip"></div>
+          </div>
+
+          <div class="chart-stats-banner" id="corr-stats-banner">
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Current Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-current">0.00</span>
+            </div>
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Mean Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-mean">0.00</span>
+            </div>
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Min Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-min">0.00</span>
+            </div>
+            <div class="chart-stat-item">
+              <span class="chart-stat-label">Max Correlation</span>
+              <span class="chart-stat-val" id="corr-stat-max">0.00</span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2026 Financial Calculator &bull; Asset Analytics Suite</p>
+      </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script type="module" src="analytics-ui.js"></script>
+  </body>
+</html>

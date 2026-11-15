@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time Series Lab: Autocorrelation &amp; Cointegration | Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="analytics.css" />
+  </head>
+  <body class="analytics-page" data-default-tab="autocorr">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link active">💼 Portfolio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="analytics-container">
+      <!-- Studio Header -->
+      <header class="studio-header">
+        <h1>⏱️ Time Series Lab: Autocorrelation &amp; Cointegration</h1>
+        <p class="studio-tagline">
+          Econometric time-series diagnostics: multi-lag autocorrelation, momentum persistence, seasonality cycles,
+          and Engle-Granger Augmented Dickey-Fuller (ADF) cointegration for statistical pairs trading.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Asset Analytics Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">📊 Fund Performance</a>
+        <a href="asset-correlations.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔗 Asset Correlations</a>
+        <a href="fund-screener.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔍 Fund Screener &amp; Rankings</a>
+        <a href="time-series.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#2dd4bf; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">⏱️ Time Series Lab</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-timeseries" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Time Series Dynamics, Momentum Regimes &amp; Cointegration</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>Statistical Time Series Diagnostics</strong>
+              <p>Determine whether asset returns exhibit serial momentum persistence, mean-reversion pullbacks, calendar seasonality, or permanent long-term mathematical equilibrium with a pair asset.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>2-Part Econometric Workflow</strong>
+              <p>1. <strong>Autocorrelation Lab</strong>: Examine Lag 1 (1M momentum/reversion), Lag 3 (quarterly earnings cycles), and Lag 12 (annual seasonality).<br>2. <strong>Cointegration Test</strong>: Test pairs stationarity using the Engle-Granger Augmented Dickey-Fuller (ADF) test.<br>3. <strong>Spread Trading</strong>: Track residual Z-scores across standard deviation bands for statistical mean-reversion rebalancing.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>Stationarity vs Random Walks</strong>
+              <p>• <strong>Asset Prices</strong>: Generally non-stationary random walks I(1) with drifting means.<br>• <strong>Cointegrated Pairs</strong>: Linear combinations that form stationary I(0) residuals with bounded variance and predictable half-lives.<br>• <strong>Regime Shifts</strong>: Rolling autocorrelation detects when trend-following persistence breaks down into range-bound chop.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+              <strong>Econometric Thresholds</strong>
+              <p>• <strong>ADF t-Stat &lt; -3.37</strong>: Confirms cointegration at 95% confidence (rejects unit root).<br>• <strong>p-Value &lt; 0.05</strong>: Statistically significant mean-reverting relationship.<br>• <strong>Spread Z-Score &plusmn;2&sigma;</strong>: Statistically extreme divergence signaling high-probability reversion opportunities.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Studio Sub-Tabs Bar -->
+      <div class="studio-tabs-bar" style="margin-bottom: 1.25rem;">
+        <button type="button" class="studio-tab active" data-tab="autocorr" id="tab-btn-autocorr">⏱️ Autocorrelation Lab</button>
+        <button type="button" class="studio-tab" data-tab="cointegration" id="tab-btn-cointegration">⚖️ Cointegration Test</button>
+      </div>
+
+      <!-- TAB CONTENT: ASSET AUTOCORRELATION LAB -->
+      <main id="tab-autocorr" class="tab-pane">
+        <!-- Collapsible Autocorrelation Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-autocorr">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-autocorr">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Read Autocorrelation &amp; Seasonality</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge cagr-badge">⚡ Lag 1 (1 Month)</div>
+                <strong>Momentum vs Reversion</strong>
+                <p>Positive (&gt; +0.10) means winning months follow winning months (trend persistence). Negative indicates mean-reversion pullbacks.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge sharpe-badge">📅 Lag 3 (1 Quarter)</div>
+                <strong>Earnings &amp; Rebalancing Cycle</strong>
+                <p>Tracks quarterly corporate earnings reports and institutional fund flow rebalancing rhythms.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🔄 Lag 12 (1 Year)</div>
+                <strong>Calendar Seasonality</strong>
+                <p>Captures annual seasonal tendencies, such as year-end tax-loss harvesting and January effect rallies.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge var-badge">📊 Rolling Diagnostics</div>
+                <strong>Regime Shift Detection</strong>
+                <p>Observes how return persistence changes across different market phases (bull markets vs structural bear markets).</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Autocorrelation Controls Bar -->
+        <section class="correlation-controls-bar" aria-label="Autocorrelation Model Configuration">
+          <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
+            <div class="card-title-group">
+              <h3>Asset Autocorrelation Analysis</h3>
+              <p class="studio-tagline" style="margin-top: 0.25rem;">
+                Evaluates return persistence, momentum regimes, and mean-reverting seasonality across multiple time-lag horizons.
+              </p>
+            </div>
+          </div>
+
+          <div class="correlation-controls-grid" style="margin-top: 1rem;">
+            <!-- Target Asset Picker Button -->
+            <div class="control-item">
+              <label>Target Asset</label>
+              <button type="button" class="asset-picker-btn" id="btn-open-autocorr-modal" title="Click to search or select target asset">
+                <span class="picker-dot" style="background: #2dd4bf;"></span>
+                <span class="picker-ticker" id="autocorr-picker-ticker">TSLA</span>
+                <span class="picker-name" id="autocorr-picker-name">Tesla Inc</span>
+                <span class="picker-arrow">▾</span>
+              </button>
+            </div>
+
+            <!-- Roll Period Dropdown -->
+            <div class="control-item">
+              <label for="autocorr-roll-period">Rolling Window</label>
+              <select id="autocorr-roll-period" class="control-select">
+                <option value="12">12 Months (1 Year)</option>
+                <option value="24" selected>24 Months (2 Years)</option>
+                <option value="36">36 Months (3 Years)</option>
+                <option value="60">60 Months (5 Years)</option>
+              </select>
+            </div>
+
+            <!-- Return Basis Badge -->
+            <div class="control-item">
+              <label>Return Basis</label>
+              <div class="pill-badge-container" style="padding-top: 0.4rem;">
+                <span class="preset-chip active" style="cursor: default;">Monthly Returns</span>
+              </div>
+            </div>
+
+            <!-- Multi-Lag Display Indicator -->
+            <div class="control-item">
+              <label>Time Lags</label>
+              <div class="pill-badge-container" style="padding-top: 0.4rem;">
+                <span class="preset-chip active" style="cursor: default;">Lags 1, 3 &amp; 12</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="screener-actions-row">
+            <span class="screener-status-text" id="autocorr-status-text">Asset autocorrelations calculated across historical months.</span>
+            <div class="screener-btns-right">
+              <button type="button" class="btn-tool-primary" id="btn-export-autocorr-csv">📥 Export Autocorrelation CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Dynamic Autocorrelation Story Banner -->
+        <div class="story-takeaway-banner" id="autocorr-story-banner">
+          <span class="story-icon">💡</span>
+          <div class="story-text" id="autocorr-story-text">
+            Evaluating time-series return persistence and cyclical dynamics...
+          </div>
+        </div>
+
+        <!-- Autocorrelation Results Card -->
+        <section class="analytics-card" style="margin-top: 1.5rem;" id="autocorr-results-container">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Autocorrelation Results</h3>
+              <span class="card-subtitle" id="autocorr-date-range-text">Asset autocorrelations based on monthly returns.</span>
+            </div>
+          </div>
+
+          <!-- Stacked Chart 1: Time Lag = 1 -->
+          <div class="autocorr-chart-block">
+            <div class="autocorr-block-header">
+              <h4 id="autocorr-title-lag1">Tesla Inc (TSLA) 24-month rolling autocorrelation (monthly returns), Time Lag = 1</h4>
+              <div class="autocorr-stat-chips">
+                <span class="autocorr-stat-pill">Current: <strong id="autocorr-lag1-current">0.00</strong></span>
+                <span class="autocorr-stat-pill">Mean: <strong id="autocorr-lag1-mean">0.00</strong></span>
+                <span class="autocorr-stat-pill">Min: <strong id="autocorr-lag1-min">0.00</strong></span>
+                <span class="autocorr-stat-pill">Max: <strong id="autocorr-lag1-max">0.00</strong></span>
+              </div>
+            </div>
+            <div class="canvas-wrapper autocorr-canvas-wrap">
+              <canvas id="canvas-autocorr-lag1" height="230"></canvas>
+              <div class="canvas-tooltip hidden" id="tooltip-autocorr-lag1"></div>
+            </div>
+          </div>
+
+          <!-- Stacked Chart 2: Time Lag = 3 -->
+          <div class="autocorr-chart-block">
+            <div class="autocorr-block-header">
+              <h4 id="autocorr-title-lag3">Tesla Inc (TSLA) 24-month rolling autocorrelation (monthly returns), Time Lag = 3</h4>
+              <div class="autocorr-stat-chips">
+                <span class="autocorr-stat-pill">Current: <strong id="autocorr-lag3-current">0.00</strong></span>
+                <span class="autocorr-stat-pill">Mean: <strong id="autocorr-lag3-mean">0.00</strong></span>
+                <span class="autocorr-stat-pill">Min: <strong id="autocorr-lag3-min">0.00</strong></span>
+                <span class="autocorr-stat-pill">Max: <strong id="autocorr-lag3-max">0.00</strong></span>
+              </div>
+            </div>
+            <div class="canvas-wrapper autocorr-canvas-wrap">
+              <canvas id="canvas-autocorr-lag3" height="230"></canvas>
+              <div class="canvas-tooltip hidden" id="tooltip-autocorr-lag3"></div>
+            </div>
+          </div>
+
+          <!-- Stacked Chart 3: Time Lag = 12 -->
+          <div class="autocorr-chart-block">
+            <div class="autocorr-block-header">
+              <h4 id="autocorr-title-lag12">Tesla Inc (TSLA) 24-month rolling autocorrelation (monthly returns), Time Lag = 12</h4>
+              <div class="autocorr-stat-chips">
+                <span class="autocorr-stat-pill">Current: <strong id="autocorr-lag12-current">0.00</strong></span>
+                <span class="autocorr-stat-pill">Mean: <strong id="autocorr-lag12-mean">0.00</strong></span>
+                <span class="autocorr-stat-pill">Min: <strong id="autocorr-lag12-min">0.00</strong></span>
+                <span class="autocorr-stat-pill">Max: <strong id="autocorr-lag12-max">0.00</strong></span>
+              </div>
+            </div>
+            <div class="canvas-wrapper autocorr-canvas-wrap">
+              <canvas id="canvas-autocorr-lag12" height="230"></canvas>
+              <div class="canvas-tooltip hidden" id="tooltip-autocorr-lag12"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- TAB CONTENT: ASSET COINTEGRATION ANALYSIS -->
+      <main id="tab-cointegration" class="tab-pane hidden">
+        <!-- Collapsible Cointegration Cheat Sheet Card -->
+        <section class="cheat-sheet-card" id="cheat-sheet-coint">
+          <div class="cheat-sheet-header open" data-toggle-cheat="cheat-sheet-coint">
+            <div class="cheat-sheet-title">
+              <span>💡 Quick Guide: How to Read Cointegration &amp; Pairs Equilibrium</span>
+              <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+            </div>
+            <span class="cheat-sheet-arrow open">▼</span>
+          </div>
+          <div class="cheat-sheet-body">
+            <div class="cheat-sheet-grid">
+              <div class="cheat-item">
+                <div class="cheat-badge scale-hedge">⚓ Cointegration vs Correlation</div>
+                <strong>The Invisible Leash</strong>
+                <p>Correlation measures temporary co-movement. Cointegration proves two prices share a permanent long-term mathematical equilibrium.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge cagr-badge">⚖️ Hedge Ratio (&beta;)</div>
+                <strong>Optimal Basket Multiplier</strong>
+                <p>OLS regression slope determining the portfolio spread: <em>Spread = Y &minus; &beta;&times;X</em>. Isolates the stationary residual.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge dd-badge">📉 ADF Test Statistic</div>
+                <strong>Unit Root Rejection</strong>
+                <p>Augmented Dickey-Fuller t-statistic must be more negative than the 95% critical value (-3.37) to confirm mean-reverting stationarity.</p>
+              </div>
+              <div class="cheat-item">
+                <div class="cheat-badge scale-uncorr">🎯 p-Value (&lt; 0.05)</div>
+                <strong>Pairs Trading &amp; Rebalancing</strong>
+                <p>Statistically significant p-values mean temporary price spreads reliably snap back, enabling low-risk mean-reversion rebalancing.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Cointegration Controls Bar -->
+        <section class="correlation-controls-bar" aria-label="Cointegration Model Configuration">
+          <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
+            <div class="card-title-group">
+              <h3>Asset Cointegration Analysis</h3>
+              <p class="studio-tagline" style="margin-top: 0.25rem;">
+                Tests whether assets share a mean-reverting equilibrium relationship using the Augmented Dickey-Fuller (ADF) test on cointegrating regression residuals.
+              </p>
+            </div>
+          </div>
+
+          <div class="correlation-controls-grid" style="margin-top: 1rem;">
+            <!-- Dependent Asset (Y) Picker Button -->
+            <div class="control-item">
+              <label>Dependent Asset (Y)</label>
+              <button type="button" class="asset-picker-btn" id="btn-open-coint-dep-modal" title="Click to search or select dependent asset">
+                <span class="picker-dot" style="background: #2dd4bf;"></span>
+                <span class="picker-ticker" id="coint-dep-ticker">EWA</span>
+                <span class="picker-name" id="coint-dep-name">iShares MSCI Australia ETF</span>
+                <span class="picker-arrow">▾</span>
+              </button>
+            </div>
+
+            <!-- Independent Asset (X) Picker Button -->
+            <div class="control-item">
+              <label>Independent Asset (X)</label>
+              <button type="button" class="asset-picker-btn" id="btn-open-coint-indep-modal" title="Click to search or select independent asset">
+                <span class="picker-dot" style="background: #a855f7;"></span>
+                <span class="picker-ticker" id="coint-indep-ticker">EWC</span>
+                <span class="picker-name" id="coint-indep-name">iShares MSCI Canada ETF</span>
+                <span class="picker-arrow">▾</span>
+              </button>
+            </div>
+
+            <!-- Prices Basis -->
+            <div class="control-item">
+              <label for="coint-prices-select">Price Series</label>
+              <select id="coint-prices-select" class="control-select">
+                <option value="monthly" selected>Monthly Prices (Levels)</option>
+                <option value="drip">Adjusted Prices (DRIP)</option>
+              </select>
+            </div>
+
+            <!-- ADF Lag Order -->
+            <div class="control-item">
+              <label for="coint-lag-select">ADF Regression Lag</label>
+              <select id="coint-lag-select" class="control-select">
+                <option value="1" selected>Lag 1 (Default)</option>
+                <option value="0">Lag 0 (Dickey-Fuller)</option>
+                <option value="2">Lag 2</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="screener-actions-row">
+            <span class="screener-status-text" id="coint-status-text">Ready to run Engle-Granger ADF test.</span>
+            <div class="screener-btns-right">
+              <button type="button" class="btn-primary" id="btn-run-cointegration" style="padding: 0.5rem 1.25rem;">⚡ Test Cointegration</button>
+              <button type="button" class="btn-tool-primary" id="btn-export-coint-csv">📥 Export Results CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Dynamic Cointegration Story Banner -->
+        <div class="story-takeaway-banner" id="coint-story-banner">
+          <span class="story-icon">💡</span>
+          <div class="story-text" id="coint-story-text">
+            Running econometric cointegration analysis and stationarity diagnostics...
+          </div>
+        </div>
+
+        <!-- Cointegration Test Results Card -->
+        <section class="analytics-card" style="margin-top: 1.5rem;" id="coint-results-container">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Cointegration Test Results</h3>
+              <span class="card-subtitle" id="coint-constraint-note">Time period constrained by available overlapping asset history.</span>
+            </div>
+          </div>
+
+          <!-- Results Summary Table -->
+          <div class="table-container" style="margin-top: 1rem;">
+            <table class="analytics-table coint-table" id="coint-results-table">
+              <thead>
+                <tr>
+                  <th>Dependent <span class="info-tip tip-right" data-tooltip="Dependent variable (Asset Y) in OLS equation: Y = α + β·X + ε.">ℹ️</span></th>
+                  <th>Independent <span class="info-tip tip-right" data-tooltip="Independent variable (Asset X).">ℹ️</span></th>
+                  <th class="text-right">Test Statistic <span class="info-tip" data-tooltip="Augmented Dickey-Fuller t-statistic. Must be more negative than critical value to reject unit root.">ℹ️</span></th>
+                  <th class="text-right">p-value <span class="info-tip" data-tooltip="MacKinnon calibrated p-value. < 0.05 confirms stationarity with 95% confidence.">ℹ️</span></th>
+                  <th class="text-center">95% Confidence <span class="info-tip tip-left" data-tooltip="Stationarity verdict at 95% confidence threshold (-3.37).">ℹ️</span></th>
+                  <th class="text-center">90% Confidence <span class="info-tip tip-left" data-tooltip="Stationarity verdict at 90% confidence threshold (-3.07).">ℹ️</span></th>
+                </tr>
+              </thead>
+              <tbody id="coint-table-body">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <p class="coint-table-caption" id="coint-table-caption">
+            Cointegration test results based on monthly prices.
+          </p>
+
+          <!-- Pairs Mean-Reversion Spread Canvas Card -->
+          <div class="coint-spread-section" style="margin-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1.5rem;">
+            <div class="card-header" style="padding: 0 0 1rem 0;">
+              <div class="card-title-group">
+                <h4 style="font-size: 1.1rem; color: #f8fafc; font-weight: 700;">Cointegrating Regression Residuals &amp; Mean-Reverting Spread</h4>
+                <span class="card-subtitle">Zero equilibrium baseline with &plusmn;1&sigma; and &plusmn;2&sigma; standard deviation bounds for statistical pairs trading.</span>
+              </div>
+            </div>
+
+            <div class="chart-stats-banner" id="coint-stats-banner">
+              <div class="chart-stat-item">
+                <span class="chart-stat-label">Hedge Ratio (&beta;)</span>
+                <span class="chart-stat-val" id="coint-stat-beta">0.000</span>
+              </div>
+              <div class="chart-stat-item">
+                <span class="chart-stat-label">Intercept (&alpha;)</span>
+                <span class="chart-stat-val" id="coint-stat-alpha">$0.00</span>
+              </div>
+              <div class="chart-stat-item">
+                <span class="chart-stat-label">Residual Std Dev (&sigma;)</span>
+                <span class="chart-stat-val" id="coint-stat-std">0.000</span>
+              </div>
+              <div class="chart-stat-item">
+                <span class="chart-stat-label">Half-Life of Reversion</span>
+                <span class="chart-stat-val" id="coint-stat-halflife">0.0 Mos</span>
+              </div>
+            </div>
+
+            <div class="canvas-wrapper" style="margin-top: 1.25rem;">
+              <canvas id="cointegration-canvas" height="320"></canvas>
+              <div class="canvas-tooltip hidden" id="cointegration-tooltip"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2026 Financial Calculator &bull; Asset Analytics Suite</p>
+      </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/nav.js"></script>
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/prefetch.js"></script>
+    <script type="module" src="analytics-ui.js"></script>
+  </body>
+</html>
