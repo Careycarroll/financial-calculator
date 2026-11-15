@@ -502,7 +502,6 @@ function runOptimization() {
       allowLeverage: state.allowLeverage,
       borrowingRate: state.borrowingRate
     });
-    });
     state.lastFrontier = frontierResult;
 
     // 3. Monte Carlo Feasible Cloud
