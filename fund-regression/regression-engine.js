@@ -11,6 +11,10 @@
  * Works in both Node.js and ES module browser environments.
  */
 
+import { computeTailRiskMetrics } from '../asset-analytics/tail-risk.js';
+
+export * from '../asset-analytics/tail-risk.js';
+
 /**
  * Computes monthly percentage return series from resampled monthly price points.
  * @param {Array<{date: string, close: number, adjClose?: number}>} monthlyData
@@ -192,7 +196,12 @@ export function computeRiskMetrics(returns, annualRf = 0, beta = 1) {
       sharpeRatio: 0,
       sortinoRatio: 0,
       treynorRatio: 0,
-      maxDrawdown: 0
+      maxDrawdown: 0,
+      monthlyVaR95: 0,
+      monthlyCVaR95: 0,
+      monthlyVaR99: 0,
+      monthlyCVaR99: 0,
+      tailRisk: null
     };
   }
 
@@ -273,6 +282,9 @@ export function computeRiskMetrics(returns, annualRf = 0, beta = 1) {
   }
   const omegaRatio = omegaDownside > 1e-6 ? omegaUpside / omegaDownside : (omegaUpside > 0 ? 99.99 : 1.0);
 
+  // 11. Tail Risk Metrics (VaR & CVaR at 95% and 99%)
+  const tailRisk = computeTailRiskMetrics(returns, { annualRf });
+
   return {
     cagr: Number(cagr.toFixed(4)),
     annualVolatility: Number(annualVolatility.toFixed(4)),
@@ -284,7 +296,12 @@ export function computeRiskMetrics(returns, annualRf = 0, beta = 1) {
     martinRatio: Number(martinRatio.toFixed(2)),
     gainToPainRatio: Number(gainToPainRatio.toFixed(2)),
     omegaRatio: Number(omegaRatio.toFixed(2)),
-    maxDrawdown: Number(maxDrawdown.toFixed(4))
+    maxDrawdown: Number(maxDrawdown.toFixed(4)),
+    monthlyVaR95: Number(tailRisk.var95.cornishFisher.toFixed(4)),
+    monthlyCVaR95: Number(tailRisk.cvar95.cornishFisher.toFixed(4)),
+    monthlyVaR99: Number(tailRisk.var99.cornishFisher.toFixed(4)),
+    monthlyCVaR99: Number(tailRisk.cvar99.cornishFisher.toFixed(4)),
+    tailRisk
   };
 }
 

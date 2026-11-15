@@ -17,6 +17,8 @@
  *    - Benchmark Correlation
  */
 
+import { computeTailRiskMetrics } from '../asset-analytics/tail-risk.js';
+
 /**
  * Standard Model Presets for quick 1-click allocation setup
  */
@@ -201,6 +203,11 @@ export function calculatePortfolioMetrics(trajectory, initialBalance, totalContr
       sharpeRatio: 0,
       sortinoRatio: 0,
       maxDrawdown: 0,
+      monthlyVaR95: 0,
+      monthlyCVaR95: 0,
+      monthlyVaR99: 0,
+      monthlyCVaR99: 0,
+      tailRisk: null,
       bestYear: { year: '--', return: 0 },
       worstYear: { year: '--', return: 0 },
       annualReturns: []
@@ -283,6 +290,9 @@ export function calculatePortfolioMetrics(trajectory, initialBalance, totalContr
   if (bestYear.return === -Infinity) bestYear = { year: '--', return: 0 };
   if (worstYear.return === Infinity) worstYear = { year: '--', return: 0 };
 
+  // 7. Tail Risk & Downside Analytics (VaR & CVaR at 95% and 99%)
+  const tailRisk = computeTailRiskMetrics(returns, { annualRf });
+
   return {
     initialBalance: Math.round(initialBalance * 100) / 100,
     finalBalance: Math.round(finalBalance * 100) / 100,
@@ -294,6 +304,11 @@ export function calculatePortfolioMetrics(trajectory, initialBalance, totalContr
     sharpeRatio: Number(sharpeRatio.toFixed(2)),
     sortinoRatio: Number(sortinoRatio.toFixed(2)),
     maxDrawdown: Number(maxDrawdown.toFixed(4)),
+    monthlyVaR95: Number(tailRisk.var95.cornishFisher.toFixed(4)),
+    monthlyCVaR95: Number(tailRisk.cvar95.cornishFisher.toFixed(4)),
+    monthlyVaR99: Number(tailRisk.var99.cornishFisher.toFixed(4)),
+    monthlyCVaR99: Number(tailRisk.cvar99.cornishFisher.toFixed(4)),
+    tailRisk,
     bestYear,
     worstYear,
     annualReturns

@@ -292,6 +292,7 @@ function cacheDOMElements() {
     mUlcer: document.getElementById('m-ulcer'),
     mVar: document.getElementById('m-var'),
     mCvar: document.getElementById('m-cvar'),
+    mTailSeverity: document.getElementById('m-tail-severity'),
 
     mSharpe: document.getElementById('m-sharpe'),
     mSortino: document.getElementById('m-sortino'),
@@ -2022,6 +2023,12 @@ function renderInstitutionalMatrix() {
   if (elements.mUlcer) elements.mUlcer.textContent = formatPct(fRisk.ulcerIndex);
   if (elements.mVar) elements.mVar.textContent = `-${formatPct(risk.varMonthly)}`;
   if (elements.mCvar) elements.mCvar.textContent = `-${formatPct(risk.cvarMonthly)}`;
+  if (elements.mTailSeverity && risk.tailRisk) {
+    elements.mTailSeverity.textContent = risk.tailRisk.tailRiskSeverity;
+    elements.mTailSeverity.style.color = risk.tailRisk.tailRiskSeverity.includes('Severe')
+      ? '#f43f5e'
+      : (risk.tailRisk.tailRiskSeverity.includes('Moderate') ? '#fbbf24' : '#34d399');
+  }
 
   // Quad 3: Risk-Adjusted Efficiency
   if (elements.mSharpe) elements.mSharpe.textContent = fRisk.sharpeRatio.toFixed(2);

@@ -13,6 +13,15 @@ import {
   computeRollingRegression,
   analyzeFundRegression
 } from '../fund-regression/regression-engine.js';
+import {
+  computeTailRiskMetrics,
+  calculateHistoricalVaR,
+  calculateHistoricalCVaR,
+  calculateParametricVaR,
+  calculateParametricCVaR,
+  calculateCornishFisherVaR,
+  calculateCornishFisherCVaR
+} from './tail-risk.js';
 
 /**
  * Computes Growth of a fixed principal (e.g. $10,000) over aligned monthly return series.
@@ -439,34 +448,69 @@ export function calculateRollingMetrics(fundReturns, benchReturns = [], windowMo
 }
 
 /**
- * Computes Historical Value-at-Risk (VaR 95%) and Conditional VaR (CVaR / Expected Shortfall).
- * @param {Array<{date: string, return: number}>} returns - Monthly return series
+ * Computes Historical, Parametric, and Cornish-Fisher Modified Value-at-Risk (VaR)
+ * and Conditional VaR (CVaR / Expected Shortfall) across 95% and 99% horizons.
+ * 
+ * References: Bodie, Kane & Marcus, Investments, Chapter 5.5.
+ * 
+ * @param {Array<{date: string, return: number}|number>} returns - Monthly return series
  * @param {number} [confidence=0.95]
- * @returns {{ varMonthly: number, cvarMonthly: number, varAnnualized: number }}
+ * @returns {{
+ *   varMonthly: number,
+ *   cvarMonthly: number,
+ *   varAnnualized: number,
+ *   historicalVaR: number,
+ *   historicalCVaR: number,
+ *   parametricVaR: number,
+ *   parametricCVaR: number,
+ *   cornishFisherVaR: number,
+ *   cornishFisherCVaR: number,
+ *   tailRisk: Object
+ * }}
  */
 export function calculateVaRAndCVaR(returns, confidence = 0.95) {
   if (!returns || returns.length === 0) {
-    return { varMonthly: 0, cvarMonthly: 0, varAnnualized: 0 };
+    return {
+      varMonthly: 0,
+      cvarMonthly: 0,
+      varAnnualized: 0,
+      historicalVaR: 0,
+      historicalCVaR: 0,
+      parametricVaR: 0,
+      parametricCVaR: 0,
+      cornishFisherVaR: 0,
+      cornishFisherCVaR: 0,
+      tailRisk: null
+    };
   }
 
-  const sortedReturns = returns.map(r => r.return).sort((a, b) => a - b);
-  const cutoffIndex = Math.max(0, Math.floor((1 - confidence) * sortedReturns.length));
+  const rawReturns = returns.map(r => typeof r === 'number' ? r : r.return);
+  const tailRisk = computeTailRiskMetrics(rawReturns);
 
-  // VaR is the negative of the cutoff return (expressed as a positive loss percentage)
-  const varMonthly = -sortedReturns[cutoffIndex];
+  const is99 = confidence >= 0.985;
+  const histVaR = is99 ? tailRisk.var99.historical : tailRisk.var95.historical;
+  const histCVaR = is99 ? tailRisk.cvar99.historical : tailRisk.cvar95.historical;
+  const paramVaR = is99 ? tailRisk.var99.parametric : tailRisk.var95.parametric;
+  const paramCVaR = is99 ? tailRisk.cvar99.parametric : tailRisk.cvar95.parametric;
+  const cfVaR = is99 ? tailRisk.var99.cornishFisher : tailRisk.var95.cornishFisher;
+  const cfCVaR = is99 ? tailRisk.cvar99.cornishFisher : tailRisk.cvar95.cornishFisher;
 
-  // CVaR is the average loss of returns below the VaR cutoff
-  const tailReturns = sortedReturns.slice(0, cutoffIndex + 1);
-  const tailAvg = tailReturns.reduce((sum, val) => sum + val, 0) / tailReturns.length;
-  const cvarMonthly = -tailAvg;
-
-  // Annualized parametric square-root-of-time scaling for display
+  // Primary reported monthly VaR and CVaR default to Cornish-Fisher (higher-order corrected)
+  const varMonthly = cfVaR;
+  const cvarMonthly = cfCVaR;
   const varAnnualized = varMonthly * Math.sqrt(12);
 
   return {
-    varMonthly: varMonthly,
-    cvarMonthly: cvarMonthly,
-    varAnnualized: varAnnualized
+    varMonthly,
+    cvarMonthly,
+    varAnnualized,
+    historicalVaR: histVaR,
+    historicalCVaR: histCVaR,
+    parametricVaR: paramVaR,
+    parametricCVaR: paramCVaR,
+    cornishFisherVaR: cfVaR,
+    cornishFisherCVaR: cfCVaR,
+    tailRisk
   };
 }
 
@@ -557,3 +601,5 @@ export {
   computeRollingRegression,
   analyzeFundRegression
 };
+
+export * from './tail-risk.js';
