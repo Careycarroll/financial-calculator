@@ -7,46 +7,88 @@
 (function () {
   const SITE_CATALOG = [
     {
-      id: "retirement",
-      name: "Retirement Planning",
-      icon: "🛡️",
+      id: "portfolio",
+      name: "Portfolio & Allocation",
+      icon: "💼",
       tools: [
-        { id: "fire", name: "FIRE Dashboard", icon: "🔥", path: "pages/fire.html", desc: "Financial Independence number & Coast FIRE target" },
-        { id: "drawdown-engine", name: "Drawdown Engine", icon: "🛡️", path: "pages/drawdown-engine.html", desc: "Tax-aware Guyton-Klinger withdrawal guardrails & RMDs" },
-        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Mega-cap concentration & 401(k) DCA stress testing" }
-      ],
-      bridges: [
-        { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "Analyze factor risks & Jensen's Alpha" },
-        { id: "monte-carlo", name: "Monte Carlo Studio", icon: "🎲", path: "monte-carlo/index.html", desc: "Simulate portfolio survival & retirement solvency" }
-      ]
-    },
-    {
-      id: "trading",
-      name: "Trading & Fund Analytics",
-      icon: "📈",
-      tools: [
-        { id: "asset-analytics", name: "Asset Analytics Studio", icon: "📊", path: "asset-analytics/index.html", desc: "Fund performance, underwater crashes, heatmaps & rolling bands" },
-        { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" },
         { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation, rebalancing frequencies & side-by-side models" },
         { id: "asset-class-allocation", name: "Asset Class Backtest", icon: "🏛️", path: "portfolio-backtest/asset-class-allocation.html", desc: "54-year backtest across 28 canonical asset classes (1972-present)" },
         { id: "dynamic-allocation", name: "Dynamic Allocation", icon: "🔄", path: "portfolio-backtest/dynamic-allocation.html", desc: "Lifecycle glidepaths & tactical trend-following crash protection" },
-        { id: "tactical-allocation", name: "Tactical Allocation", icon: "⚡", path: "tactical-allocation/index.html", desc: "Dual Momentum, GTAA, Moving Averages, Adaptive Allocation & Volatility Targeting" },
+        { id: "asset-analytics", name: "Asset Analytics Studio", icon: "📊", path: "asset-analytics/index.html", desc: "Fund performance, underwater crashes, heatmaps & rolling bands" },
+        { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" }
+      ],
+      bridges: [
+        { id: "tactical-allocation", name: "Tactical Allocation", icon: "⚡", path: "tactical-allocation/index.html", desc: "Quantitative timing models & GTAA" },
+        { id: "portfolio-optimization", name: "Optimization", icon: "⚖️", path: "portfolio-optimization/portfolio-optimization.html", desc: "Mean-variance & Risk Parity" }
+      ]
+    },
+    {
+      id: "tactical",
+      name: "Tactical Asset Allocation",
+      icon: "⚡",
+      tools: [
+        { id: "tactical-allocation", name: "Tactical Allocation Studio", icon: "⚡", path: "tactical-allocation/index.html", desc: "Dual Momentum, GTAA, Moving Averages, Adaptive Allocation & Volatility Targeting" }
+      ],
+      bridges: [
+        { id: "dynamic-allocation", name: "Dynamic Allocation", icon: "🔄", path: "portfolio-backtest/dynamic-allocation.html", desc: "Lifecycle glidepaths & trend signals" },
+        { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation & rebalancing" }
+      ]
+    },
+    {
+      id: "optimization",
+      name: "Portfolio Optimization",
+      icon: "⚖️",
+      tools: [
         { id: "efficient-frontier", name: "Efficient Frontier", icon: "📈", path: "portfolio-optimization/index.html", desc: "Markowitz efficient frontier, CAL, Tangency portfolio & transition map" },
         { id: "portfolio-optimization", name: "Portfolio Optimization", icon: "⚖️", path: "portfolio-optimization/portfolio-optimization.html", desc: "Multi-objective portfolio optimization, Risk Parity & CVaR" },
         { id: "black-litterman", name: "Black-Litterman Model", icon: "🧠", path: "portfolio-optimization/black-litterman.html", desc: "Bayesian market views, implied equilibrium prior & active tilts" },
-        { id: "rolling-optimization", name: "Rolling Optimization", icon: "🔄", path: "portfolio-optimization/rolling-optimization.html", desc: "Out-of-sample walk-forward portfolio optimization & dynamic rebalancing" },
+        { id: "rolling-optimization", name: "Rolling Optimization", icon: "🔄", path: "portfolio-optimization/rolling-optimization.html", desc: "Out-of-sample walk-forward portfolio optimization & dynamic rebalancing" }
+      ],
+      bridges: [
+        { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Backtest optimal weights historically" }
+      ]
+    },
+    {
+      id: "factors",
+      name: "Factor Analysis & Risk",
+      icon: "📈",
+      tools: [
         { id: "fund-regression", name: "Regression Lab", icon: "📈", path: "fund-regression/index.html", desc: "CAPM, Dual-Beta, factor regression & risk suite" },
         { id: "manager-performance", name: "Manager Performance", icon: "🏆", path: "fund-regression/manager-performance.html", desc: "Active manager vs benchmark tracking error, Information Ratio & skill test" },
-        { id: "factor-analysis", name: "Factor Analysis", icon: "🔬", path: "fund-regression/factor-analysis.html", desc: "Fama-French & Carhart multi-factor regressions, style drift & attribution" },
+        { id: "factor-analysis", name: "Factor Analysis Studio", icon: "🔬", path: "fund-regression/factor-analysis.html", desc: "Fama-French & Carhart multi-factor regressions, style drift & attribution" },
         { id: "pca", name: "Principal Component Analysis", icon: "🧠", path: "fund-regression/pca.html", desc: "Eigenvalue decomposition, scree plot & asset factor loadings" },
-        { id: "factor-matching", name: "Match Factor Exposures", icon: "🎯", path: "fund-regression/factor-matching.html", desc: "Replicate target factor exposures with liquid ETFs & factor risk parity" },
+        { id: "factor-matching", name: "Match Factor Exposures", icon: "🎯", path: "fund-regression/factor-matching.html", desc: "Replicate target factor exposures with liquid ETFs & factor risk parity" }
+      ],
+      bridges: [
+        { id: "asset-analytics", name: "Asset Analytics", icon: "📊", path: "asset-analytics/index.html", desc: "Deep-dive fund performance & drawdown recovery" }
+      ]
+    },
+    {
+      id: "monte-carlo",
+      name: "Monte Carlo Simulation",
+      icon: "🎲",
+      tools: [
         { id: "monte-carlo", name: "Monte Carlo Simulation", icon: "🎲", path: "monte-carlo/index.html", desc: "Growth percentiles, sequence risk & retirement survival" },
         { id: "financial-goals", name: "Financial Goals", icon: "🎯", path: "monte-carlo/financial-goals.html", desc: "Multi-stage glide path career-to-retirement goal cashflows" },
         { id: "asset-liability", name: "Asset Liability Modeling", icon: "⚖️", path: "monte-carlo/asset-liability.html", desc: "Stress test asset allocation against future liability obligations" },
         { id: "options", name: "Options Strategy Lab", icon: "🎯", path: "pages/options.html", desc: "Black-Scholes pricing, Greeks & 40+ payoff diagrams" }
       ],
       bridges: [
-        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Stress test against historical crashes" }
+        { id: "drawdown-engine", name: "Drawdown Engine", icon: "🛡️", path: "pages/drawdown-engine.html", desc: "Tax-aware Guyton-Klinger withdrawal guardrails" }
+      ]
+    },
+    {
+      id: "retirement",
+      name: "Retirement Planning",
+      icon: "🛡️",
+      tools: [
+        { id: "fire", name: "FIRE Dashboard", icon: "🔥", path: "pages/fire.html", desc: "Financial Independence number & Coast FIRE target" },
+        { id: "drawdown-engine", name: "Drawdown Engine", icon: "🛡️", path: "pages/drawdown-engine.html", desc: "Tax-aware Guyton-Klinger withdrawal guardrails & RMDs" },
+        { id: "projections", name: "Investment Projections", icon: "📈", path: "pages/projections.html", desc: "Multi-scenario portfolio growth & milestones" },
+        { id: "market-stress", name: "Market Stress", icon: "⚡", path: "pages/market-stress.html", desc: "Mega-cap concentration & 401(k) DCA stress testing" }
+      ],
+      bridges: [
+        { id: "monte-carlo", name: "Monte Carlo Studio", icon: "🎲", path: "monte-carlo/index.html", desc: "Simulate portfolio survival & retirement solvency" }
       ]
     },
     {
@@ -57,8 +99,7 @@
         { id: "loan", name: "Loan Calculator", icon: "🏦", path: "pages/loan.html", desc: "Monthly payments & amortization schedules" },
         { id: "loan-advanced", name: "Advanced Loan", icon: "🏦", path: "pages/loan-advanced.html", desc: "Extra payments & payoff strategies" },
         { id: "pv", name: "PV Calculator", icon: "💰", path: "pages/pv.html", desc: "Present value of future cash flows" },
-        { id: "npv-irr", name: "NPV & IRR", icon: "📊", path: "pages/npv-irr.html", desc: "Net present value & internal rate of return" },
-        { id: "projections", name: "Investment Projections", icon: "📈", path: "pages/projections.html", desc: "Multi-scenario portfolio growth & milestones" }
+        { id: "npv-irr", name: "NPV & IRR", icon: "📊", path: "pages/npv-irr.html", desc: "Net present value & internal rate of return" }
       ]
     },
     {
@@ -190,42 +231,33 @@
       // Preserve font-scale button if it exists
       const fontBtn = navLinks.querySelector("#font-scale-btn");
 
-      if (ctx.isHome) {
-        navLinks.innerHTML = `
-          <a href="${root}index.html" class="top-nav-link active">Calculators</a>
-          <a href="${root}pages/news.html" class="top-nav-link">News Feed</a>
-        `;
-      } else if (currentCat) {
-        let linksHtml = `
-          <a href="${root}index.html" class="top-nav-link nav-home-link" title="Return to All Calculators">← All Tools</a>
-        `;
+      const DOMAIN_SUITE_TABS = [
+        { id: "portfolio", name: "Portfolio", icon: "💼", path: "portfolio-backtest/index.html", match: ["portfolio-backtest", "dca-comparator", "asset-analytics"] },
+        { id: "tactical", name: "Tactical Allocation", icon: "⚡", path: "tactical-allocation/index.html", match: ["tactical-allocation"] },
+        { id: "optimization", name: "Optimization", icon: "⚖️", path: "portfolio-optimization/portfolio-optimization.html", match: ["portfolio-optimization"] },
+        { id: "factors", name: "Factor Analysis", icon: "📈", path: "fund-regression/index.html", match: ["fund-regression"] },
+        { id: "monte-carlo", name: "Monte Carlo", icon: "🎲", path: "monte-carlo/index.html", match: ["monte-carlo"] },
+        { id: "retirement", name: "Retirement", icon: "🛡️", path: "pages/drawdown-engine.html", match: ["drawdown-engine", "fire", "projections", "market-stress"] }
+      ];
 
-        currentCat.tools.forEach(t => {
-          const isActive = ctx.tool && ctx.tool.id === t.id;
-          linksHtml += `
-            <a href="${root}${t.path}" class="top-nav-link ${isActive ? "active" : ""}">
-              <span class="nav-link-icon">${t.icon}</span> ${t.name}
-            </a>
-          `;
-        });
+      const href = window.location.href;
+      let linksHtml = `
+        <a href="${root}index.html" class="top-nav-link nav-home-link ${ctx.isHome ? "active" : ""}" title="Return to All Calculators">← All Tools</a>
+      `;
 
-        if (currentCat.bridges && currentCat.bridges.length > 0) {
-          currentCat.bridges.forEach(b => {
-            linksHtml += `
-              <a href="${root}${b.path}" class="top-nav-link nav-bridge-link" title="${b.desc}">
-                <span class="nav-link-icon">${b.icon}</span> ${b.name}
-              </a>
-            `;
-          });
-        }
-
-        navLinks.innerHTML = linksHtml;
-      } else {
-        navLinks.innerHTML = `
-          <a href="${root}index.html" class="top-nav-link">← All Tools</a>
-          <a href="${root}pages/news.html" class="top-nav-link active">News Feed</a>
+      DOMAIN_SUITE_TABS.forEach(suite => {
+        const isActive = !ctx.isHome && (
+          (ctx.category && ctx.category.id === suite.id) ||
+          suite.match.some(m => href.includes(m))
+        );
+        linksHtml += `
+          <a href="${root}${suite.path}" class="top-nav-link ${isActive ? "active" : ""}" title="${suite.name}">
+            <span class="nav-link-icon">${suite.icon}</span> ${suite.name}
+          </a>
         `;
-      }
+      });
+
+      navLinks.innerHTML = linksHtml;
 
       if (fontBtn) {
         navLinks.appendChild(fontBtn);
