@@ -147,7 +147,21 @@ async function init() {
   updateSubCategoryDropdown();
   renderCorrelationChips();
   updateViewModeUI();
-  runAnalysis();
+
+  // Check body default-tab or url query param
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlTicker = urlParams.get('ticker');
+  if (urlTicker) {
+    state.fundTicker = urlTicker.toUpperCase();
+    updatePickerButtons();
+  }
+
+  const defaultTab = document.body?.dataset?.defaultTab || urlParams.get('tab');
+  if (defaultTab && ['performance', 'screener', 'rankings', 'correlations', 'autocorr', 'cointegration'].includes(defaultTab)) {
+    switchStudioTab(defaultTab);
+  } else {
+    runAnalysis();
+  }
 
   // Subscribe to changes in the session fund repository
   subscribeSessionFunds(() => {
@@ -453,6 +467,19 @@ function updateCointPickerButtons() {
 }
 
 function bindEvents() {
+  // Collapsible Executive Decision Framework Toggle
+  const execToggle = document.getElementById('executive-guide-toggle');
+  const execBody = document.getElementById('executive-guide-body');
+  const execArrow = document.getElementById('executive-guide-arrow');
+  if (execToggle && execBody && execArrow) {
+    execToggle.addEventListener('click', () => {
+      const isOpen = execBody.style.display !== 'none';
+      execBody.style.display = isOpen ? 'none' : 'block';
+      execArrow.textContent = isOpen ? '▶' : '▼';
+      execToggle.classList.toggle('open', !isOpen);
+    });
+  }
+
   // Studio Sub-Navigation Tabs
   if (elements.tabBtnPerformance) {
     elements.tabBtnPerformance.addEventListener('click', () => switchStudioTab('performance'));
@@ -973,6 +1000,10 @@ function switchStudioTab(tabKey) {
  */
 function drillDownToFund(ticker) {
   state.fundTicker = ticker.toUpperCase();
+  if (!elements.tabPerformance) {
+    window.location.href = `index.html?ticker=${encodeURIComponent(ticker)}`;
+    return;
+  }
   updatePickerButtons();
   switchStudioTab('performance');
   runAnalysis();

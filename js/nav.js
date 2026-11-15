@@ -14,7 +14,10 @@
         { id: "portfolio-backtest", name: "Portfolio Studio", icon: "💼", path: "portfolio-backtest/index.html", desc: "Multi-asset allocation, rebalancing frequencies & side-by-side models" },
         { id: "asset-class-allocation", name: "Asset Class Backtest", icon: "🏛️", path: "portfolio-backtest/asset-class-allocation.html", desc: "54-year backtest across 28 canonical asset classes (1972-present)" },
         { id: "dynamic-allocation", name: "Dynamic Allocation", icon: "🔄", path: "portfolio-backtest/dynamic-allocation.html", desc: "Lifecycle glidepaths & tactical trend-following crash protection" },
-        { id: "asset-analytics", name: "Asset Analytics Studio", icon: "📊", path: "asset-analytics/index.html", desc: "Fund performance, underwater crashes, heatmaps & rolling bands" },
+        { id: "asset-analytics", name: "Fund Performance Analysis", icon: "📊", path: "asset-analytics/index.html", desc: "Fund performance, underwater crashes, heatmaps & rolling bands" },
+        { id: "asset-correlations", name: "Asset Correlations", icon: "🔗", path: "asset-analytics/asset-correlations.html", desc: "Pairwise correlation matrix, covariance & rolling co-movement regimes" },
+        { id: "fund-screener", name: "Fund Screener & Rankings", icon: "🔍", path: "asset-analytics/fund-screener.html", desc: "Multi-factor ETF/fund screener, style classification & risk-adjusted leaderboards" },
+        { id: "time-series", name: "Time Series Lab", icon: "⏱️", path: "asset-analytics/time-series.html", desc: "Autocorrelation, momentum persistence, seasonality & cointegration ADF test" },
         { id: "dca-comparator", name: "DCA Backtest", icon: "📊", path: "dca-comparator/index.html", desc: "Historical DCA & dividend reinvestment" }
       ],
       bridges: [

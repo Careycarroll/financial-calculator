@@ -356,15 +356,51 @@ export const TOOLS_CATALOG = [
   },
   {
     id: "asset-analytics",
-    title: "Asset Analytics Studio",
-    shortTitle: "Asset Analytics",
+    title: "Fund Performance Analysis Studio",
+    shortTitle: "Fund Performance",
     path: "asset-analytics/index.html",
     icon: "📊",
     badge: "STUDIO",
     desc: "Deep-dive fund performance, cumulative $10k growth, underwater crash recovery, monthly calendar heatmaps, and rolling risk bands.",
     suiteId: "portfolio",
     workflowId: "build-portfolio",
-    keywords: ["analytics", "growth of 10k", "underwater", "drawdown", "recovery", "heatmap", "rolling", "volatility", "etf", "returns"]
+    keywords: ["analytics", "growth of 10k", "underwater", "drawdown", "recovery", "heatmap", "rolling", "volatility", "etf", "returns", "fund performance"]
+  },
+  {
+    id: "asset-correlations",
+    title: "Asset Correlations Studio",
+    shortTitle: "Asset Correlations",
+    path: "asset-analytics/asset-correlations.html",
+    icon: "🔗",
+    badge: "STUDIO",
+    desc: "Calculate cross-asset Pearson correlation matrices, covariance, rolling 36-month pair regimes, and identify true diversification vs redundant overlap.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["correlation", "covariance", "diversification", "overlap", "rolling correlation", "heatmap", "regimes", "pearson", "matrix", "portfolio risk"]
+  },
+  {
+    id: "fund-screener",
+    title: "Fund Screener & Rankings Studio",
+    shortTitle: "Fund Screener & Rankings",
+    path: "asset-analytics/fund-screener.html",
+    icon: "🔍",
+    badge: "STUDIO",
+    desc: "Multi-factor ETF and mutual fund screening, custom percentile leaderboards, asset class filters, expense ratio ceilings, and risk-adjusted efficiency scores.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["screener", "rankings", "leaderboard", "fund screener", "etf", "percentile", "due diligence", "expense ratio", "sortino", "sharpe", "alpha"]
+  },
+  {
+    id: "time-series",
+    title: "Time Series Lab: Autocorrelation & Cointegration",
+    shortTitle: "Time Series Lab",
+    path: "asset-analytics/time-series.html",
+    icon: "⏱️",
+    badge: "LAB",
+    desc: "Econometric time-series diagnostics: multi-lag autocorrelation, momentum persistence, seasonality cycles, and Engle-Granger ADF cointegration for statistical pairs trading.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["autocorrelation", "cointegration", "time series", "adf test", "pairs trading", "mean reversion", "hedge ratio", "stationarity", "seasonality", "momentum"]
   },
 
   // --- Quantitative, Factors & Derivatives ---
