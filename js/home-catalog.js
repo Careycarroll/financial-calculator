@@ -271,6 +271,78 @@ export const TOOLS_CATALOG = [
     keywords: ["tactical asset allocation", "dual momentum", "gem", "moving average", "sma", "gtaa", "adaptive allocation", "target volatility", "trend following", "market valuation"]
   },
   {
+    id: "market-valuation",
+    title: "Market Valuation Model",
+    shortTitle: "Market Valuation",
+    path: "tactical-allocation/market-valuation.html",
+    icon: "🏛️",
+    badge: "LAB",
+    desc: "Counter-cyclical equity tilt based on Shiller CAPE and valuation multiples to buy low and avoid peak bubbles.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["market valuation", "cape", "shiller", "valuation tilt", "pe ratio", "counter cyclical", "equity tilt", "bear defense"]
+  },
+  {
+    id: "moving-averages",
+    title: "Moving Averages Model",
+    shortTitle: "Moving Averages",
+    path: "tactical-allocation/moving-averages.html",
+    icon: "📈",
+    badge: "LAB",
+    desc: "Meb Faber 10-month & 200-day trend-following filters to systematically dodge catastrophic bear market drawdowns.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["moving averages", "sma", "ema", "trend following", "meb faber", "200 day", "10 month", "trend shield", "crash defense"]
+  },
+  {
+    id: "momentum-rotation",
+    title: "Momentum Rotation Model",
+    shortTitle: "Momentum Rotation",
+    path: "tactical-allocation/momentum-rotation.html",
+    icon: "🔄",
+    badge: "LAB",
+    desc: "Cross-sectional relative strength rotation (IVY 5) holding the top performing asset classes with positive absolute trend.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["momentum rotation", "relative strength", "ivy 5", "cross sectional", "sector rotation", "top n", "meb faber", "trend filter"]
+  },
+  {
+    id: "dual-momentum",
+    title: "Dual Momentum Model",
+    shortTitle: "Dual Momentum",
+    path: "tactical-allocation/dual-momentum.html",
+    icon: "🚀",
+    badge: "LAB",
+    desc: "Gary Antonacci GEM combining Relative Momentum (US vs Intl) with Absolute Momentum (Cash hurdle) for maximum Sharpe.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["dual momentum", "gem", "gary antonacci", "relative momentum", "absolute momentum", "cash hurdle", "spy", "veu", "bnd"]
+  },
+  {
+    id: "adaptive-allocation",
+    title: "Adaptive Asset Allocation",
+    shortTitle: "Adaptive Allocation",
+    path: "tactical-allocation/adaptive-allocation.html",
+    icon: "⚖️",
+    badge: "LAB",
+    desc: "ReSolve Asset Management model pairing cross-sectional momentum ranking with Inverse Volatility / Risk Parity weighting.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["adaptive allocation", "resolve", "risk parity", "inverse volatility", "minimum variance", "momentum", "all weather", "tail risk"]
+  },
+  {
+    id: "target-volatility",
+    title: "Target Volatility Model",
+    shortTitle: "Target Volatility",
+    path: "tactical-allocation/target-volatility.html",
+    icon: "🎯",
+    badge: "LAB",
+    desc: "Constant risk budgeting (e.g. 10% target vol) that automatically de-levers into Cash during market shocks.",
+    suiteId: "portfolio",
+    workflowId: "build-portfolio",
+    keywords: ["target volatility", "volatility targeting", "risk budget", "constant risk", "cash buffer", "deleverage", "tail risk", "crisis shield"]
+  },
+  {
     id: "dca-comparator",
     title: "Historical Fund DCA Backtester",
     shortTitle: "DCA Backtest",

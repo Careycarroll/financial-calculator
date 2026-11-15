@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adaptive Asset Allocation Model (ReSolve) | Tactical Asset Allocation</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="../css/asset-modal.css" />
+    <link rel="stylesheet" href="tactical.css" />
+  </head>
+  <body class="tactical-page" data-default-model="adaptive-allocation" data-default-preset="resolve-adaptive-allocation">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio</a>
+          <a href="index.html" class="top-nav-link active">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="tactical-container">
+      <!-- Header -->
+      <header class="tactical-header">
+        <h1>⚖️ Adaptive Asset Allocation Model (ReSolve)</h1>
+        <p class="tactical-tagline">
+          Backtest Adam Butler, Mike Philbrick, and Rodrigo Gordillo's Adaptive Asset Allocation model across 54 years (1972–Present).
+          Pairs cross-sectional momentum ranking with Inverse Volatility (Risk Parity) weighting to maximize risk-adjusted compounding while suppressing tail risk.
+        </p>
+      </header>
+
+      <!-- Suite Sub-Navigation -->
+      <nav class="suite-subnav" aria-label="Tactical Asset Allocation Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+        <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Hub</a>
+        <a href="market-valuation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🏛️ Market Valuation</a>
+        <a href="moving-averages.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">📈 Moving Averages</a>
+        <a href="momentum-rotation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🔄 Momentum Rotation</a>
+        <a href="dual-momentum.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🚀 Dual Momentum</a>
+        <a href="adaptive-allocation.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Adaptive Allocation</a>
+        <a href="target-volatility.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Target Volatility</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-tactical" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Adaptive Risk Parity Momentum &amp; Tail Risk Mitigation</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge alpha-badge">🎯 Executive Purpose</div>
+              <strong>Momentum + Tail Risk Defense</strong>
+              <p>Pure momentum models often suffer from high volatility and violent factor rotations. Adaptive Asset Allocation solves this by marrying momentum asset selection with Inverse Volatility weighting ($w_i \propto 1 / \sigma_i$), ensuring no single volatile asset dominates portfolio risk.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge beta-badge">📋 How to Use</div>
+              <strong>3-Step Adaptive Allocation</strong>
+              <p>1. <strong>Universe</strong>: 7 diverse global asset classes (US Equities, Intl Equities, Emerging Markets, 10Y Treasuries, REITs, Gold, Commodities).<br>2. <strong>Rank Top 3</strong>: Select top 3 performers over trailing 6-month momentum.<br>3. <strong>Inverse Vol Weighting</strong>: Allocate capital proportionally to $1 / \sigma_i$, giving lower-volatility leaders higher weight.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge sharpe-badge">🔍 What to Expect</div>
+              <strong>Regime Shift Dynamics</strong>
+              <p>• <strong>Market Shocks (2008, 2020)</strong>: Surging equity volatility automatically down-weights equities and scales up safe-haven assets (Treasuries, Gold).<br>• <strong>Risk-Adjusted Compounding</strong>: Smooth, steady equity curve with realized volatility tightly managed (~10–12% vs 16–18% for stocks).<br>• <strong>Turnover</strong>: Moderate, rule-based re-balancing that eliminates guesswork.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge capture-badge">💡 Executive Output Decoder</div>
+              <strong>Ulcer Index &amp; Calmar Ratio</strong>
+              <p>• <strong>Superior Ulcer Performance Index (UPI)</strong>: Minimizes both drawdown depth and time underwater.<br>• <strong>High Calmar Ratio</strong>: Generates exceptional annualized return per unit of maximum drawdown risk.<br>• <strong>All-Weather Suitability</strong>: Institutional framework designed for family offices, foundations, and retirees.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status Bar -->
+      <section class="tactical-status-bar" id="tactical-status-bar">
+        <div class="status-pill highlight">
+          <span>Active Strategy:</span>
+          <strong id="status-strategy-name">Adaptive Asset Allocation (ReSolve)</strong>
+        </div>
+        <div class="status-pill">
+          <span>Timing Model:</span>
+          <strong id="status-timing-model">ADAPTIVE-ALLOCATION</strong>
+        </div>
+        <div class="status-pill">
+          <span>Timeline:</span>
+          <strong id="status-timeline-range">1972-01 to 2026-08</strong>
+          <span class="status-sub" id="status-total-months">(656 M)</span>
+        </div>
+        <div class="status-pill" id="status-regime-pill">
+          <span>Current Regime:</span>
+          <strong id="status-current-regime">BULL: RISK ASSETS</strong>
+        </div>
+        <div class="status-pill">
+          <span>Initial Capital:</span>
+          <strong id="status-initial-cap">$10,000</strong>
+        </div>
+        <div style="margin-left: auto;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-toggle-config">
+            ⚙️ Strategy Settings
+          </button>
+        </div>
+      </section>
+
+      <!-- Current Tactical Signal Banner -->
+      <section class="current-signal-banner" id="current-signal-banner">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <div class="signal-badge signal-bull" id="banner-signal-badge">
+            ⚡ ACTIVE SIGNAL: BULL REGIME
+          </div>
+          <div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc;" id="banner-signal-title">
+              Current Target Holding: Top 3 Adaptive Risk Parity Leaders
+            </div>
+            <div style="font-size: 0.8rem; color: #94a3b8;" id="banner-signal-sub">
+              Capital allocated dynamically across momentum leaders weighted by inverse trailing volatility.
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" class="btn-secondary btn-sm" id="btn-jump-trade-log">
+            📜 View Trade History
+          </button>
+        </div>
+      </section>
+
+      <!-- Strategy Configuration Card -->
+      <section class="chart-card" id="config-card">
+        <div class="chart-header">
+          <div>
+            <h3>🛠️ Adaptive Allocation Model Configuration</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Configure momentum lookback, volatility weighting window, and top-N asset selection.
+            </p>
+          </div>
+        </div>
+
+        <!-- Strategy Presets -->
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; font-weight: 700; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem;">
+            Quick Adaptive Allocation Presets:
+          </label>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="preset-buttons-container">
+            <button type="button" class="preset-btn active" data-preset="resolve-adaptive-allocation">
+              ⚖️ ReSolve Adaptive Asset Allocation (Top 3 Inverse Vol)
+            </button>
+            <button type="button" class="preset-btn" data-preset="all-weather-adaptive">
+              🌐 All-Weather Adaptive Risk Parity (Top 3 of 5 Assets)
+            </button>
+          </div>
+        </div>
+
+        <!-- Parameters Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label for="select-lookback" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Momentum Lookback Window:
+            </label>
+            <select id="select-lookback" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="3">3 Months (Fast)</option>
+              <option value="6" selected>6 Months (ReSolve Canonical)</option>
+              <option value="12">12 Months (1-Year)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="select-top-n" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Top-N Momentum Assets:
+            </label>
+            <select id="select-top-n" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="2">Top 2 Assets</option>
+              <option value="3" selected>Top 3 Assets (Canonical)</option>
+              <option value="4">Top 4 Assets</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="select-safe-haven" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Safe Haven Anchor:
+            </label>
+            <select id="select-safe-haven" class="form-select" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;">
+              <option value="IntermediateTreasury" selected>10-Year Intermediate Treasury (IEF)</option>
+              <option value="TotalBond">Total Bond Market (BND / AGG)</option>
+              <option value="Cash">Cash / 3-Month T-Bills (BIL)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="input-initial-capital" style="display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600;">
+              Initial Capital ($):
+            </label>
+            <input type="number" id="input-initial-capital" value="10000" min="1000" step="1000" class="form-input" style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem; border-radius: 6px;" />
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+          <button type="button" class="btn-primary" id="btn-run-tactical">
+            ⚡ Run Adaptive Allocation Backtest
+          </button>
+        </div>
+      </section>
+
+      <!-- Scorecards Grid -->
+      <section class="scorecards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div class="scorecard">
+          <div class="scorecard-label">Compound Annual Growth (CAGR)</div>
+          <div class="scorecard-value" id="card-cagr">--%</div>
+          <div class="scorecard-sub">SPY: <span id="card-cagr-spy">--%</span> | 60/40: <span id="card-cagr-6040">--%</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Maximum Drawdown</div>
+          <div class="scorecard-value danger" id="card-max-dd">--%</div>
+          <div class="scorecard-sub">Shield: <span id="card-dd-shield" class="success">+0.0%</span> saved vs SPY</div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Sharpe Ratio (Rf=3%)</div>
+          <div class="scorecard-value" id="card-sharpe">--</div>
+          <div class="scorecard-sub">SPY: <span id="card-sharpe-spy">--</span> | 60/40: <span id="card-sharpe-6040">--</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Sortino Ratio</div>
+          <div class="scorecard-value" id="card-sortino">--</div>
+          <div class="scorecard-sub">Downside volatility risk-adjusted</div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Annualized Volatility</div>
+          <div class="scorecard-value" id="card-vol">--%</div>
+          <div class="scorecard-sub">SPY: <span id="card-vol-spy">--%</span></div>
+        </div>
+        <div class="scorecard">
+          <div class="scorecard-label">Win Rate &amp; Trades</div>
+          <div class="scorecard-value" id="card-win-rate">--%</div>
+          <div class="scorecard-sub">Total Trades: <span id="card-total-trades">0</span></div>
+        </div>
+      </section>
+
+      <!-- Chart 1: Portfolio Growth -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h3>📈 Portfolio Cumulative Growth of $10,000 (1972–Present)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Adaptive Allocation vs US Stock Market (SPY) vs Vanguard 60/40 Balanced Benchmark
+            </p>
+          </div>
+          <div class="scale-toggle" style="display: inline-flex; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 2px;">
+            <button type="button" class="scale-btn active" id="btn-scale-linear">Linear</button>
+            <button type="button" class="scale-btn" id="btn-scale-log">Logarithmic</button>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-growth" style="height: 380px; position: relative;">
+          <canvas id="tactical-growth-canvas"></canvas>
+          <div id="tooltip-tactical-growth" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 2: Historical Asset Allocation Ribbon -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>🎨 Historical Asset Allocation Ribbon (% Portfolio Exposure Over Time)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Dynamic inverse-volatility weights allocated across multi-asset leaders over time.
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-allocation" style="height: 240px; position: relative;">
+          <canvas id="tactical-allocation-canvas"></canvas>
+          <div id="tooltip-tactical-allocation" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 3: Underwater Drawdowns -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>🛡️ Underwater Portfolio Drawdown (% Loss From All-Time Peak)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Adaptive risk parity cushions drawdowns and accelerates portfolio recovery after market shocks.
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-drawdown" style="height: 280px; position: relative;">
+          <canvas id="tactical-drawdown-canvas"></canvas>
+          <div id="tooltip-tactical-drawdown" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 4: Annual Returns -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header">
+          <div>
+            <h3>📊 Annual Returns Comparison (Calendar Years 1972–2026)</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Side-by-side annual returns: Adaptive Allocation vs S&amp;P 500 vs 60/40 Benchmark
+            </p>
+          </div>
+        </div>
+        <div class="chart-container" id="container-tactical-annual" style="height: 280px; position: relative;">
+          <canvas id="tactical-annual-canvas"></canvas>
+          <div id="tooltip-tactical-annual" class="chart-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Performance Scorecard Table -->
+      <section class="chart-card" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>📋 Performance &amp; Risk Modern Portfolio Theory (MPT) Metrics</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              54-year backtest risk statistics across all market regimes
+            </p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-performance-csv">
+            📥 Export Performance CSV
+          </button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Portfolio Strategy</th>
+                <th style="text-align: right;">Final Balance</th>
+                <th style="text-align: right;">CAGR</th>
+                <th style="text-align: right;">StDev (Vol)</th>
+                <th style="text-align: right;">Best Year</th>
+                <th style="text-align: right;">Worst Year</th>
+                <th style="text-align: right;">Max Drawdown</th>
+                <th style="text-align: right;">Sharpe (3%)</th>
+                <th style="text-align: right;">Sortino</th>
+                <th style="text-align: right;">Market Corr</th>
+              </tr>
+            </thead>
+            <tbody id="mpt-scorecard-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Historical Regime Shifts & Trade Execution Log -->
+      <section class="chart-card" id="trade-log-section" style="margin-bottom: 1.25rem;">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3>📜 Historical Regime Shifts &amp; Trade Execution Log</h3>
+            <p class="chart-subtitle" style="margin: 0; font-size: 0.82rem; color: #94a3b8;">
+              Chronological ledger of multi-asset allocations and volatility risk weightings
+            </p>
+          </div>
+          <button type="button" class="btn-secondary btn-sm" id="btn-export-trades-csv">
+            📥 Export Trades CSV
+          </button>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead style="position: sticky; top: 0; background: #1e293b;">
+              <tr>
+                <th style="text-align: left;">Month Date</th>
+                <th style="text-align: left;">Regime Signal</th>
+                <th style="text-align: left;">Allocations Target</th>
+                <th style="text-align: right;">1-Month Return</th>
+                <th style="text-align: right;">Portfolio Value</th>
+                <th style="text-align: left;">Quantitative Rationale</th>
+              </tr>
+            </thead>
+            <tbody id="trade-log-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Strategy Diagnostics -->
+      <section class="chart-card" style="margin-bottom: 2rem;">
+        <div class="chart-header">
+          <h3>🔬 Quantitative Strategy Diagnostics &amp; Risk Parity Statistics</h3>
+        </div>
+        <div id="strategy-diagnostic-content" style="color: #94a3b8; font-size: 0.88rem; line-height: 1.6;">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="tactical-ui.js"></script>
+  </body>
+</html>

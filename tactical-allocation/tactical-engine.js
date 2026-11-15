@@ -18,6 +18,7 @@ import { buildAssetClassMonthlyData, ASSET_CLASS_CATALOG } from '../portfolio-ba
 // 1. Canonical Preset Strategies
 // -------------------------------------------------------------------
 export const TACTICAL_STRATEGY_PRESETS = [
+  // 1. Dual Momentum Presets
   {
     id: 'dual-momentum-gem',
     name: 'Dual Momentum (Gary Antonacci GEM)',
@@ -29,6 +30,30 @@ export const TACTICAL_STRATEGY_PRESETS = [
     lookbackMonths: 12,
     topN: 1
   },
+  {
+    id: 'dual-momentum-extended',
+    name: 'All-Cap Dual Momentum (US Large, Small, Intl)',
+    timingModel: 'dual-momentum',
+    description: 'Extended multi-equity universe: competes US Large Cap, US Small Cap, and International Equities. Absolute momentum filter protects capital by rotating to Intermediate Treasuries when momentum turns negative.',
+    riskAssets: ['LargeCapBlend', 'SmallCapBlend', 'IntlStockMarket'],
+    safeHavenAsset: 'IntermediateTreasury',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 12,
+    topN: 1
+  },
+  {
+    id: 'dual-momentum-all-weather',
+    name: 'All-Weather Dual Momentum (Stocks vs Gold vs Bonds)',
+    timingModel: 'dual-momentum',
+    description: 'Multi-asset dual momentum: tests Total Stock Market against Gold and Real Estate, retreating to Long-Term Treasuries when equities falter.',
+    riskAssets: ['TotalStockMarket', 'Gold', 'REIT'],
+    safeHavenAsset: 'LongTreasury',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 12,
+    topN: 1
+  },
+
+  // 2. Moving Average Presets
   {
     id: 'moving-average-sma',
     name: '10-Month SMA Trend Defense (Meb Faber)',
@@ -42,6 +67,32 @@ export const TACTICAL_STRATEGY_PRESETS = [
     topN: 1
   },
   {
+    id: 'moving-average-12m',
+    name: '12-Month SMA Trend Following (Total Market)',
+    timingModel: 'moving-average',
+    description: 'Long-term 12-month simple moving average trend filter applied to Total US Stock Market. Moves to 10-Year Intermediate Treasuries during sustained bear markets.',
+    riskAssets: ['TotalStockMarket'],
+    safeHavenAsset: 'IntermediateTreasury',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 12,
+    maType: 'SMA',
+    topN: 1
+  },
+  {
+    id: 'moving-average-ema',
+    name: '10-Month EMA Fast Trend Shield',
+    timingModel: 'moving-average',
+    description: 'Exponential Moving Average trend filter: weights recent months more heavily than classic SMA, responding faster to market inflection points and early bear turns.',
+    riskAssets: ['LargeCapBlend'],
+    safeHavenAsset: 'Cash',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 10,
+    maType: 'EMA',
+    topN: 1
+  },
+
+  // 3. Momentum Rotation Presets
+  {
     id: 'ivy-5-momentum-rotation',
     name: 'IVY 5 Momentum Rotation',
     timingModel: 'momentum-rotation',
@@ -53,6 +104,30 @@ export const TACTICAL_STRATEGY_PRESETS = [
     topN: 2
   },
   {
+    id: 'global-macro-rotation',
+    name: 'Global Macro Momentum (Top 3 of 7)',
+    timingModel: 'momentum-rotation',
+    description: 'Broad multi-asset universe: US Equities, International Equities, Emerging Markets, 10Y Treasuries, REITs, Gold, and Commodities. Rotates into top 3 relative strength leaders over trailing 6 months.',
+    riskAssets: ['TotalStockMarket', 'IntlStockMarket', 'EmergingMarket', 'IntermediateTreasury', 'REIT', 'Gold', 'Commodities'],
+    safeHavenAsset: 'Cash',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 6,
+    topN: 3
+  },
+  {
+    id: 'equity-style-rotation',
+    name: 'Equity Style Rotation (Growth vs Value vs Small Cap)',
+    timingModel: 'momentum-rotation',
+    description: 'Rotates capital into the top 2 performing equity styles among Large Growth, Large Value, Small Cap Blend, and Real Estate based on 6-month momentum.',
+    riskAssets: ['LargeCapGrowth', 'LargeCapValue', 'SmallCapBlend', 'REIT'],
+    safeHavenAsset: 'IntermediateTreasury',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 6,
+    topN: 2
+  },
+
+  // 4. Adaptive Allocation Presets
+  {
     id: 'resolve-adaptive-allocation',
     name: 'Adaptive Asset Allocation (ReSolve)',
     timingModel: 'adaptive-allocation',
@@ -63,6 +138,19 @@ export const TACTICAL_STRATEGY_PRESETS = [
     lookbackMonths: 6,
     topN: 3
   },
+  {
+    id: 'all-weather-adaptive',
+    name: 'All-Weather Adaptive Risk Parity',
+    timingModel: 'adaptive-allocation',
+    description: 'Adaptive risk parity: selects top 3 assets among US Stocks, International Stocks, Intermediate Treasuries, Gold, and Commodities, scaling weights inversely with trailing 6-month volatility.',
+    riskAssets: ['TotalStockMarket', 'IntlStockMarket', 'IntermediateTreasury', 'Gold', 'Commodities'],
+    safeHavenAsset: 'IntermediateTreasury',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 6,
+    topN: 3
+  },
+
+  // 5. Target Volatility Presets
   {
     id: 'target-volatility-10',
     name: 'Target Volatility (10% Risk Budget)',
@@ -76,10 +164,47 @@ export const TACTICAL_STRATEGY_PRESETS = [
     topN: 1
   },
   {
+    id: 'target-volatility-12',
+    name: 'Target Volatility (12% Growth Budget)',
+    timingModel: 'target-volatility',
+    description: 'Dynamic volatility targeting scaled to 12% annualized risk. Holds maximum equity exposure during calm market regimes and scales down into Cash buffer when volatility surges.',
+    riskAssets: ['LargeCapBlend'],
+    safeHavenAsset: 'Cash',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 3,
+    targetVol: 0.12,
+    topN: 1
+  },
+  {
+    id: 'target-volatility-8',
+    name: 'Target Volatility (8% Conservative Shield)',
+    timingModel: 'target-volatility',
+    description: 'Conservative volatility targeting: caps annualized volatility at 8%, scaling risk exposure dynamically to protect capital for retirees and endowments.',
+    riskAssets: ['LargeCapBlend'],
+    safeHavenAsset: 'Cash',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 3,
+    targetVol: 0.08,
+    topN: 1
+  },
+
+  // 6. Market Valuation Presets
+  {
     id: 'market-valuation-cape',
     name: 'Market Valuation (Cyclical Equity Tilt)',
     timingModel: 'market-valuation',
     description: 'Counter-cyclical valuation strategy: varies equity exposure between 80% (when market valuation is historically cheap) and 30% (when market valuation is at extreme bubble peaks), allocating the rest to 10Y Treasuries.',
+    riskAssets: ['LargeCapBlend'],
+    safeHavenAsset: 'IntermediateTreasury',
+    cashHurdleAsset: 'Cash',
+    lookbackMonths: 12,
+    topN: 1
+  },
+  {
+    id: 'market-valuation-conservative',
+    name: 'Defensive Valuation Tilt (60% to 20%)',
+    timingModel: 'market-valuation',
+    description: 'Conservative counter-cyclical valuation tilt: holds a maximum of 60% equity in undervalued markets and trims to 20% equity at extreme valuations, holding Intermediate Treasuries as safe harbor.',
     riskAssets: ['LargeCapBlend'],
     safeHavenAsset: 'IntermediateTreasury',
     cashHurdleAsset: 'Cash',

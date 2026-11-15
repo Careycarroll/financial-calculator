@@ -168,6 +168,20 @@ function getAssetName(id) {
 // URL Parameters Support (Portfolio Visualizer compatibility)
 // -------------------------------------------------------------------
 function parseUrlParams() {
+  const bodyPreset = document.body && document.body.dataset.defaultPreset;
+  const bodyModel = document.body && document.body.dataset.defaultModel;
+
+  if (bodyPreset) {
+    applyPreset(bodyPreset);
+  } else if (bodyModel) {
+    if (bodyModel === '0' || bodyModel === 'moving-average') applyPreset('moving-average-sma');
+    else if (bodyModel === '1' || bodyModel === 'momentum-rotation') applyPreset('ivy-5-momentum-rotation');
+    else if (bodyModel === '2' || bodyModel === 'dual-momentum') applyPreset('dual-momentum-gem');
+    else if (bodyModel === '3' || bodyModel === 'adaptive-allocation') applyPreset('resolve-adaptive-allocation');
+    else if (bodyModel === '4' || bodyModel === 'target-volatility') applyPreset('target-volatility-10');
+    else if (bodyModel === '5' || bodyModel === 'market-valuation') applyPreset('market-valuation-cape');
+  }
+
   const params = new URLSearchParams(window.location.search);
 
   // timingModel: 0=SMA, 1=Momentum, 2=Dual Momentum, 3=Adaptive, 4=Vol, 5=Valuation
@@ -179,6 +193,11 @@ function parseUrlParams() {
     else if (tm === '3' || tm === 'adaptive-allocation') applyPreset('resolve-adaptive-allocation');
     else if (tm === '4' || tm === 'target-volatility') applyPreset('target-volatility-10');
     else if (tm === '5' || tm === 'market-valuation') applyPreset('market-valuation-cape');
+  }
+
+  const preset = params.get('preset');
+  if (preset) {
+    applyPreset(preset);
   }
 
   const lookback = parseInt(params.get('lookback') || params.get('lookbackMonths'), 10);

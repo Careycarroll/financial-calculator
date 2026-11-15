@@ -27,7 +27,13 @@
       name: "Tactical Asset Allocation",
       icon: "⚡",
       tools: [
-        { id: "tactical-allocation", name: "Tactical Allocation Studio", icon: "⚡", path: "tactical-allocation/index.html", desc: "Dual Momentum, GTAA, Moving Averages, Adaptive Allocation & Volatility Targeting" }
+        { id: "tactical-allocation", name: "Tactical Studio Hub", icon: "⚡", path: "tactical-allocation/index.html", desc: "Compare all 6 tactical allocation models across 54 years" },
+        { id: "market-valuation", name: "Market Valuation", icon: "🏛️", path: "tactical-allocation/market-valuation.html", desc: "Shiller CAPE & counter-cyclical valuation equity tilt" },
+        { id: "moving-averages", name: "Moving Averages", icon: "📈", path: "tactical-allocation/moving-averages.html", desc: "Meb Faber 10-month & 200-day trend defense filters" },
+        { id: "momentum-rotation", name: "Momentum Rotation", icon: "🔄", path: "tactical-allocation/momentum-rotation.html", desc: "Cross-sectional relative strength rotation (IVY 5)" },
+        { id: "dual-momentum", name: "Dual Momentum", icon: "🚀", path: "tactical-allocation/dual-momentum.html", desc: "Gary Antonacci Global Equity Momentum (GEM)" },
+        { id: "adaptive-allocation", name: "Adaptive Allocation", icon: "⚖️", path: "tactical-allocation/adaptive-allocation.html", desc: "ReSolve momentum + inverse volatility risk parity" },
+        { id: "target-volatility", name: "Target Volatility", icon: "🎯", path: "tactical-allocation/target-volatility.html", desc: "Constant risk budgeting & dynamic cash buffering" }
       ],
       bridges: [
         { id: "dynamic-allocation", name: "Dynamic Allocation", icon: "🔄", path: "portfolio-backtest/dynamic-allocation.html", desc: "Lifecycle glidepaths & trend signals" },
