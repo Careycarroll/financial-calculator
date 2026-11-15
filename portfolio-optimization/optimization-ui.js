@@ -13,6 +13,7 @@ import {
   solveGMV,
   solveTangencyPortfolio,
   solveRiskParity,
+  solveHRP,
   solveMinCVaR,
   solveTargetReturnPortfolio,
   solveTargetRiskPortfolio,
@@ -111,6 +112,11 @@ const elements = {
   baseWeightsList: document.getElementById('base-weights-list'),
 
   // Charts
+  cardDendrogramChart: document.getElementById('card-dendrogram-chart'),
+  containerDendrogramChart: document.getElementById('container-dendrogram-chart'),
+  canvasDendrogramChart: document.getElementById('canvas-dendrogram-chart'),
+  tooltipDendrogram: document.getElementById('tooltip-dendrogram'),
+
   containerBarChart: document.getElementById('container-bar-chart'),
   canvasBarChart: document.getElementById('canvas-bar-chart'),
   tooltipBars: document.getElementById('tooltip-bars'),
@@ -227,6 +233,9 @@ function init() {
         renderBarChart();
         renderGrowthChart();
         renderDonuts();
+        if (state.goal === 'hrp') {
+          renderDendrogramChart();
+        }
       }
     }, 250);
   });
@@ -500,6 +509,8 @@ function runOptimization() {
       optimal = solveGMV(stats.expectedReturns, stats.covarianceMatrix, optOptions);
     } else if (goal === 'risk-parity') {
       optimal = solveRiskParity(stats.expectedReturns, stats.covarianceMatrix, optOptions);
+    } else if (goal === 'hrp') {
+      optimal = solveHRP(stats.expectedReturns, stats.covarianceMatrix, stats.correlationMatrix, optOptions);
     } else if (goal === 'min-cvar') {
       optimal = solveMinCVaR(stats.expectedReturns, stats.monthlyReturns, stats.covarianceMatrix, optOptions);
     } else if (goal === 'target-return') {
@@ -569,6 +580,13 @@ function runOptimization() {
     renderBarChart();
     renderGrowthChart();
     renderDetailsTable();
+
+    if (goal === 'hrp') {
+      if (elements.cardDendrogramChart) elements.cardDendrogramChart.style.display = 'block';
+      renderDendrogramChart();
+    } else {
+      if (elements.cardDendrogramChart) elements.cardDendrogramChart.style.display = 'none';
+    }
 
   } catch (err) {
     console.error('Optimization failed:', err);
@@ -691,6 +709,258 @@ function drawDonut(canvas, weights) {
   ctx.fillStyle = '#64748b';
   ctx.font = '600 8px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
   ctx.fillText('ALLOC', cx, cy + 9);
+}
+
+// -------------------------------------------------------------------
+// Hierarchical Risk Parity (HRP) Dendrogram Tree Chart
+// -------------------------------------------------------------------
+function renderDendrogramChart() {
+  const canvas = elements.canvasDendrogramChart;
+  const container = elements.containerDendrogramChart;
+  if (!canvas || !container || !state.lastOptimal || !state.lastStats) return;
+
+  const opt = state.lastOptimal;
+  const stats = state.lastStats;
+  const linkage = opt.linkage;
+  const quasiDiag = opt.quasiDiag;
+  const numAssets = stats.numAssets;
+
+  if (!linkage || !quasiDiag || numAssets < 2) {
+    if (elements.cardDendrogramChart) elements.cardDendrogramChart.style.display = 'none';
+    return;
+  }
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = container.getBoundingClientRect();
+  const width = Math.max(300, Math.floor(rect.width));
+  const height = container.clientHeight || 320;
+
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext('2d');
+  ctx.resetTransform();
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 35, right: 35, bottom: 65, left: 65 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Background subtle grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.lineWidth = 1;
+
+  // Maximum distance across all linkage rows
+  const maxDist = Math.max(0.01, ...linkage.map(row => row[2]));
+
+  // Y-axis grid for distance D
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const yTicks = 4;
+  for (let t = 0; t <= yTicks; t++) {
+    const val = (maxDist * t) / yTicks;
+    const py = pad.top + plotH - (t / yTicks) * (plotH * 0.85);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(val.toFixed(2), pad.left - 8, py);
+  }
+
+  // Y-axis label
+  ctx.save();
+  ctx.translate(18, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.fillText('Euclidean Tree Distance (\u0100)', 0, 0);
+  ctx.restore();
+
+  // Position leaves according to quasiDiag order
+  const nodeMap = new Map();
+  const stepX = plotW / numAssets;
+
+  for (let k = 0; k < numAssets; k++) {
+    const assetIdx = quasiDiag[k];
+    const x = pad.left + (k + 0.5) * stepX;
+    const y = pad.top + plotH;
+    nodeMap.set(assetIdx, {
+      id: assetIdx,
+      isLeaf: true,
+      x,
+      y,
+      ticker: stats.tickers[assetIdx],
+      weight: opt.weights[assetIdx],
+      rank: k + 1,
+      members: [assetIdx]
+    });
+  }
+
+  // Position internal nodes from linkage
+  const internalNodes = [];
+  linkage.forEach((row, stepIdx) => {
+    const child1 = row[0];
+    const child2 = row[1];
+    const dist = row[2];
+    const count = row[3];
+    const newId = numAssets + stepIdx;
+
+    const n1 = nodeMap.get(child1);
+    const n2 = nodeMap.get(child2);
+    if (!n1 || !n2) return;
+
+    const x = (n1.x + n2.x) / 2;
+    const y = pad.top + plotH - (dist / maxDist) * (plotH * 0.85);
+    const members = [...(n1.members || [child1]), ...(n2.members || [child2])];
+
+    const internalNode = {
+      id: newId,
+      isLeaf: false,
+      x,
+      y,
+      dist,
+      count,
+      child1: n1,
+      child2: n2,
+      members,
+      step: stepIdx + 1
+    };
+
+    nodeMap.set(newId, internalNode);
+    internalNodes.push(internalNode);
+  });
+
+  // Render branches
+  internalNodes.forEach(node => {
+    const c1 = node.child1;
+    const c2 = node.child2;
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c1.x, c1.y);
+    ctx.lineTo(c1.x, node.y);
+    ctx.lineTo(c2.x, node.y);
+    ctx.lineTo(c2.x, c2.y);
+    ctx.stroke();
+
+    // Node pivot dot
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  // Render Leaves (Asset badges & weights)
+  for (let k = 0; k < numAssets; k++) {
+    const assetIdx = quasiDiag[k];
+    const leaf = nodeMap.get(assetIdx);
+    if (!leaf) continue;
+
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.arc(leaf.x, leaf.y, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Ticker label
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(leaf.ticker, leaf.x, leaf.y + 8);
+
+    // HRP Weight label
+    const weightPct = (leaf.weight * 100).toFixed(1);
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.fillText(`${weightPct}%`, leaf.x, leaf.y + 24);
+
+    // Order badge below
+    ctx.fillStyle = '#a855f7';
+    ctx.font = '9px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.fillText(`[#${leaf.rank}]`, leaf.x, leaf.y + 37);
+  }
+
+  // Interactive Hover Tooltip
+  if (canvas._controller) canvas._controller.abort();
+  canvas._controller = new AbortController();
+
+  const handleMouseMove = rafThrottle((e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let hit = null;
+    for (let k = 0; k < numAssets; k++) {
+      const assetIdx = quasiDiag[k];
+      const leaf = nodeMap.get(assetIdx);
+      if (!leaf) continue;
+      const dx = mouseX - leaf.x;
+      const dy = mouseY - leaf.y;
+      if (Math.hypot(dx, dy) <= 18 || (Math.abs(dx) <= stepX / 2 && mouseY >= leaf.y && mouseY <= leaf.y + 50)) {
+        hit = { type: 'leaf', ...leaf };
+        break;
+      }
+    }
+
+    if (!hit) {
+      for (const node of internalNodes) {
+        const dx = mouseX - node.x;
+        const dy = mouseY - node.y;
+        if (Math.hypot(dx, dy) <= 12) {
+          hit = { type: 'node', ...node };
+          break;
+        }
+      }
+    }
+
+    if (hit) {
+      if (hit.type === 'leaf') {
+        const vol = stats.annualVolatilities[hit.id];
+        const ret = stats.expectedReturns[hit.id];
+        elements.tooltipDendrogram.innerHTML = `
+          <div style="font-weight:700; color:#38bdf8; margin-bottom:3px;">${hit.ticker} (Asset Leaf)</div>
+          <div>HRP Weight: <strong>${(hit.weight * 100).toFixed(2)}%</strong></div>
+          <div>Quasi-Diag Order: <strong>#${hit.rank} of ${numAssets}</strong></div>
+          <div>Expected Return: <strong>${(ret * 100).toFixed(2)}%</strong></div>
+          <div>Annual Volatility: <strong>${(vol * 100).toFixed(2)}%</strong></div>
+        `;
+      } else {
+        const memberTickers = hit.members.map(idx => stats.tickers[idx]).join(', ');
+        const totalWeight = hit.members.reduce((acc, idx) => acc + opt.weights[idx], 0);
+        elements.tooltipDendrogram.innerHTML = `
+          <div style="font-weight:700; color:#facc15; margin-bottom:3px;">Cluster Merge (Step ${hit.step})</div>
+          <div>Euclidean Distance: <strong>${hit.dist.toFixed(4)}</strong></div>
+          <div>Assets (${hit.count}): <strong>[${memberTickers}]</strong></div>
+          <div>Total Allocated Capital: <strong>${(totalWeight * 100).toFixed(1)}%</strong></div>
+        `;
+      }
+      elements.tooltipDendrogram.style.left = `${Math.min(width - 200, Math.max(10, mouseX + 15))}px`;
+      elements.tooltipDendrogram.style.top = `${Math.max(10, mouseY - 40)}px`;
+      elements.tooltipDendrogram.style.display = 'block';
+    } else {
+      elements.tooltipDendrogram.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('mousemove', handleMouseMove, { signal: canvas._controller.signal });
+  canvas.addEventListener('mouseleave', () => {
+    elements.tooltipDendrogram.style.display = 'none';
+  }, { signal: canvas._controller.signal });
 }
 
 // -------------------------------------------------------------------

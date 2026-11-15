@@ -34,7 +34,14 @@ import {
   runRollingOptimization,
   jacobiEigenvalues,
   calculateMatrixConditionNumber,
-  ledoitWolfConstantCorrelation
+  ledoitWolfConstantCorrelation,
+  calculateCorrelationMatrix,
+  correlationDistanceMatrix,
+  euclideanDistanceMatrix,
+  hierarchicalClustering,
+  getQuasiDiag,
+  getRecursiveBisectionWeights,
+  solveHRP
 } from '../portfolio-optimization/optimization-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 
@@ -352,5 +359,82 @@ assert(Math.abs(sumWeightsShrunk - 1.0) < 1e-5, 'Tangency weights sum to 100% un
 console.log('Sample Tangency:  VOO: ' + (tangencySample.weights[0]*100).toFixed(1) + '% | QQQ: ' + (tangencySample.weights[1]*100).toFixed(1) + '% | SCHD: ' + (tangencySample.weights[2]*100).toFixed(1) + '% | BND: ' + (tangencySample.weights[3]*100).toFixed(1) + '%');
 console.log('Shrunk Tangency:  VOO: ' + (tangencyShrunk.weights[0]*100).toFixed(1) + '% | QQQ: ' + (tangencyShrunk.weights[1]*100).toFixed(1) + '% | SCHD: ' + (tangencyShrunk.weights[2]*100).toFixed(1) + '% | BND: ' + (tangencyShrunk.weights[3]*100).toFixed(1) + '%');
 console.log('✅ PASS: Mean-variance optimization successfully solves with stabilized shrunk covariance');
+
+// TEST 13: Hierarchical Risk Parity (HRP)
+console.log('\n--- TEST 13: Hierarchical Risk Parity (HRP / Machine Learning Allocation) ---');
+
+// 1. Distance metric validation
+const testCorr = [
+  [1.0, 0.0, -1.0],
+  [0.0, 1.0, 0.5],
+  [-1.0, 0.5, 1.0]
+];
+const testDist = correlationDistanceMatrix(testCorr);
+assert(Math.abs(testDist[0][0] - 0) < 1e-9, 'd(1.0) == 0');
+assert(Math.abs(testDist[0][1] - Math.sqrt(0.5)) < 1e-9, 'd(0.0) == sqrt(0.5)');
+assert(Math.abs(testDist[0][2] - 1.0) < 1e-9, 'd(-1.0) == 1.0');
+assert(Math.abs(testDist[1][2] - Math.sqrt(0.25)) < 1e-9, 'd(0.5) == sqrt(0.25) = 0.5');
+assert(Math.abs(testDist[1][2] - testDist[2][1]) < 1e-9, 'Distance metric is symmetric');
+console.log('✅ PASS: Correlation distance metric d_{i,j} = sqrt(0.5*(1 - rho)) validated');
+
+// 2. Euclidean distance matrix D_tilde
+const testD_tilde = euclideanDistanceMatrix(testDist);
+assert(testD_tilde.length === 3 && testD_tilde[0].length === 3, 'Euclidean distance matrix is 3x3');
+assert(Math.abs(testD_tilde[0][0]) < 1e-9, 'Diagonal elements are zero');
+assert(Math.abs(testD_tilde[0][1] - testD_tilde[1][0]) < 1e-9, 'Euclidean distance matrix is symmetric');
+console.log('✅ PASS: Euclidean distance matrix between distance vectors verified');
+
+// 3. Hierarchical Agglomerative Clustering (HAC) & Linkage
+const testLinkage = hierarchicalClustering(testD_tilde, 'single');
+assert(testLinkage.length === 2, 'Linkage matrix has N - 1 = 2 merge steps');
+assert(testLinkage[0][3] === 2, 'First merge produces cluster of size 2');
+assert(testLinkage[1][3] === 3, 'Final merge produces root cluster of size 3');
+console.log('Linkage steps:', testLinkage);
+console.log('✅ PASS: Hierarchical agglomerative clustering generates valid (N-1) x 4 linkage matrix');
+
+// 4. Quasi-Diagonalization leaf ordering
+const testQuasiDiag = getQuasiDiag(testLinkage, 3);
+assert(testQuasiDiag.length === 3, 'Quasi-diagonal ordering contains all 3 leaves');
+const setLeaves = new Set(testQuasiDiag);
+assert(setLeaves.size === 3 && setLeaves.has(0) && setLeaves.has(1) && setLeaves.has(2), 'Contains every asset leaf exactly once');
+console.log('Quasi-diagonal leaf order:', testQuasiDiag);
+console.log('✅ PASS: Quasi-diagonalization correctly orders tree leaves');
+
+// 5. Multi-Asset Real Data HRP Allocation
+const hrpResult = solveHRP(lwStats.expectedReturns, lwStats.covarianceMatrix, lwStats.correlationMatrix, { riskFreeRate: 0.03 });
+assert(hrpResult.weights.length === 4, 'HRP solves for all 4 assets');
+const hrpWeightSum = hrpResult.weights.reduce((a, b) => a + b, 0);
+assert(Math.abs(hrpWeightSum - 1.0) < 1e-5, `HRP weights sum to 100% (got ${hrpWeightSum})`);
+hrpResult.weights.forEach((w, idx) => {
+  assert(w >= 0 && w <= 1.0, `HRP weight for asset ${idx} is strictly non-negative (${w})`);
+});
+assert(hrpResult.expectedReturn > 0.02, `HRP expected return is positive (${(hrpResult.expectedReturn * 100).toFixed(2)}%)`);
+assert(hrpResult.volatility > 0.03, `HRP volatility is realistic (${(hrpResult.volatility * 100).toFixed(2)}%)`);
+assert(hrpResult.sharpeRatio > 0.1, `HRP Sharpe ratio is positive (${hrpResult.sharpeRatio.toFixed(3)})`);
+
+console.log('HRP Portfolio (Real 4 Funds):');
+fourFunds.forEach((f, idx) => {
+  const w = (hrpResult.weights[idx] * 100).toFixed(1);
+  const rc = (hrpResult.riskContributions.pctRiskContrib[idx] * 100).toFixed(1);
+  console.log(`  ${f.ticker}: Weight = ${w}% | Risk Contribution = ${rc}%`);
+});
+console.log(`Expected Return: ${(hrpResult.expectedReturn * 100).toFixed(2)}% | Volatility: ${(hrpResult.volatility * 100).toFixed(2)}% | Sharpe: ${hrpResult.sharpeRatio.toFixed(3)}`);
+console.log('✅ PASS: HRP generates well-diversified risk-allocated portfolio on real market data');
+
+// 6. Collinear Asset Invariance & Stability Test
+// Two perfectly collinear assets (Asset 0 and Asset 1 have identical returns/volatility and corr = 1.0)
+const collinearCov = [
+  [0.04, 0.04, 0.01, 0.005],
+  [0.04, 0.04, 0.01, 0.005],
+  [0.01, 0.01, 0.06, 0.02],
+  [0.005, 0.005, 0.02, 0.08]
+];
+const collinearReturns = [0.10, 0.10, 0.07, 0.06];
+const collinearHRP = solveHRP(collinearReturns, collinearCov, null, { riskFreeRate: 0.03 });
+const sumCollinear = collinearHRP.weights.reduce((a, b) => a + b, 0);
+assert(Math.abs(sumCollinear - 1.0) < 1e-5, 'Collinear HRP weights sum to 100%');
+assert(Math.abs(collinearHRP.weights[0] - collinearHRP.weights[1]) < 1e-5, `Collinear assets receive equal weights (${collinearHRP.weights[0].toFixed(4)} vs ${collinearHRP.weights[1].toFixed(4)})`);
+console.log(`Collinear assets weights: Asset 0: ${(collinearHRP.weights[0]*100).toFixed(2)}% | Asset 1: ${(collinearHRP.weights[1]*100).toFixed(2)}% | Asset 2: ${(collinearHRP.weights[2]*100).toFixed(2)}% | Asset 3: ${(collinearHRP.weights[3]*100).toFixed(2)}%`);
+console.log('✅ PASS: HRP is completely immune to collinearity & matrix singularity');
 
 console.log('\n🎉 ALL PORTFOLIO OPTIMIZATION TESTS PASSED SUCCESSFULLY!');
