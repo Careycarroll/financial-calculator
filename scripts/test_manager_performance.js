@@ -22,7 +22,8 @@ import {
   BRINSON_PRESETS,
   calculateMencheroWeights,
   calculateMultiPeriodBrinson,
-  getBrinsonPresetMonthlyData
+  getBrinsonPresetMonthlyData,
+  calculateMarketTiming
 } from '../fund-regression/manager-engine.js';
 
 console.log('=== RUNNING MANAGER PERFORMANCE ANALYSIS ENGINE TESTS ===\n');
@@ -301,5 +302,76 @@ console.log('✅ PASS: L\'Hopital boundary condition for zero cumulative active 
   });
 });
 console.log('✅ PASS: Multi-period Menchero Brinson attribution validated across all horizons (1Y, 3Y, 5Y) and presets');
+
+// --- TEST 13: Treynor-Mazuy & Henriksson-Merton Market Timing Regressions (Issue #121) ---
+console.log('\n--- TEST 13: Treynor-Mazuy & Henriksson-Merton Market Timing Models ---');
+
+// 1. Synthetic Treynor-Mazuy Simulation (Quadratic Market Timing)
+const N_syn = 150;
+const tmSyntheticPairs = [];
+const trueAlphaTM = 0.004; // ~4.9% annualized alpha
+const trueBetaTM = 1.15;
+const trueGammaTM = 3.50; // strong positive curvature
+
+for (let i = 0; i < N_syn; i++) {
+  const rBench = (Math.sin(i * 1.7) * 0.05); // market -5% to +5%
+  const x = rBench - (0.03 / 12);
+  const err = Math.cos(i * 3.1) * 0.001;
+  const y = trueAlphaTM + trueBetaTM * x + trueGammaTM * (x * x) + err;
+  const rFund = y + (0.03 / 12);
+  tmSyntheticPairs.push({ date: `2010-${String(i+1).padStart(3, '0')}`, rFund, rBench });
+}
+
+const tmResult = calculateMarketTiming(tmSyntheticPairs, { annualRf: 0.03, model: 'treynor-mazuy' });
+assert(tmResult.hasSufficientData, 'TM has sufficient data');
+assert(Math.abs(tmResult.alpha.monthly - trueAlphaTM) < 0.001, `Recovered alpha: ${tmResult.alpha.monthly.toFixed(5)} vs ${trueAlphaTM}`);
+assert(Math.abs(tmResult.beta.value - trueBetaTM) < 0.01, `Recovered beta: ${tmResult.beta.value.toFixed(4)} vs ${trueBetaTM}`);
+assert(Math.abs(tmResult.gamma.value - trueGammaTM) < 0.05, `Recovered gamma: ${tmResult.gamma.value.toFixed(4)} vs ${trueGammaTM}`);
+assert(tmResult.gamma.tStat > 10, `Gamma t-stat is highly significant (>10, got ${tmResult.gamma.tStat.toFixed(2)})`);
+assert(tmResult.gamma.pValue < 0.001, 'Gamma p-value is < 0.001');
+assert(tmResult.gamma.isSignificant, 'Gamma is marked statistically significant');
+assert(tmResult.verdict.includes('Statistically Significant Convex Market Timing'), 'Verdict confirms convex market timing skill');
+assert.strictEqual(tmResult.curvePoints.length, 81, '81 curve evaluation points generated');
+console.log(`✅ PASS: Treynor-Mazuy recovered true parameters: α=${(tmResult.alpha.annualized*100).toFixed(2)}%, β=${tmResult.beta.value.toFixed(2)}, γ=+${tmResult.gamma.value.toFixed(2)} (t=${tmResult.gamma.tStat.toFixed(1)}, p<0.001)`);
+
+// 2. Synthetic Henriksson-Merton Simulation (Option Replication)
+const hmSyntheticPairs = [];
+const trueAlphaHM = 0.002;
+const trueBetaHM = 1.25;
+const trueGammaHM = 0.45; // downside beta = 1.25 - 0.45 = 0.80
+
+for (let i = 0; i < N_syn; i++) {
+  const rBench = (Math.sin(i * 1.5) * 0.06);
+  const x = rBench - (0.03 / 12);
+  const putPayoff = Math.max(0, -x);
+  const err = Math.cos(i * 2.3) * 0.001;
+  const y = trueAlphaHM + trueBetaHM * x + trueGammaHM * putPayoff + err;
+  const rFund = y + (0.03 / 12);
+  hmSyntheticPairs.push({ date: `2010-${String(i+1).padStart(3, '0')}`, rFund, rBench });
+}
+
+const hmResult = calculateMarketTiming(hmSyntheticPairs, { annualRf: 0.03, model: 'henriksson-merton' });
+assert(hmResult.hasSufficientData, 'HM has sufficient data');
+assert(Math.abs(hmResult.alpha.monthly - trueAlphaHM) < 0.001, `HM alpha matches: ${hmResult.alpha.monthly.toFixed(5)} vs ${trueAlphaHM}`);
+assert(Math.abs(hmResult.beta.value - trueBetaHM) < 0.01, `HM beta matches: ${hmResult.beta.value.toFixed(4)} vs ${trueBetaHM}`);
+assert(Math.abs(hmResult.gamma.value - trueGammaHM) < 0.05, `HM gamma matches: ${hmResult.gamma.value.toFixed(4)} vs ${trueGammaHM}`);
+assert(Math.abs(hmResult.beta.downsideBeta - (trueBetaHM - trueGammaHM)) < 0.05, `Downside beta matches ~0.80 (got ${hmResult.beta.downsideBeta.toFixed(2)})`);
+assert(hmResult.gamma.tStat > 10, 'HM gamma t-stat > 10');
+assert(hmResult.gamma.isSignificant, 'HM gamma is significant');
+assert(hmResult.verdict.includes('Downside Protection'), 'Verdict confirms synthetic put option protection');
+console.log(`✅ PASS: Henriksson-Merton recovered parameters: Up-Beta=${hmResult.beta.value.toFixed(2)}, Down-Beta=${hmResult.beta.downsideBeta.toFixed(2)}, γ=+${hmResult.gamma.value.toFixed(2)} (t=${hmResult.gamma.tStat.toFixed(1)})`);
+
+// 3. Real Institutional Evaluation: QQQ vs SPY (329 Months)
+assert(qqqVsSpy.marketTiming, 'Full manager analysis contains marketTiming object');
+const qqqTM = qqqVsSpy.marketTiming.treynorMazuy;
+const qqqHM = qqqVsSpy.marketTiming.henrikssonMerton;
+assert.strictEqual(qqqTM.sampleSize, 329, '329 sample months analyzed');
+assert(qqqTM.rSquared > 0.60, `High R^2 for QQQ vs SPY (got ${qqqTM.rSquared.toFixed(3)})`);
+assert(Number.isFinite(qqqTM.gamma.value), 'TM gamma is a finite number');
+assert(Number.isFinite(qqqHM.gamma.value), 'HM gamma is a finite number');
+console.log(`QQQ vs SPY Treynor-Mazuy:  β=${qqqTM.beta.value.toFixed(3)}, γ=${qqqTM.gamma.value >= 0 ? '+' : ''}${qqqTM.gamma.value.toFixed(3)} (t=${qqqTM.gamma.tStat.toFixed(2)}, p=${qqqTM.gamma.pValue.toFixed(3)})`);
+console.log(`QQQ vs SPY Henriksson-Merton: Up-β=${qqqHM.beta.value.toFixed(3)}, Down-β=${qqqHM.beta.downsideBeta.toFixed(3)}, γ=${qqqHM.gamma.value >= 0 ? '+' : ''}${qqqHM.gamma.value.toFixed(3)}`);
+console.log(`Verdict: "${qqqTM.verdict}"`);
+console.log('✅ PASS: Real institutional fund market timing regressions verified');
 
 console.log('\n🎉 ALL MANAGER PERFORMANCE ENGINE TESTS PASSED SUCCESSFULLY!');

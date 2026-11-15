@@ -624,6 +624,78 @@
               <div id="tooltip-relative-dd" class="opt-chart-tooltip"></div>
             </div>
           </div>
+
+          <!-- Chart 4: Market Timing Diagnostics (Treynor-Mazuy & Henriksson-Merton) -->
+          <div class="card mb-4" id="market-timing-card">
+            <div class="chart-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <h3>🎯 Market Timing Econometric Diagnostics (Curvature &amp; Option Replication)</h3>
+                <p class="chart-subtitle">
+                  Disentangling manager stock selection alpha (α) from dynamic market timing skill (γ) across market cycles (Bodie, Kane &amp; Marcus Chapter 24.4).
+                </p>
+              </div>
+              <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <div>
+                  <label for="select-timing-model" class="form-help" style="margin-bottom: 2px;">Timing Model:</label>
+                  <select id="select-timing-model" class="form-select form-select-sm">
+                    <option value="treynor-mazuy" selected>Treynor-Mazuy (Quadratic Curvature: γ·(Rm-Rf)²)</option>
+                    <option value="henriksson-merton">Henriksson-Merton (Option Replication: γ·max(0, Rf-Rm))</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Timing Scorecards Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+              <div class="metric-card">
+                <span class="metric-label" id="timing-label-gamma">Market Timing (γ)</span>
+                <strong class="metric-value highlight-cyan" id="timing-metric-gamma">--</strong>
+                <span class="metric-sub" id="timing-sub-gamma">t = -- | p = --</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Stock Selection Alpha (α)</span>
+                <strong class="metric-value highlight-gold" id="timing-metric-alpha">--</strong>
+                <span class="metric-sub" id="timing-sub-alpha">t = -- | p = --</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label" id="timing-label-beta">Base Market Beta (β)</span>
+                <strong class="metric-value" id="timing-metric-beta">--</strong>
+                <span class="metric-sub" id="timing-sub-beta">CAPM Beta: --</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Model Fit (R² / Adj R²)</span>
+                <strong class="metric-value highlight-green" id="timing-metric-r2">--</strong>
+                <span class="metric-sub" id="timing-sub-r2">CAPM R²: --</span>
+              </div>
+            </div>
+
+            <!-- Quantitative Verdict Banner -->
+            <div id="timing-verdict-banner" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+              <span style="font-size: 1.25rem;" id="timing-verdict-icon">🔬</span>
+              <div>
+                <strong style="color: #f8fafc; font-size: 0.9rem;" id="timing-verdict-title">Timing Hypothesis Test Result</strong>
+                <div style="color: #94a3b8; font-size: 0.82rem; margin-top: 2px; line-height: 1.45;" id="timing-verdict-text">
+                  Evaluating manager curvature significance...
+                </div>
+              </div>
+            </div>
+
+            <!-- Timing Scatter & Curve Chart -->
+            <div style="margin-bottom: 0.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h4 style="margin: 0; font-size: 0.95rem; color: #cbd5e1;">Excess Return Scatter Plot &amp; Timing Fit Curve</h4>
+                <div class="chart-legend-row" style="margin: 0;">
+                  <div class="legend-item"><span class="legend-swatch" style="background:#38bdf8; border-radius:50%;"></span> Monthly Observations</div>
+                  <div class="legend-item"><span class="legend-swatch" style="background:#94a3b8; border-style:dashed;"></span> Linear CAPM SCL</div>
+                  <div class="legend-item"><span class="legend-swatch" style="background:#eab308;" id="legend-swatch-timing"></span> Timing Curve</div>
+                </div>
+              </div>
+              <div class="chart-canvas-container" id="container-market-timing" style="height: 420px;">
+                <canvas id="canvas-market-timing"></canvas>
+                <div id="tooltip-market-timing" class="opt-chart-tooltip"></div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Two Column Tables: Distribution & Up/Down Regimes -->

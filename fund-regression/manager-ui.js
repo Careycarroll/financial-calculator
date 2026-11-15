@@ -33,7 +33,10 @@ const state = {
   brinsonModel: 'brinson-fachler',
   brinsonFactors: '3-factor',
   brinsonHorizon: '36',
-  lastBrinson: null
+  lastBrinson: null,
+
+  // Market Timing Econometric Diagnostics
+  timingModel: 'treynor-mazuy'
 };
 
 // DOM Elements Cache
@@ -126,6 +129,27 @@ function initDom() {
   elements.legendBrinsonInter = document.getElementById('legend-brinson-inter');
   elements.brinsonTableBody = document.getElementById('brinson-table-body');
   elements.brinsonTableFoot = document.getElementById('brinson-table-foot');
+
+  // Market Timing Elements
+  elements.selectTimingModel = document.getElementById('select-timing-model');
+  elements.timingLabelGamma = document.getElementById('timing-label-gamma');
+  elements.timingMetricGamma = document.getElementById('timing-metric-gamma');
+  elements.timingSubGamma = document.getElementById('timing-sub-gamma');
+  elements.timingMetricAlpha = document.getElementById('timing-metric-alpha');
+  elements.timingSubAlpha = document.getElementById('timing-sub-alpha');
+  elements.timingLabelBeta = document.getElementById('timing-label-beta');
+  elements.timingMetricBeta = document.getElementById('timing-metric-beta');
+  elements.timingSubBeta = document.getElementById('timing-sub-beta');
+  elements.timingMetricR2 = document.getElementById('timing-metric-r2');
+  elements.timingSubR2 = document.getElementById('timing-sub-r2');
+  elements.timingVerdictBanner = document.getElementById('timing-verdict-banner');
+  elements.timingVerdictIcon = document.getElementById('timing-verdict-icon');
+  elements.timingVerdictTitle = document.getElementById('timing-verdict-title');
+  elements.timingVerdictText = document.getElementById('timing-verdict-text');
+  elements.canvasMarketTiming = document.getElementById('canvas-market-timing');
+  elements.containerMarketTiming = document.getElementById('container-market-timing');
+  elements.tooltipMarketTiming = document.getElementById('tooltip-market-timing');
+  elements.legendSwatchTiming = document.getElementById('legend-swatch-timing');
 }
 
 // -------------------------------------------------------------------
@@ -206,6 +230,7 @@ function runAnalysis() {
     renderAnnualExcessChart();
     renderRollingExcessChart();
     renderRelativeDrawdownChart();
+    renderMarketTiming();
     renderDistributionTable(result);
     renderRegimeTable(result);
     renderAnnualTable(result);
@@ -1364,6 +1389,337 @@ function renderRelativeDrawdownChart() {
 }
 
 // -------------------------------------------------------------------
+// Market Timing Econometric Diagnostics (Treynor-Mazuy & Henriksson-Merton)
+// -------------------------------------------------------------------
+function renderMarketTiming() {
+  if (!state.lastResult || !state.lastResult.marketTiming) return;
+
+  const isHM = state.timingModel === 'henriksson-merton';
+  const timing = isHM
+    ? state.lastResult.marketTiming.henrikssonMerton
+    : state.lastResult.marketTiming.treynorMazuy;
+
+  if (!timing || !timing.hasSufficientData) return;
+
+  // 1. Update Labels & Scorecards
+  if (elements.timingLabelGamma) {
+    elements.timingLabelGamma.textContent = isHM ? 'Put Protection (γ)' : 'Market Timing (γ)';
+  }
+  if (elements.timingMetricGamma) {
+    const gVal = timing.gamma.value;
+    const gSign = gVal >= 0 ? '+' : '';
+    elements.timingMetricGamma.textContent = `${gSign}${gVal.toFixed(2)}`;
+    if (timing.gamma.isSignificant) {
+      elements.timingMetricGamma.className = `metric-value ${gVal > 0 ? 'highlight-cyan' : 'delta-badge-neg'}`;
+    } else {
+      elements.timingMetricGamma.className = 'metric-value';
+    }
+  }
+  if (elements.timingSubGamma) {
+    const pStr = timing.gamma.pValue < 0.001 ? '<0.001' : timing.gamma.pValue.toFixed(3);
+    const star = timing.gamma.pValue < 0.01 ? '***' : (timing.gamma.pValue < 0.05 ? '**' : (timing.gamma.pValue < 0.10 ? '*' : ''));
+    elements.timingSubGamma.textContent = `t = ${timing.gamma.tStat.toFixed(2)} | p = ${pStr} ${star}`;
+  }
+
+  // Alpha Scorecard
+  if (elements.timingMetricAlpha) {
+    const aVal = timing.alpha.annualized * 100;
+    elements.timingMetricAlpha.textContent = `${aVal >= 0 ? '+' : ''}${aVal.toFixed(2)}%/yr`;
+  }
+  if (elements.timingSubAlpha) {
+    const pStr = timing.alpha.pValue < 0.001 ? '<0.001' : timing.alpha.pValue.toFixed(3);
+    elements.timingSubAlpha.textContent = `t = ${timing.alpha.tStat.toFixed(2)} | p = ${pStr}`;
+  }
+
+  // Beta Scorecard
+  if (elements.timingLabelBeta) {
+    elements.timingLabelBeta.textContent = isHM ? 'Up / Down Beta (β / βd)' : 'Base Market Beta (β)';
+  }
+  if (elements.timingMetricBeta) {
+    if (isHM) {
+      elements.timingMetricBeta.textContent = `${timing.beta.value.toFixed(2)} / ${timing.beta.downsideBeta.toFixed(2)}`;
+    } else {
+      elements.timingMetricBeta.textContent = timing.beta.value.toFixed(2);
+    }
+  }
+  if (elements.timingSubBeta) {
+    elements.timingSubBeta.textContent = `Linear CAPM Beta: ${timing.capm.beta.toFixed(2)}`;
+  }
+
+  // Goodness of Fit Scorecard
+  if (elements.timingMetricR2) {
+    elements.timingMetricR2.textContent = `${(timing.rSquared * 100).toFixed(1)}%`;
+  }
+  if (elements.timingSubR2) {
+    elements.timingSubR2.textContent = `Adj R²: ${(timing.adjRSquared * 100).toFixed(1)}% | CAPM: ${(timing.capm.rSquared * 100).toFixed(1)}%`;
+  }
+
+  // 2. Verdict Banner
+  if (elements.timingVerdictBanner) {
+    if (timing.gamma.isSignificant && timing.gamma.value > 0) {
+      elements.timingVerdictBanner.style.background = 'rgba(16, 185, 129, 0.08)';
+      elements.timingVerdictBanner.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      if (elements.timingVerdictIcon) elements.timingVerdictIcon.textContent = '🚀';
+      if (elements.timingVerdictTitle) elements.timingVerdictTitle.textContent = isHM ? 'Protective Downside Market Timing Verified' : 'Convex Market Timing Skill Verified';
+    } else if (timing.gamma.isSignificant && timing.gamma.value < 0) {
+      elements.timingVerdictBanner.style.background = 'rgba(239, 68, 68, 0.08)';
+      elements.timingVerdictBanner.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+      if (elements.timingVerdictIcon) elements.timingVerdictIcon.textContent = '⚠️';
+      if (elements.timingVerdictTitle) elements.timingVerdictTitle.textContent = isHM ? 'Adverse Downside Exposure Detected' : 'Perverse Market Timing / Negative Convexity';
+    } else {
+      elements.timingVerdictBanner.style.background = 'rgba(56, 189, 248, 0.08)';
+      elements.timingVerdictBanner.style.borderColor = 'rgba(56, 189, 248, 0.25)';
+      if (elements.timingVerdictIcon) elements.timingVerdictIcon.textContent = '🔬';
+      if (elements.timingVerdictTitle) elements.timingVerdictTitle.textContent = 'Timing Hypothesis Test Result (Null Hypothesis Retained)';
+    }
+    if (elements.timingVerdictText) {
+      elements.timingVerdictText.textContent = timing.verdict;
+    }
+  }
+
+  // 3. Legend Swatch Color
+  if (elements.legendSwatchTiming) {
+    elements.legendSwatchTiming.style.background = isHM ? '#10b981' : '#eab308';
+  }
+
+  renderMarketTimingChart();
+}
+
+function renderMarketTimingChart() {
+  const canvas = elements.canvasMarketTiming;
+  const container = elements.containerMarketTiming;
+  if (!canvas || !container || !state.lastResult || !state.lastResult.marketTiming) return;
+
+  const isHM = state.timingModel === 'henriksson-merton';
+  const timing = isHM
+    ? state.lastResult.marketTiming.henrikssonMerton
+    : state.lastResult.marketTiming.treynorMazuy;
+
+  if (!timing || !timing.hasSufficientData) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 30, right: 35, bottom: 45, left: 65 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  const pts = timing.scatterPoints;
+  const curve = timing.curvePoints;
+  if (pts.length === 0 || curve.length === 0) return;
+
+  // Determine Plot Bounds
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  pts.forEach(p => {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  });
+
+  curve.forEach(c => {
+    if (c.x < minX) minX = c.x;
+    if (c.x > maxX) maxX = c.x;
+    if (c.modelY < minY) minY = c.modelY;
+    if (c.modelY > maxY) maxY = c.modelY;
+    if (c.linearY < minY) minY = c.linearY;
+    if (c.linearY > maxY) maxY = c.linearY;
+  });
+
+  const spanX = Math.max(0.1, Math.max(Math.abs(minX), Math.abs(maxX)) * 1.15);
+  const spanY = Math.max(0.1, Math.max(Math.abs(minY), Math.abs(maxY)) * 1.15);
+
+  const xMin = -spanX;
+  const xMax = spanX;
+  const yMin = -spanY;
+  const yMax = spanY;
+
+  const xToPix = (x) => pad.left + ((x - xMin) / (xMax - xMin)) * plotW;
+  const yToPix = (y) => pad.top + plotH - ((y - yMin) / (yMax - yMin)) * plotH;
+
+  const zeroX = xToPix(0);
+  const zeroY = yToPix(0);
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Fonts
+  const fontSm = window.CHART_FONTS ? window.CHART_FONTS.sm : '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  const fontMd = window.CHART_FONTS ? window.CHART_FONTS.md : '600 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+
+  // Grid Lines & Ticks
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = fontSm;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const nTicks = 4;
+  for (let k = -nTicks; k <= nTicks; k++) {
+    const yVal = (k / nTicks) * spanY;
+    const py = yToPix(yVal);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(`${(yVal * 100).toFixed(0)}%`, pad.left - 8, py);
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let k = -nTicks; k <= nTicks; k++) {
+    const xVal = (k / nTicks) * spanX;
+    const px = xToPix(xVal);
+    ctx.beginPath();
+    ctx.moveTo(px, pad.top);
+    ctx.lineTo(px, pad.top + plotH);
+    ctx.stroke();
+    ctx.fillText(`${(xVal * 100).toFixed(0)}%`, px, pad.top + plotH + 8);
+  }
+
+  // Crosshairs at (0, 0)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(pad.left + plotW, zeroY);
+  ctx.moveTo(zeroX, pad.top);
+  ctx.lineTo(zeroX, pad.top + plotH);
+  ctx.stroke();
+
+  // Axis Labels
+  ctx.save();
+  ctx.translate(16, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = fontMd;
+  ctx.textAlign = 'center';
+  ctx.fillText(`Manager Excess Return: ${state.managerTicker} − Rf (%)`, 0, 0);
+  ctx.restore();
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = fontMd;
+  ctx.textAlign = 'center';
+  ctx.fillText(`Benchmark Excess Return: ${state.benchTicker} − Rf (%)`, pad.left + plotW / 2, pad.top + plotH + 28);
+
+  // 1. Linear CAPM Line (Silver dashed)
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.8;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  curve.forEach((c, idx) => {
+    const px = xToPix(c.x);
+    const py = yToPix(c.linearY);
+    if (idx === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 2. Timing Curve (Treynor-Mazuy Gold or Henriksson-Merton Emerald)
+  const curveColor = isHM ? '#10b981' : '#eab308';
+  ctx.strokeStyle = curveColor;
+  ctx.lineWidth = 3.0;
+  ctx.beginPath();
+  curve.forEach((c, idx) => {
+    const px = xToPix(c.x);
+    const py = yToPix(c.modelY);
+    if (idx === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+
+  // 3. Scatter Points
+  pts.forEach(p => {
+    const px = xToPix(p.x);
+    const py = yToPix(p.y);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.arc(px, py, 3.5, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // Interactive Hover Tooltip
+  if (canvas._controller) canvas._controller.abort();
+  canvas._controller = new AbortController();
+
+  const handleMouseMove = rafThrottle((e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (mouseX < pad.left - 10 || mouseX > pad.left + plotW + 10 || mouseY < pad.top - 10 || mouseY > pad.top + plotH + 10) {
+      elements.tooltipMarketTiming.style.display = 'none';
+      return;
+    }
+
+    // Find closest scatter point
+    let closest = null;
+    let minD2 = Infinity;
+    pts.forEach(p => {
+      const px = xToPix(p.x);
+      const py = yToPix(p.y);
+      const d2 = (mouseX - px) * (mouseX - px) + (mouseY - py) * (mouseY - py);
+      if (d2 < minD2) {
+        minD2 = d2;
+        closest = p;
+      }
+    });
+
+    if (closest && minD2 <= 30 * 30) {
+      const xPct = (closest.x * 100).toFixed(2);
+      const yPct = (closest.y * 100).toFixed(2);
+      const fitPct = (closest.fittedY * 100).toFixed(2);
+      const resPct = (closest.residual * 100).toFixed(2);
+
+      elements.tooltipMarketTiming.innerHTML = `
+        <div style="font-weight:700; color:#38bdf8; margin-bottom:4px;">Month: ${closest.date}</div>
+        <div style="display:flex; justify-content:space-between; gap:12px;">
+          <span style="color:#94a3b8;">${state.benchTicker} Excess (Rm − Rf):</span>
+          <strong>${closest.x >= 0 ? '+' : ''}${xPct}%</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; gap:12px;">
+          <span style="color:#cbd5e1;">${state.managerTicker} Excess (Rp − Rf):</span>
+          <strong style="color:#38bdf8;">${closest.y >= 0 ? '+' : ''}${yPct}%</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; gap:12px; margin-top:3px; padding-top:3px; border-top:1px solid rgba(255,255,255,0.1);">
+          <span style="color:${curveColor};">${isHM ? 'HM' : 'TM'} Model Predicted:</span>
+          <strong>${closest.fittedY >= 0 ? '+' : ''}${fitPct}%</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; gap:12px; font-size:10px; color:#94a3b8;">
+          <span>Model Residual (ε):</span>
+          <span>${closest.residual >= 0 ? '+' : ''}${resPct}%</span>
+        </div>
+      `;
+
+      elements.tooltipMarketTiming.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
+      elements.tooltipMarketTiming.style.top = `${Math.max(10, mouseY - 30)}px`;
+      elements.tooltipMarketTiming.style.display = 'block';
+    } else {
+      elements.tooltipMarketTiming.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('mousemove', handleMouseMove, { signal: canvas._controller.signal });
+  canvas.addEventListener('mouseleave', () => {
+    elements.tooltipMarketTiming.style.display = 'none';
+  }, { signal: canvas._controller.signal });
+}
+
+// -------------------------------------------------------------------
 // Table A: Distribution Statistics
 // -------------------------------------------------------------------
 function renderDistributionTable(result) {
@@ -1642,6 +1998,14 @@ function init() {
     });
   }
 
+  // Market Timing Model Selector
+  if (elements.selectTimingModel) {
+    elements.selectTimingModel.addEventListener('change', (e) => {
+      state.timingModel = e.target.value;
+      renderMarketTiming();
+    });
+  }
+
   // Debounced Window Resize
   let resizeTimer = null;
   window.addEventListener('resize', () => {
@@ -1651,6 +2015,7 @@ function init() {
         renderAnnualExcessChart();
         renderRollingExcessChart();
         renderRelativeDrawdownChart();
+        renderMarketTimingChart();
       }
       if (state.lastBrinson) {
         renderBrinsonBarsChart();
