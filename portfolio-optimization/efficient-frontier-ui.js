@@ -1113,8 +1113,43 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
         <div>Volatility: <strong>${(cStar.completeVolatility * 100).toFixed(2)}%</strong></div>
         <div>Expected Utility (U*): <strong>${(cStar.utility * 100).toFixed(2)}% (A = ${frontierResult.riskAversion.toFixed(1)})</strong></div>
         <div>Sharpe Ratio: <strong>${cStar.completeSharpe.toFixed(3)}</strong></div>
+        <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
+          💡 Bodie Utility Maximizer: Balances return vs variance risk penalty for risk aversion A = ${frontierResult.riskAversion.toFixed(1)}. Slides toward cash if A increases; slides into leverage if A decreases.
+        </div>
       `;
-      elements.tooltipFrontier.style.left = `${Math.min(width - 200, mouseX + 15)}px`;
+      elements.tooltipFrontier.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
+      elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
+      elements.tooltipFrontier.style.display = 'block';
+      return;
+    }
+
+    // Check hit on Individual Asset scatter points
+    let hitAssetIdx = -1;
+    stats.tickers.forEach((ticker, idx) => {
+      const ax = xToPix(stats.volatilities[idx]);
+      const ay = yToPix(stats.expectedReturns[idx]);
+      if (Math.hypot(mouseX - ax, mouseY - ay) < 14) {
+        hitAssetIdx = idx;
+      }
+    });
+
+    if (hitAssetIdx >= 0) {
+      const ticker = stats.tickers[hitAssetIdx];
+      const ret = stats.expectedReturns[hitAssetIdx];
+      const vol = stats.volatilities[hitAssetIdx];
+      const sharpe = (ret - state.riskFreeRate) / Math.max(0.0001, vol);
+      const color = ASSET_PALETTE[hitAssetIdx % ASSET_PALETTE.length];
+
+      elements.tooltipFrontier.innerHTML = `
+        <div style="font-weight:700; color:${color}; margin-bottom:4px;">🏛️ Individual Asset: ${ticker}</div>
+        <div>Expected Ann. Return: <strong>${(ret * 100).toFixed(2)}%</strong></div>
+        <div>Annualized Volatility: <strong>${(vol * 100).toFixed(2)}%</strong></div>
+        <div>Standalone Sharpe: <strong>${sharpe.toFixed(3)}</strong></div>
+        <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
+          💡 Notice this asset lies inside/below the efficient frontier. Holding ${ticker} alone takes uncompensated risk compared to an efficient frontier blend.
+        </div>
+      `;
+      elements.tooltipFrontier.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
       elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
       elements.tooltipFrontier.style.display = 'block';
       return;
@@ -1139,8 +1174,14 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
       const isGmv = Math.abs(closestPoint.volatility - gmvPortfolio.volatility) < 1e-4;
 
       let labelHeader = 'Frontier Portfolio';
-      if (isTan) labelHeader = '⭐ Maximum Sharpe Portfolio (Tangency)';
-      else if (isGmv) labelHeader = '🛡️ Global Minimum Volatility (GMV)';
+      let takeaway = '📈 Markowitz Frontier: Optimal risk-return mix offering maximum return for this volatility.';
+      if (isTan) {
+        labelHeader = '⭐ Maximum Sharpe Portfolio (Tangency P*)';
+        takeaway = '💡 Bodie Separation Property: Maximizes Sharpe ratio (slope of CAL). All rational investors hold this identical risky mix and adjust risk via cash.';
+      } else if (isGmv) {
+        labelHeader = '🛡️ Global Minimum Volatility (GMV)';
+        takeaway = '✨ Free Lunch of Diversification: Lowest risk achievable. Total volatility is lower than any constituent asset alone due to low correlation!';
+      }
 
       let weightsHtml = stats.tickers.map((t, idx) => {
         const w = closestPoint.weights[idx];
@@ -1156,9 +1197,12 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
         <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px;">
           ${weightsHtml}
         </div>
+        <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
+          ${takeaway}
+        </div>
       `;
 
-      elements.tooltipFrontier.style.left = `${Math.min(width - 200, mouseX + 15)}px`;
+      elements.tooltipFrontier.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
       elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
       elements.tooltipFrontier.style.display = 'block';
     } else {
@@ -1345,9 +1389,12 @@ function renderTransitionChart() {
       <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px;">
         ${weightsHtml}
       </div>
+      <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
+        📊 Asset Substitution: At ${(activeVol * 100).toFixed(1)}% volatility, weights dynamically shift between risk-reducing anchors and return drivers.
+      </div>
     `;
 
-    elements.tooltipTransition.style.left = `${Math.min(width - 200, mouseX + 15)}px`;
+    elements.tooltipTransition.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
     elements.tooltipTransition.style.top = `${Math.max(10, mouseY - 30)}px`;
     elements.tooltipTransition.style.display = 'block';
   });
