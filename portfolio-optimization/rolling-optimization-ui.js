@@ -1029,9 +1029,11 @@ function init() {
     }, 250);
   });
 
-  // Initial Execution
+  // Initial Execution - defer compute to requestAnimationFrame so frame 1 renders instantly without freezing
   renderAssetTable();
-  runOptimization();
+  requestAnimationFrame(() => {
+    runOptimization();
+  });
 }
 
 // Subscribe to session fund updates

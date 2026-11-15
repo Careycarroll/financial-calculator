@@ -512,7 +512,7 @@ export function solveTangencyPortfolio(expectedReturns, covarianceMatrix, option
   }
 
   // 2. Dense 1D grid search over target returns from gmv.expectedReturn to maxAssetRet
-  const steps = 120;
+  const steps = options.steps || 120;
   const minR = Math.max(gmv.expectedReturn, rf + 0.001);
   const maxR = maxAssetRet;
 
@@ -532,7 +532,7 @@ export function solveTangencyPortfolio(expectedReturns, covarianceMatrix, option
 
   // 3. Fine-grain polish around best candidate using numerical gradient ascent on Sharpe
   let w = [...bestPortfolio.weights];
-  const maxPolishIter = 150;
+  const maxPolishIter = options.maxPolishIter || 150;
   let polishStep = 0.002;
 
   for (let iter = 0; iter < maxPolishIter; iter++) {
@@ -1529,7 +1529,9 @@ export function runRollingOptimization(assets, options = {}) {
       const optOpts = {
         riskFreeRate: rf,
         lowerBounds: options.lowerBounds,
-        upperBounds: options.upperBounds
+        upperBounds: options.upperBounds,
+        steps: options.steps || 30,
+        maxPolishIter: options.maxPolishIter || 40
       };
 
       if (goal === 'min-vol') {
