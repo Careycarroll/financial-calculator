@@ -501,7 +501,8 @@
       }
 
       // Header click toggle
-      header.addEventListener('click', () => {
+      header.addEventListener('click', (e) => {
+        if (e.target && e.target.closest('button, a, input, select')) return;
         const currentlyOpen = body.style.display !== 'none';
         setCollapsed(currentlyOpen, true);
       });
