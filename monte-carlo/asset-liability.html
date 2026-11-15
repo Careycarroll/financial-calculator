@@ -39,6 +39,48 @@
       </p>
     </header>
 
+    <!-- Suite Sub-Navigation -->
+    <nav class="suite-subnav" aria-label="Monte Carlo Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+      <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎲 Monte Carlo Studio</a>
+      <a href="financial-goals.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Financial Goals &amp; Glide Path</a>
+      <a href="asset-liability.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#2dd4bf; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Asset Liability Modeling</a>
+    </nav>
+
+    <!-- Executive Decision Framework (Collapsible) -->
+    <section class="cheat-sheet-card" id="executive-guide-alm" style="margin-bottom: 1.25rem;">
+      <div class="cheat-sheet-header open" id="executive-guide-toggle">
+        <div class="cheat-sheet-title">
+          <span>💡 Executive Decision Framework: Asset Liability Modeling (ALM) &amp; Funded Ratio Solvency</span>
+          <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+        </div>
+        <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+      </div>
+      <div class="cheat-sheet-body" id="executive-guide-body">
+        <div class="cheat-sheet-grid">
+          <div class="cheat-item">
+            <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+            <strong>Balance Sheet Defense</strong>
+            <p>Ensure asset portfolios generate dependable cashflow to satisfy future contractual liabilities: pension distributions, debt maturities, deferred comp, and foundation grant commitments.</p>
+          </div>
+          <div class="cheat-item">
+            <div class="cheat-badge scale-moderate">📋 How to Use</div>
+            <strong>3-Step ALM Protocol</strong>
+            <p>1. <strong>Starting Position</strong>: Enter current asset portfolio value and liability schedule.<br>2. <strong>Actuarial Parameters</strong>: Set discount rate and expected liability growth.<br>3. <strong>Inspect Cones</strong>: Review funded ratio trajectories across 10th to 90th percentiles.</p>
+          </div>
+          <div class="cheat-item">
+            <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+            <strong>Funded Ratio Dynamics</strong>
+            <p>• <strong>Funded Ratio (Assets / PV Liabilities)</strong>: &gt;100% indicates surplus; &lt;80% indicates underfunded danger.<br>• <strong>Rate Sensitivity</strong>: Higher discount rates reduce the present value of future liabilities.</p>
+          </div>
+          <div class="cheat-item">
+            <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+            <strong>Solvency Probability &amp; Deficit Risk</strong>
+            <p>• <strong>Deficit Probability</strong>: Likelihood of falling below 100% funded status.<br>• <strong>Cashflow Immunization</strong>: Duration-match fixed income to future cash obligations to eliminate market drawdown risk.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- STATUS SUMMARY BAR -->
     <section class="status-summary-bar">
       <div class="status-pill highlight">

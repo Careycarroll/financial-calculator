@@ -403,9 +403,107 @@
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", renderNav);
-  } else {
+  // ===================================================================
+  // UNIVERSAL EXECUTIVE DECISION FRAMEWORK & COLLAPSIBLE SUMMARY
+  // ===================================================================
+  function setupExecutiveGuides() {
+    const cards = document.querySelectorAll('.cheat-sheet-card, .executive-guide-card');
+    cards.forEach((card, index) => {
+      const header = card.querySelector('.cheat-sheet-header, .executive-guide-header');
+      const body = card.querySelector('.cheat-sheet-body, .executive-guide-body');
+      const arrow = card.querySelector('.cheat-sheet-arrow, .executive-guide-arrow');
+      if (!header || !body) return;
+
+      const pageKey = window.location.pathname.replace(/[^a-zA-Z0-9]/g, '_');
+      const storageKey = `exec_guide_collapsed_${pageKey}_${card.id || index}`;
+
+      function setCollapsed(collapsed, save = true) {
+        if (collapsed) {
+          body.style.display = 'none';
+          header.classList.remove('open');
+          if (arrow) {
+            arrow.classList.remove('open');
+            arrow.textContent = '▶';
+          }
+        } else {
+          body.style.display = 'block';
+          header.classList.add('open');
+          if (arrow) {
+            arrow.classList.add('open');
+            arrow.textContent = '▼';
+          }
+        }
+        if (save) {
+          try {
+            localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
+          } catch (e) {}
+        }
+      }
+
+      // Check stored preference
+      const isStoredCollapsed = localStorage.getItem(storageKey) === 'true';
+      if (isStoredCollapsed) {
+        setCollapsed(true, false);
+      }
+
+      // Header click toggle
+      header.addEventListener('click', () => {
+        const currentlyOpen = body.style.display !== 'none';
+        setCollapsed(currentlyOpen, true);
+      });
+
+      // Inject bottom collapse button inside the body if not present
+      if (!body.querySelector('.btn-collapse-exec-guide')) {
+        const collapseBtn = document.createElement('button');
+        collapseBtn.type = 'button';
+        collapseBtn.className = 'btn-collapse-exec-guide';
+        collapseBtn.innerHTML = '▲ Collapse Executive Summary (Hide when not needed)';
+        collapseBtn.title = 'Collapse this summary to focus on calculations and charts';
+        collapseBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setCollapsed(true, true);
+          header.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+        body.appendChild(collapseBtn);
+      }
+    });
+
+    // Auto-collapse when user executes calculation/optimization/backtest actions
+    const actionButtons = document.querySelectorAll(
+      '#btn-calculate, #btn-run, #btn-optimize, #btn-backtest, #btn-rebalance, #btn-regress, #btn-run-simulation, .btn-run-calc, #btn-run-cointegration'
+    );
+    actionButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cards = document.querySelectorAll('.cheat-sheet-card, .executive-guide-card');
+        cards.forEach((card, index) => {
+          const header = card.querySelector('.cheat-sheet-header, .executive-guide-header');
+          const body = card.querySelector('.cheat-sheet-body, .executive-guide-body');
+          const arrow = card.querySelector('.cheat-sheet-arrow, .executive-guide-arrow');
+          if (body && body.style.display !== 'none') {
+            body.style.display = 'none';
+            if (header) header.classList.remove('open');
+            if (arrow) {
+              arrow.classList.remove('open');
+              arrow.textContent = '▶';
+            }
+            const pageKey = window.location.pathname.replace(/[^a-zA-Z0-9]/g, '_');
+            try {
+              localStorage.setItem(`exec_guide_collapsed_${pageKey}_${card.id || index}`, 'true');
+            } catch (e) {}
+          }
+        });
+      });
+    });
+  }
+
+  function initNavAndGuides() {
     renderNav();
+    setupExecutiveGuides();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initNavAndGuides);
+  } else {
+    initNavAndGuides();
   }
 })();

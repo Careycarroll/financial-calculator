@@ -39,6 +39,48 @@
       </p>
     </header>
 
+    <!-- Suite Sub-Navigation -->
+    <nav class="suite-subnav" aria-label="Monte Carlo Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
+      <a href="index.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#2dd4bf; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">🎲 Monte Carlo Studio</a>
+      <a href="financial-goals.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Financial Goals &amp; Glide Path</a>
+      <a href="asset-liability.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Asset Liability Modeling</a>
+    </nav>
+
+    <!-- Executive Decision Framework (Collapsible) -->
+    <section class="cheat-sheet-card" id="executive-guide-monte-carlo" style="margin-bottom: 1.25rem;">
+      <div class="cheat-sheet-header open" id="executive-guide-toggle">
+        <div class="cheat-sheet-title">
+          <span>💡 Executive Decision Framework: Sequence-of-Returns Risk &amp; Solvency Engineering</span>
+          <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+        </div>
+        <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+      </div>
+      <div class="cheat-sheet-body" id="executive-guide-body">
+        <div class="cheat-sheet-grid">
+          <div class="cheat-item">
+            <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+            <strong>Solvency Engineering</strong>
+            <p>Answer the existential question: Will our capital survive? Project portfolio longevity under thousands of randomized market paths to eliminate sequence-of-returns ruin.</p>
+          </div>
+          <div class="cheat-item">
+            <div class="cheat-badge scale-moderate">📋 How to Use</div>
+            <strong>3-Step Simulation Protocol</strong>
+            <p>1. <strong>Configure Inputs</strong>: Set initial capital, horizon (e.g. 30Y), and annual withdrawal amount.<br>2. <strong>Set Simulation Model</strong>: Choose Historical Bootstrap or Parametric.<br>3. <strong>Run 1,000–10,000 Paths</strong>: Inspect survival curves and percentiles.</p>
+          </div>
+          <div class="cheat-item">
+            <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+            <strong>Sequence Risk Realities</strong>
+            <p>• <strong>The Sequence Trap</strong>: Two portfolios with identical 8% average returns can have radically different outcomes; early crash years deplete capital before compounding can recover.<br>• <strong>Percentile Fanning</strong>: Cones widen over time; 10th percentile tests stress survival.</p>
+          </div>
+          <div class="cheat-item">
+            <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+            <strong>Probability of Solvency</strong>
+            <p>• <strong>&gt;90% Survival Rate</strong>: Institutional-grade confidence.<br>• <strong>75%–90% Survival Rate</strong>: Vulnerable to sequence shocks; implement dynamic Guyton-Klinger withdrawal guardrails.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- TIMELINE & SETTINGS SUMMARY STATUS BAR -->
     <section class="status-summary-bar">
       <div class="status-pill highlight">
