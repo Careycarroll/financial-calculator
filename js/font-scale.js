@@ -34,26 +34,37 @@
     current: current,
   };
 
-  // Inject toggle button into nav once DOM is ready
-  document.addEventListener("DOMContentLoaded", () => {
+  // Inject or bind toggle button into nav once DOM is ready
+  function bindFontBtn() {
     const navLinks = document.querySelector(".top-nav-links");
     if (!navLinks) return;
 
     const labels = { small: "A⁻", medium: "A", large: "A⁺" };
-    const btn = document.createElement("button");
-    btn.id = "font-scale-btn";
-    btn.className = "font-scale-btn";
+    let btn = document.getElementById("font-scale-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "font-scale-btn";
+      btn.className = "font-scale-btn";
+      navLinks.appendChild(btn);
+    }
     btn.setAttribute("aria-label", "Cycle font size");
     btn.setAttribute("title", "Font size: " + current);
     btn.textContent = labels[current];
 
-    btn.addEventListener("click", () => {
-      const idx = SCALES.indexOf(current);
-      const next = SCALES[(idx + 1) % SCALES.length];
-      localStorage.setItem("fontScale", next);
-      location.reload();
-    });
+    if (!btn._hasFontListener) {
+      btn._hasFontListener = true;
+      btn.addEventListener("click", () => {
+        const idx = SCALES.indexOf(current);
+        const next = SCALES[(idx + 1) % SCALES.length];
+        localStorage.setItem("fontScale", next);
+        location.reload();
+      });
+    }
+  }
 
-    navLinks.appendChild(btn);
-  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindFontBtn);
+  } else {
+    bindFontBtn();
+  }
 })();

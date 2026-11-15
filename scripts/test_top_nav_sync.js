@@ -59,9 +59,13 @@ allHtmlFiles.forEach(f => {
   const norm = f.replace(/\\/g, '/').replace(/^\.\//, '');
   const content = fs.readFileSync(f, 'utf8');
 
-  // All pages must load nav.js and font-scale.js to ensure UI scaling & dynamic nav work uniformly
+  // All pages must load nav.js and font-scale.js in <head> to ensure UI scaling & dynamic nav work uniformly
   assert(content.includes('nav.js'), `${norm} must load nav.js script`);
   assert(content.includes('font-scale.js'), `${norm} must load font-scale.js script`);
+
+  const headMatch = content.match(/<head>([\s\S]*?)<\/head>/);
+  assert(headMatch && headMatch[1].includes('font-scale.js'), `${norm} must load font-scale.js in <head> for pre-render font scaling`);
+  assert(content.includes('id="font-scale-btn"'), `${norm} must have static #font-scale-btn in header`);
 
   if (norm === 'index.html') {
     assert(content.includes('📰 News Feed'), 'index.html should have News Feed link');
@@ -69,6 +73,9 @@ allHtmlFiles.forEach(f => {
     checkedPages++;
     return;
   }
+
+  // Subdirectory page checks
+  assert(content.includes('id="navCategoryBtn"'), `${norm} must have static #navCategoryBtn suite dropdown in top-nav-left`);
 
   // Subdirectory page checks
   const navLinksMatch = content.match(/<div class="top-nav-links">([\s\S]*?)<\/div>/);

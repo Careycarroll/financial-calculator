@@ -215,42 +215,49 @@
 
     if (!navLeft) return;
 
-    // Remove existing dynamic dropdown if any
-    const existingDropdown = navLeft.querySelector(".nav-category-dropdown");
-    if (existingDropdown) existingDropdown.remove();
-
-    const existingSep = navLeft.querySelector(".nav-breadcrumb-sep");
-    if (existingSep) existingSep.remove();
-
-    // Create dropdown wrapper (inner tool pages only)
-    const dropdownWrapper = document.createElement("div");
-    dropdownWrapper.className = "nav-category-dropdown";
-
+    // Check if dynamic dropdown already exists in static HTML
+    let dropdownWrapper = navLeft.querySelector(".nav-category-dropdown");
     const currentCat = ctx.category;
     const btnLabel = currentCat ? currentCat.name : "Explore All Suites";
     const btnIcon = currentCat ? currentCat.icon : "📂";
 
-    if (currentCat) {
-      const sep = document.createElement("span");
-      sep.className = "nav-breadcrumb-sep";
-      sep.textContent = "/";
-      navLeft.appendChild(sep);
+    if (!dropdownWrapper) {
+      // Dynamic creation fallback if not present in static HTML
+      let sep = navLeft.querySelector(".nav-breadcrumb-sep");
+      if (!sep && currentCat) {
+        sep = document.createElement("span");
+        sep.className = "nav-breadcrumb-sep";
+        sep.textContent = "/";
+        navLeft.appendChild(sep);
+      }
+
+      dropdownWrapper = document.createElement("div");
+      dropdownWrapper.className = "nav-category-dropdown";
+      dropdownWrapper.innerHTML = `
+        <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
+          <span class="nav-category-icon">${btnIcon}</span>
+          <span class="nav-category-label">${btnLabel}</span>
+          <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2.5 4.5L6 8L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="nav-dropdown-menu" id="navDropdownMenu" role="menu">
+          ${renderDropdownContent(ctx)}
+        </div>
+      `;
+      navLeft.appendChild(dropdownWrapper);
+    } else {
+      // Dropdown exists statically; ensure menu content is loaded and button label matches
+      const labelEl = dropdownWrapper.querySelector(".nav-category-label");
+      if (labelEl && btnLabel) labelEl.textContent = btnLabel;
+      const iconEl = dropdownWrapper.querySelector(".nav-category-icon");
+      if (iconEl && btnIcon) iconEl.textContent = btnIcon;
+
+      const menuEl = dropdownWrapper.querySelector("#navDropdownMenu");
+      if (menuEl && (!menuEl.children || menuEl.children.length === 0)) {
+        menuEl.innerHTML = renderDropdownContent(ctx);
+      }
     }
-
-    dropdownWrapper.innerHTML = `
-      <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
-        <span class="nav-category-icon">${btnIcon}</span>
-        <span class="nav-category-label">${btnLabel}</span>
-        <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M2.5 4.5L6 8L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <div class="nav-dropdown-menu" id="navDropdownMenu" role="menu">
-        ${renderDropdownContent(ctx)}
-      </div>
-    `;
-
-    navLeft.appendChild(dropdownWrapper);
 
     // Update .top-nav-links with contextual sibling links
     const navLinks = navInner.querySelector(".top-nav-links");
@@ -419,6 +426,8 @@
     const btn = wrapper.querySelector("#navCategoryBtn");
     const menu = wrapper.querySelector("#navDropdownMenu");
     if (!btn || !menu) return;
+    if (btn._hasDropdownEvents) return;
+    btn._hasDropdownEvents = true;
 
     function toggleMenu(open) {
       const isOpen = open !== undefined ? open : !menu.classList.contains("is-open");
