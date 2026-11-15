@@ -69,6 +69,7 @@
           </button>
           <button id="tab-greeks" class="options-tab" aria-label="Greeks sensitivity tab">Δ Greeks</button>
           <button id="tab-pnl" class="options-tab" aria-label="P&L calculator tab">💰 P&L Calculator</button>
+          <button id="tab-parity" class="options-tab" aria-label="Put-Call Parity and Implied Volatility tab">⚖️ Put-Call Parity &amp; IV</button>
         </div>
 
         <!-- ==================== TAB 1: PAYOFF DIAGRAMS ==================== -->
@@ -589,6 +590,146 @@
             <h2>P&L at Expiration</h2>
             <div class="canvas-chart">
               <canvas id="pnl-chart-canvas" role="img" aria-label="Options P&L chart showing profit and loss vs stock price"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 5: PUT-CALL PARITY & IMPLIED VOLATILITY ==================== -->
+        <div id="parity-tab" class="hidden">
+          <div class="calc-form">
+            <h2 class="form-section-title">Put-Call Parity Arbitrage Scanner &amp; IV Solver</h2>
+            <p class="form-hint" style="margin-bottom: 1.25rem;">
+              Bodie Chapters 20 &amp; 21: Validates European option no-arbitrage bounds (<em>C + Ke<sup>-rT</sup> = P + S<sub>0</sub>e<sup>-qT</sup></em>), 
+              identifies synthetic conversion/reversal arbitrage opportunities, and extracts market-implied volatility via Newton-Raphson.
+            </p>
+
+            <!-- Quick Presets -->
+            <div style="margin-bottom: 1.25rem;">
+              <label style="display: block; font-weight: 700; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem;">
+                Quick Market Presets:
+              </label>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="parity-presets-container">
+                <button type="button" class="preset-btn" data-preset="spx-parity-balanced" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">🏛️ SPX Index (Zero Arbitrage Parity)</button>
+                <button type="button" class="preset-btn" data-preset="conversion-arbitrage" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">⚡ Conversion Arbitrage (Overpriced Call)</button>
+                <button type="button" class="preset-btn" data-preset="reversal-arbitrage" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">🔄 Reversal Arbitrage (Overpriced Put)</button>
+                <button type="button" class="preset-btn" data-preset="high-vol-skew" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">📈 High-Vol Tech (Implied Vol Skew)</button>
+              </div>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="parity-spot">Underlying Stock Price ($)</label>
+                <input type="number" id="parity-spot" value="100" min="0.01" step="any" />
+                <span class="form-hint">Current spot price (S<sub>0</sub>)</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-strike">Option Strike Price ($)</label>
+                <input type="number" id="parity-strike" value="100" min="0.01" step="any" />
+                <span class="form-hint">Contract strike price (K)</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-time">Time to Expiration (Years)</label>
+                <input type="number" id="parity-time" value="0.5" min="0.001" step="any" />
+                <span class="form-hint">e.g. 0.5 = 6 months, 0.25 = 3 months</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-rate">Risk-Free Interest Rate (%)</label>
+                <input type="number" id="parity-rate" value="5.0" min="0" step="any" />
+                <span class="form-hint">Annualized Treasury rate (r)</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-dividend">Continuous Dividend Yield (%)</label>
+                <input type="number" id="parity-dividend" value="0.0" min="0" step="any" />
+                <span class="form-hint">Continuous dividend rate (q)</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-call-price">Market Call Price ($)</label>
+                <input type="number" id="parity-call-price" value="8.50" min="0.01" step="any" />
+                <span class="form-hint">Observed market call premium</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-put-price">Market Put Price ($)</label>
+                <input type="number" id="parity-put-price" value="6.06" min="0.01" step="any" />
+                <span class="form-hint">Observed market put premium</span>
+              </div>
+              <div class="form-group">
+                <label for="parity-friction">Transaction Friction Buffer ($)</label>
+                <input type="number" id="parity-friction" value="0.10" min="0" step="any" />
+                <span class="form-hint">Bid-ask slippage hurdle per share</span>
+              </div>
+            </div>
+
+            <button id="parity-calculate-btn" class="btn-primary" type="button" aria-label="Calculate Put-Call Parity and Implied Volatility">
+              ⚖️ Scan Parity &amp; Solve Implied Volatility
+            </button>
+          </div>
+
+          <!-- Parity Results Section -->
+          <div id="parity-results-section" class="results-panel hidden" style="margin-top: 1.5rem;">
+            <!-- Diagnostic Status Banner -->
+            <div id="parity-banner" style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.6rem;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                  <span style="font-size:0.85rem; color:#94a3b8; font-weight:600;">Arbitrage Scanner:</span>
+                  <span id="parity-status-badge" class="val-verdict-badge" style="padding:0.3rem 0.85rem; font-size:0.85rem; font-weight:700;">—</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                  <span style="font-size:0.85rem; color:#94a3b8; font-weight:600;">Net Arbitrage Profit:</span>
+                  <strong id="parity-profit-display" style="font-size:1.15rem; color:#38bdf8;">$0.00 / share</strong>
+                </div>
+              </div>
+              <p id="parity-recommendation-text" style="font-size:0.88rem; color:#cbd5e1; margin:0; line-height:1.5;">
+                —
+              </p>
+            </div>
+
+            <!-- Parity Core Breakdown Cards -->
+            <div class="results-grid results-grid-3" id="parity-metrics-grid" style="margin-bottom:1.25rem;">
+              <!-- Populated by JS -->
+            </div>
+
+            <!-- Trade Execution Ledger (for Conversion/Reversal Arbitrage) -->
+            <div id="parity-trade-ledger-wrap" style="display:none; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;">
+              <h3 style="margin:0 0 0.5rem; font-size:0.95rem; color:#f8fafc;">📋 Synthetic Arbitrage Trade Execution Ledger</h3>
+              <p style="font-size:0.8rem; color:#94a3b8; margin:0 0 0.75rem;">
+                4-leg synthetic structure locking in zero market risk across all expiration prices (S<sub>T</sub> &gt; K or S<sub>T</sub> &le; K).
+              </p>
+              <div style="overflow-x:auto;">
+                <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                  <thead>
+                    <tr>
+                      <th style="text-align:left;">Action</th>
+                      <th style="text-align:left;">Contract / Asset</th>
+                      <th style="text-align:center;">Qty</th>
+                      <th style="text-align:right;">Cash Flow ($)</th>
+                      <th style="text-align:left;">Rationale &amp; Settlement</th>
+                    </tr>
+                  </thead>
+                  <tbody id="parity-trade-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Implied Volatility Solver Card -->
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;">
+              <h3 style="margin:0 0 0.5rem; font-size:0.95rem; color:#f8fafc;">🧮 Newton-Raphson Implied Volatility (IV) Root-Finder</h3>
+              <p style="font-size:0.8rem; color:#94a3b8; margin:0 0 0.75rem;">
+                Inverts Black-Scholes using analytical Vega to extract forward market volatility with error tolerance &lt; 10⁻⁷.
+              </p>
+              <div class="results-grid results-grid-3" id="parity-iv-grid">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <!-- Interactive Parity & Volatility Canvas Chart -->
+            <div class="chart-panel" style="margin-top:1.25rem;">
+              <h2>📊 Put-Call Parity Balance &amp; Volatility Smile</h2>
+              <div class="canvas-chart">
+                <canvas id="parity-chart-canvas" role="img" aria-label="Put-call parity discrepancy and implied volatility chart" style="height:280px; width:100%; display:block;"></canvas>
+              </div>
             </div>
           </div>
         </div>

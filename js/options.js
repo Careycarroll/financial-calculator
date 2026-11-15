@@ -4,6 +4,22 @@ import {
   rafThrottle, validateInputs, showFieldError, drawLabelWithBackground
 } from "./chart-utils.js";
 import { getReferenceShape } from "./options-reference-shapes.js";
+import {
+  analyzePutCallParity,
+  solveImpliedVolatility,
+  calculateVolatilitySmile,
+  getParityPresets,
+  blackScholesPrice
+} from "./parity-engine.js";
+
+// Re-export derivatives engines for external callers and test suites
+export {
+  analyzePutCallParity,
+  solveImpliedVolatility,
+  calculateVolatilitySmile,
+  getParityPresets,
+  blackScholesPrice
+};
 
 // ===================================================================
 // OPTIONS STRATEGY LAB
@@ -27,17 +43,25 @@ const tabs = {
     tab: document.getElementById("tab-pnl"),
     panel: document.getElementById("pnl-tab"),
   },
+  parity: {
+    tab: document.getElementById("tab-parity"),
+    panel: document.getElementById("parity-tab"),
+  },
 };
 
 Object.keys(tabs).forEach((key) => {
-  tabs[key].tab.addEventListener("click", () => {
-    Object.keys(tabs).forEach((k) => {
-      tabs[k].tab.classList.remove("active");
-      tabs[k].panel.classList.add("hidden");
+  if (tabs[key].tab && tabs[key].panel) {
+    tabs[key].tab.addEventListener("click", () => {
+      Object.keys(tabs).forEach((k) => {
+        if (tabs[k].tab && tabs[k].panel) {
+          tabs[k].tab.classList.remove("active");
+          tabs[k].panel.classList.add("hidden");
+        }
+      });
+      tabs[key].tab.classList.add("active");
+      tabs[key].panel.classList.remove("hidden");
     });
-    tabs[key].tab.classList.add("active");
-    tabs[key].panel.classList.remove("hidden");
-  });
+  }
 });
 
 // ===== FORMATTING =====
@@ -2805,6 +2829,434 @@ function handlePnLCalculate() {
     .getElementById("pnl-results-section")
     .scrollIntoView({ behavior: "smooth" });
 }
+
+// ===================================================================
+// PUT-CALL PARITY & IMPLIED VOLATILITY (TAB 5)
+// ===================================================================
+
+let activeParityVolCurve = null;
+
+function initParityLab() {
+  const calcBtn = document.getElementById("parity-calculate-btn");
+  if (calcBtn) {
+    calcBtn.addEventListener("click", () => handleParityCalculate(activeParityVolCurve));
+  }
+
+  const presetsContainer = document.getElementById("parity-presets-container");
+  if (presetsContainer) {
+    presetsContainer.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-preset]");
+      if (!btn) return;
+      loadParityPreset(btn.dataset.preset);
+    });
+  }
+}
+
+function loadParityPreset(presetId) {
+  const presets = getParityPresets();
+  const preset = presets.find((p) => p.id === presetId);
+  if (!preset) return;
+
+  activeParityVolCurve = preset.data.volatilityCurve || null;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  const d = preset.data;
+  setVal("parity-spot", d.spot);
+  setVal("parity-strike", d.strike);
+  setVal("parity-time", d.time);
+  setVal("parity-rate", (d.rate * 100).toFixed(2));
+  setVal("parity-dividend", ((d.dividendYield || 0) * 100).toFixed(2));
+  setVal("parity-call-price", d.callPrice.toFixed(2));
+  setVal("parity-put-price", d.putPrice.toFixed(2));
+  setVal("parity-friction", (d.frictionThreshold || 0.10).toFixed(2));
+
+  // Highlight button
+  const buttons = document.querySelectorAll("#parity-presets-container .preset-btn");
+  buttons.forEach((btn) => {
+    btn.style.borderColor = btn.dataset.preset === presetId ? "#38bdf8" : "#334155";
+    btn.style.background = btn.dataset.preset === presetId ? "rgba(56, 189, 248, 0.15)" : "#1e293b";
+  });
+
+  handleParityCalculate(activeParityVolCurve);
+}
+
+function handleParityCalculate(customVolCurve = null) {
+  const spot = safeParseFloat(document.getElementById("parity-spot")?.value, 100);
+  const strike = safeParseFloat(document.getElementById("parity-strike")?.value, 100);
+  const time = safeParseFloat(document.getElementById("parity-time")?.value, 0.5);
+  const ratePct = safeParseFloat(document.getElementById("parity-rate")?.value, 5.0);
+  const rate = ratePct / 100;
+  const divPct = safeParseFloat(document.getElementById("parity-dividend")?.value, 0.0);
+  const dividendYield = divPct / 100;
+  const callPrice = safeParseFloat(document.getElementById("parity-call-price")?.value, 8.50);
+  const putPrice = safeParseFloat(document.getElementById("parity-put-price")?.value, 6.06);
+  const friction = safeParseFloat(document.getElementById("parity-friction")?.value, 0.10);
+
+  const parityRes = analyzePutCallParity({
+    spot,
+    strike,
+    time,
+    rate,
+    dividendYield,
+    callPrice,
+    putPrice,
+    frictionThreshold: friction
+  });
+
+  const callIV = solveImpliedVolatility({
+    type: 'call',
+    marketPrice: callPrice,
+    spot,
+    strike,
+    time,
+    rate,
+    dividendYield
+  });
+
+  const putIV = solveImpliedVolatility({
+    type: 'put',
+    marketPrice: putPrice,
+    spot,
+    strike,
+    time,
+    rate,
+    dividendYield
+  });
+
+  let volCurve = null;
+  if (customVolCurve && Array.isArray(customVolCurve)) {
+    volCurve = calculateVolatilitySmile({
+      spot,
+      time,
+      rate,
+      dividendYield,
+      strikes: customVolCurve
+    });
+  }
+
+  renderParityResults(parityRes, callIV, putIV, volCurve);
+}
+
+function renderParityResults(parityRes, callIV, putIV, volCurve) {
+  const section = document.getElementById("parity-results-section");
+  if (!section) return;
+  section.classList.remove("hidden");
+
+  // Status Banner
+  const badge = document.getElementById("parity-status-badge");
+  const profitDisplay = document.getElementById("parity-profit-display");
+  const recText = document.getElementById("parity-recommendation-text");
+
+  if (badge && profitDisplay && recText) {
+    if (parityRes.arbitrage.opportunity === 'CONVERSION') {
+      badge.textContent = "⚡ CONVERSION ARBITRAGE";
+      badge.style.background = "rgba(16, 185, 129, 0.2)";
+      badge.style.color = "#10b981";
+      badge.style.border = "1px solid #10b981";
+      profitDisplay.textContent = `+$${parityRes.arbitrage.profitPerShare.toFixed(2)} / sh (+$${parityRes.arbitrage.profitPerContract.toFixed(0)} / contract)`;
+      profitDisplay.style.color = "#10b981";
+    } else if (parityRes.arbitrage.opportunity === 'REVERSAL') {
+      badge.textContent = "🔄 REVERSAL ARBITRAGE";
+      badge.style.background = "rgba(245, 158, 11, 0.2)";
+      badge.style.color = "#fbbf24";
+      badge.style.border = "1px solid #fbbf24";
+      profitDisplay.textContent = `+$${parityRes.arbitrage.profitPerShare.toFixed(2)} / sh (+$${parityRes.arbitrage.profitPerContract.toFixed(0)} / contract)`;
+      profitDisplay.style.color = "#fbbf24";
+    } else {
+      badge.textContent = "✓ PARITY EQUILIBRIUM (NO ARBITRAGE)";
+      badge.style.background = "rgba(56, 189, 248, 0.15)";
+      badge.style.color = "#38bdf8";
+      badge.style.border = "1px solid #38bdf8";
+      profitDisplay.textContent = `Δ $${parityRes.parityDiscrepancy >= 0 ? '+' : ''}${parityRes.parityDiscrepancy.toFixed(2)} / sh`;
+      profitDisplay.style.color = "#38bdf8";
+    }
+    recText.textContent = parityRes.arbitrage.recommendedAction;
+  }
+
+  // Core Metrics Grid
+  const metricsGrid = document.getElementById("parity-metrics-grid");
+  if (metricsGrid) {
+    metricsGrid.innerHTML = `
+      <div class="result-card">
+        <div class="result-label">Fiduciary Call [C + PV(K)]</div>
+        <div class="result-value" style="color:#38bdf8;">$${parityRes.fiduciaryCall.toFixed(2)}</div>
+        <div class="result-sub">Call ($${parityRes.inputs.callPrice.toFixed(2)}) + PV(K) ($${parityRes.pvStrike.toFixed(2)})</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Protective Put [P + PV(S)]</div>
+        <div class="result-value" style="color:#818cf8;">$${parityRes.protectivePut.toFixed(2)}</div>
+        <div class="result-sub">Put ($${parityRes.inputs.putPrice.toFixed(2)}) + PV(S) ($${parityRes.pvSpot.toFixed(2)})</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Parity Discrepancy (Δ)</div>
+        <div class="result-value" style="color:${Math.abs(parityRes.parityDiscrepancy) <= parityRes.inputs.frictionThreshold ? '#38bdf8' : (parityRes.parityDiscrepancy > 0 ? '#10b981' : '#fbbf24')};">
+          $${parityRes.parityDiscrepancy >= 0 ? '+' : ''}${parityRes.parityDiscrepancy.toFixed(2)}
+        </div>
+        <div class="result-sub">Friction hurdle: ±$${parityRes.inputs.frictionThreshold.toFixed(2)}</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Theoretical Synthetic Call</div>
+        <div class="result-value">$${parityRes.synthetics.theoreticalCall.toFixed(2)}</div>
+        <div class="result-sub">Market Call: $${parityRes.inputs.callPrice.toFixed(2)} (${parityRes.inputs.callPrice > parityRes.synthetics.theoreticalCall ? 'Overpriced' : 'Underpriced'})</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Theoretical Synthetic Put</div>
+        <div class="result-value">$${parityRes.synthetics.theoreticalPut.toFixed(2)}</div>
+        <div class="result-sub">Market Put: $${parityRes.inputs.putPrice.toFixed(2)} (${parityRes.inputs.putPrice > parityRes.synthetics.theoreticalPut ? 'Overpriced' : 'Underpriced'})</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Implied Risk-Free Rate</div>
+        <div class="result-value" style="color:#f472b6;">
+          ${parityRes.synthetics.impliedRate !== null ? (parityRes.synthetics.impliedRate * 100).toFixed(2) + '%' : 'N/A'}
+        </div>
+        <div class="result-sub">Treasury baseline: ${(parityRes.inputs.rate * 100).toFixed(2)}%</div>
+      </div>
+    `;
+  }
+
+  // Trade Execution Ledger
+  const ledgerWrap = document.getElementById("parity-trade-ledger-wrap");
+  const tableBody = document.getElementById("parity-trade-table-body");
+  if (ledgerWrap && tableBody) {
+    if (parityRes.arbitrage.opportunity !== 'NONE' && parityRes.arbitrage.tradeLegs.length > 0) {
+      ledgerWrap.style.display = "block";
+      tableBody.innerHTML = parityRes.arbitrage.tradeLegs.map((leg) => `
+        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <td style="padding:0.4rem 0.5rem; font-weight:700; color:${leg.cashFlow > 0 ? '#10b981' : '#f87171'};">${leg.action}</td>
+          <td style="padding:0.4rem 0.5rem; font-weight:600; color:#f8fafc;">${leg.asset}</td>
+          <td style="padding:0.4rem 0.5rem; text-align:center; color:#cbd5e1;">${leg.quantity > 0 ? '+' : ''}${leg.quantity}</td>
+          <td style="padding:0.4rem 0.5rem; text-align:right; font-weight:700; color:${leg.cashFlow >= 0 ? '#10b981' : '#f87171'};">
+            ${leg.cashFlow >= 0 ? '+' : ''}$${leg.cashFlow.toFixed(2)}
+          </td>
+          <td style="padding:0.4rem 0.5rem; color:#94a3b8;">${leg.note}</td>
+        </tr>
+      `).join("") + `
+        <tr style="border-top:2px solid #334155; font-weight:700;">
+          <td colspan="3" style="padding:0.5rem; color:#f8fafc;">Net Upfront Riskless Arbitrage Profit:</td>
+          <td style="padding:0.5rem; text-align:right; color:#10b981; font-size:1.05rem;">+$${parityRes.arbitrage.profitPerShare.toFixed(2)} / sh</td>
+          <td style="padding:0.5rem; color:#38bdf8;">Guaranteed 0 payoff at expiration (all states)</td>
+        </tr>
+      `;
+    } else {
+      ledgerWrap.style.display = "none";
+    }
+  }
+
+  // Implied Volatility Results Grid
+  const ivGrid = document.getElementById("parity-iv-grid");
+  if (ivGrid) {
+    const skew = (callIV.converged && putIV.converged) ? (putIV.iv - callIV.iv) : null;
+    ivGrid.innerHTML = `
+      <div class="result-card">
+        <div class="result-label">Call Implied Volatility (IV)</div>
+        <div class="result-value" style="color:#38bdf8;">
+          ${callIV.converged ? (callIV.iv * 100).toFixed(2) + '%' : 'N/A'}
+        </div>
+        <div class="result-sub">${callIV.converged ? `Newton-Raphson: ${callIV.iterations} iterations` : callIV.error}</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Put Implied Volatility (IV)</div>
+        <div class="result-value" style="color:#818cf8;">
+          ${putIV.converged ? (putIV.iv * 100).toFixed(2) + '%' : 'N/A'}
+        </div>
+        <div class="result-sub">${putIV.converged ? `Newton-Raphson: ${putIV.iterations} iterations` : putIV.error}</div>
+      </div>
+      <div class="result-card">
+        <div class="result-label">Volatility Skew (Put IV - Call IV)</div>
+        <div class="result-value" style="color:${skew !== null && skew > 0 ? '#fbbf24' : '#38bdf8'};">
+          ${skew !== null ? `${skew >= 0 ? '+' : ''}${(skew * 100).toFixed(2)}%` : 'N/A'}
+        </div>
+        <div class="result-sub">${skew !== null && skew > 0 ? 'Crash risk premium embedded in puts' : 'Balanced volatility curve'}</div>
+      </div>
+    `;
+  }
+
+  // Draw Interactive Canvas Chart
+  const canvas = document.getElementById("parity-chart-canvas");
+  if (canvas) {
+    drawParityChart(canvas, parityRes, callIV, putIV, volCurve);
+  }
+}
+
+function drawParityChart(canvas, parityRes, callIV, putIV, volCurve) {
+  const container = canvas.parentElement;
+  const rect = container.getBoundingClientRect();
+  const width = rect.width > 0 ? rect.width : 700;
+  const height = 280;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext("2d");
+  ctx.resetTransform?.();
+  ctx.scale(dpr, dpr);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, width, height);
+
+  if (volCurve && volCurve.length > 1) {
+    const pad = { top: 35, right: 35, bottom: 45, left: 55 };
+    const chartW = width - pad.left - pad.right;
+    const chartH = height - pad.top - pad.bottom;
+
+    const strikes = volCurve.map((d) => d.strike);
+    const ivs = volCurve.map((d) => d.blendedIV || 0.20);
+    const minK = Math.min(...strikes);
+    const maxK = Math.max(...strikes);
+    const minIV = Math.max(0, Math.min(...ivs) * 0.85);
+    const maxIV = Math.max(...ivs) * 1.15;
+
+    const toX = (k) => pad.left + ((k - minK) / (maxK - minK || 1)) * chartW;
+    const toY = (iv) => pad.top + chartH - ((iv - minIV) / (maxIV - minIV || 1)) * chartH;
+
+    // Grid lines
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const yVal = minIV + (i / 4) * (maxIV - minIV);
+      const y = toY(yVal);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(pad.left + chartW, y);
+      ctx.stroke();
+
+      ctx.fillStyle = "#64748b";
+      ctx.font = "10px -apple-system, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${(yVal * 100).toFixed(1)}%`, pad.left - 8, y);
+    }
+
+    // Title
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 12px -apple-system, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Market Implied Volatility Smile / Skew Curve across Strikes", pad.left, 20);
+
+    // Spot reference line
+    const spotX = toX(parityRes.inputs.spot);
+    if (spotX >= pad.left && spotX <= pad.left + chartW) {
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.4)";
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(spotX, pad.top);
+      ctx.lineTo(spotX, pad.top + chartH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "9px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`Spot ($${parityRes.inputs.spot.toFixed(0)})`, spotX, pad.top - 6);
+    }
+
+    // Volatility Smile Curve Line
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    volCurve.forEach((pt, idx) => {
+      const x = toX(pt.strike);
+      const y = toY(pt.blendedIV);
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Data dots and labels
+    volCurve.forEach((pt) => {
+      const x = toX(pt.strike);
+      const y = toY(pt.blendedIV);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "10px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(`$${pt.strike}`, x, pad.top + chartH + 8);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 9px -apple-system, sans-serif";
+      ctx.fillText(`${(pt.blendedIV * 100).toFixed(1)}%`, x, y - 14);
+    });
+  } else {
+    const pad = { top: 35, right: 30, bottom: 45, left: 30 };
+    const chartW = width - pad.left - pad.right;
+    const chartH = height - pad.top - pad.bottom;
+
+    const bars = [
+      { label: "Fiduciary Call", sub: "C + PV(K)", val: parityRes.fiduciaryCall, color: "#38bdf8" },
+      { label: "Protective Put", sub: "P + PV(S)", val: parityRes.protectivePut, color: "#818cf8" },
+      { label: "Market Call", sub: "Observed", val: parityRes.inputs.callPrice, color: "#34d399" },
+      { label: "Synthetic Call", sub: "P + S - PV(K)", val: parityRes.synthetics.theoreticalCall, color: "#22c55e" },
+      { label: "Market Put", sub: "Observed", val: parityRes.inputs.putPrice, color: "#fbbf24" },
+      { label: "Synthetic Put", sub: "C - S + PV(K)", val: parityRes.synthetics.theoreticalPut, color: "#f59e0b" },
+    ];
+
+    const maxVal = Math.max(...bars.map((b) => b.val)) * 1.25 || 100;
+    const colW = chartW / bars.length;
+    const barW = Math.min(colW * 0.55, 50);
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 12px -apple-system, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Put-Call Parity Balance: Fiduciary vs. Protective & Synthetics", pad.left, 20);
+
+    bars.forEach((b, idx) => {
+      const barH = (Math.max(0, b.val) / maxVal) * chartH;
+      const x = pad.left + idx * colW + (colW - barW) / 2;
+      const y = pad.top + (chartH - barH);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+      ctx.beginPath();
+      ctx.roundRect(x, pad.top, barW, chartH, [4, 4, 0, 0]);
+      ctx.fill();
+
+      const grad = ctx.createLinearGradient(0, y, 0, pad.top + chartH);
+      grad.addColorStop(0, b.color);
+      grad.addColorStop(1, `${b.color}33`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+      ctx.fill();
+
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + barW, y);
+      ctx.stroke();
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "bold 10px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`$${b.val.toFixed(2)}`, x + barW / 2, y - 4);
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "9px -apple-system, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(b.label, x + barW / 2, pad.top + chartH + 8);
+
+      ctx.fillStyle = "#64748b";
+      ctx.font = "8px -apple-system, sans-serif";
+      ctx.fillText(b.sub, x + barW / 2, pad.top + chartH + 22);
+    });
+  }
+}
+
+// Initialize Parity Lab
+initParityLab();
 
 // ===================================================================
 // INITIALIZE
