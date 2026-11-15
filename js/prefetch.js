@@ -1,41 +1,42 @@
-// Performance optimizations using Quicklink
-// Load Quicklink from CDN and initialize prefetching
+// ===================================================================
+// NATIVE ZERO-DEPENDENCY PREFETCHING
+// Prefetches sibling suite subnav pages on idle & hover for instant navigation.
+// ===================================================================
+
 (function () {
-  // Load Quicklink library
-  const script = document.createElement("script");
-  script.src = "https://unpkg.com/quicklink@2.3.0/dist/quicklink.umd.js";
-  script.onload = function () {
-    // Initialize prefetching on hover for all links
-    if (window.quicklink) {
-      window.quicklink.listen({
-        el: document.body,
-        origins: [location.origin],
-      });
-    }
+  const prefetched = new Set();
 
-    // Optional: Prefetch critical pages on idle
-    const criticalPages = [
-      "pages/loan.html",
-      "pages/loan-advanced.html",
-      "pages/pv.html",
-      "pages/npv-irr.html",
-      "pages/options.html",
-      "pages/projections.html",
-      "pages/fire.html",
-      "pages/news.html",
-    ];
+  function prefetchUrl(url) {
+    if (!url || prefetched.has(url) || url.startsWith("#") || url.startsWith("javascript:")) return;
+    try {
+      const target = new URL(url, window.location.href);
+      if (target.origin !== window.location.origin) return;
+      prefetched.add(url);
 
-    // Prefetch critical pages after initial page load
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(() => {
-        criticalPages.forEach((page) => {
-          const link = document.createElement("link");
-          link.rel = "prefetch";
-          link.href = page;
-          document.head.appendChild(link);
-        });
-      });
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = target.href;
+      document.head.appendChild(link);
+    } catch (e) {}
+  }
+
+  // 1. Prefetch on link hover (subnav, top nav, dropdown items)
+  document.addEventListener("mouseover", (e) => {
+    const a = e.target.closest("a");
+    if (a && a.href) {
+      prefetchUrl(a.getAttribute("href"));
     }
-  };
-  document.head.appendChild(script);
+  }, { passive: true });
+
+  // 2. Prefetch sibling sub-nav links during browser idle time
+  function prefetchSubnav() {
+    const subnavLinks = document.querySelectorAll(".suite-subnav a[href], .top-nav-links a[href]");
+    subnavLinks.forEach(link => prefetchUrl(link.getAttribute("href")));
+  }
+
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(prefetchSubnav);
+  } else {
+    setTimeout(prefetchSubnav, 800);
+  }
 })();

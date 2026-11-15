@@ -85,13 +85,27 @@
         color: #38bdf8;
       }
     </style>
+    <script src="../js/font-scale.js"></script>
   </head>
   <body class="regression-page">
     <!-- Top Global Navigation Bar -->
-    <nav class="top-nav">
+        <nav class="top-nav">
       <div class="top-nav-inner">
-        <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
-                <div class="top-nav-links">
+        <div class="top-nav-left">
+          <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+          <span class="nav-breadcrumb-sep">/</span>
+          <div class="nav-category-dropdown">
+            <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
+              <span class="nav-category-icon">📈</span>
+              <span class="nav-category-label">Factor Analysis & Risk</span>
+              <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M2.5 4.5L6 8L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu" id="navDropdownMenu" role="menu"></div>
+          </div>
+        </div>
+        <div class="top-nav-links">
           <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
           <a href="../portfolio-backtest/index.html" class="top-nav-link">💼 Portfolio</a>
           <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
@@ -99,6 +113,7 @@
           <a href="../fund-regression/index.html" class="top-nav-link active">📈 Factor Analysis</a>
           <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
           <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+          <button id="font-scale-btn" class="font-scale-btn" aria-label="Cycle font size" title="Font size: medium">A</button>
         </div>
       </div>
     </nav>
@@ -332,7 +347,6 @@
     </div>
 
     <!-- Pre-existing shared scripts -->
-    <script src="../js/font-scale.js"></script>
     <script src="../js/prefetch.js"></script>
     <script src="../js/nav.js"></script>
     <script type="module" src="factor-matching-ui.js"></script>
