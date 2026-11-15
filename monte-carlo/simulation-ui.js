@@ -443,12 +443,16 @@ function renderDonutChart() {
   if (canvas) {
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 140 * dpr;
-    canvas.height = 140 * dpr;
+    const size = 140;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    ctx.resetTransform();
     ctx.scale(dpr, dpr);
 
-    const cx = 70;
-    const cy = 70;
+    const cx = size / 2;
+    const cy = size / 2;
     const rOuter = 62;
     const rInner = 39;
     let startAngle = -Math.PI / 2;
