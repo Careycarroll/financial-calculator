@@ -518,7 +518,7 @@ function runOptimization() {
 
     // 4. Update UI Components
     renderFlagshipCards(frontierResult, stats);
-    renderFrontierChart();
+    renderFrontierChart(frontierResult);
     renderTransitionChart();
     renderAssetCharacteristicsTable(stats, lowerBounds, upperBounds);
     renderCorrelationMatrix(stats);
@@ -753,10 +753,10 @@ function drawDonut(canvas, weights) {
 // -------------------------------------------------------------------
 // Main Efficient Frontier Canvas Chart
 // -------------------------------------------------------------------
-function renderFrontierChart() {
+function renderFrontierChart(frontierResult = state.lastFrontier) {
   const canvas = elements.canvasFrontier;
   const container = elements.containerFrontier;
-  if (!canvas || !container || !state.lastFrontier || !state.lastStats) return;
+  if (!canvas || !container || !frontierResult || !state.lastStats) return;
 
   const dpr = window.devicePixelRatio || 1;
   const width = container.clientWidth;
@@ -772,7 +772,7 @@ function renderFrontierChart() {
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
 
-  const { frontier, gmvPortfolio, tangencyPortfolio, calLine } = state.lastFrontier;
+  const { frontier, gmvPortfolio, tangencyPortfolio, calLine } = frontierResult;
   const stats = state.lastStats;
 
   // Find min and max for X (Volatility) and Y (Expected Return)
