@@ -184,6 +184,24 @@
     const ctx = detectContext();
     const root = ctx.root;
 
+    // On home page, keep header clean: logo + view switcher + News Feed (no suite dropdown or suite tabs)
+    if (ctx.isHome) {
+      const navLinks = navInner.querySelector(".top-nav-links");
+      if (navLinks) {
+        const hasNews = navLinks.querySelector('a[href*="news.html"]');
+        if (!hasNews) {
+          const fontBtn = navLinks.querySelector("#font-scale-btn");
+          navLinks.innerHTML = `
+            <a href="${root}pages/news.html" class="top-nav-link" title="Market News Feed">📰 News Feed</a>
+          `;
+          if (fontBtn) {
+            navLinks.appendChild(fontBtn);
+          }
+        }
+      }
+      return;
+    }
+
     // Check if .top-nav-left already exists, else wrap logo
     let navLeft = navInner.querySelector(".top-nav-left");
     const logoEl = navInner.querySelector(".top-nav-logo");
@@ -204,21 +222,6 @@
     const existingSep = navLeft.querySelector(".nav-breadcrumb-sep");
     if (existingSep) existingSep.remove();
 
-    // On home page, keep header clean: logo + view switcher + News Feed (no suite dropdown or suite tabs)
-    if (ctx.isHome) {
-      const navLinks = navInner.querySelector(".top-nav-links");
-      if (navLinks) {
-        const fontBtn = navLinks.querySelector("#font-scale-btn");
-        navLinks.innerHTML = `
-          <a href="${root}pages/news.html" class="top-nav-link" title="Market News Feed">📰 News Feed</a>
-        `;
-        if (fontBtn) {
-          navLinks.appendChild(fontBtn);
-        }
-      }
-      return;
-    }
-
     // Create dropdown wrapper (inner tool pages only)
     const dropdownWrapper = document.createElement("div");
     dropdownWrapper.className = "nav-category-dropdown";
@@ -227,7 +230,7 @@
     const btnLabel = currentCat ? currentCat.name : "Explore All Suites";
     const btnIcon = currentCat ? currentCat.icon : "📂";
 
-    if (!ctx.isHome && currentCat) {
+    if (currentCat) {
       const sep = document.createElement("span");
       sep.className = "nav-breadcrumb-sep";
       sep.textContent = "/";
@@ -235,7 +238,7 @@
     }
 
     dropdownWrapper.innerHTML = `
-      <button class="nav-category-btn ${ctx.isHome ? "nav-category-btn-home" : ""}" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
+      <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
         <span class="nav-category-icon">${btnIcon}</span>
         <span class="nav-category-label">${btnLabel}</span>
         <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -252,9 +255,6 @@
     // Update .top-nav-links with contextual sibling links
     const navLinks = navInner.querySelector(".top-nav-links");
     if (navLinks) {
-      // Preserve font-scale button if it exists
-      const fontBtn = navLinks.querySelector("#font-scale-btn");
-
       const DOMAIN_SUITE_TABS = [
         { id: "portfolio", name: "Portfolio", icon: "💼", path: "portfolio-backtest/index.html", match: ["portfolio-backtest", "dca-comparator", "asset-analytics"] },
         { id: "tactical", name: "Tactical Allocation", icon: "⚡", path: "tactical-allocation/index.html", match: ["tactical-allocation"] },
@@ -265,26 +265,53 @@
       ];
 
       const href = window.location.href;
-      let linksHtml = `
-        <a href="${root}index.html" class="top-nav-link nav-home-link ${ctx.isHome ? "active" : ""}" title="Return to All Calculators">← All Tools</a>
-      `;
-
-      DOMAIN_SUITE_TABS.forEach(suite => {
-        const isActive = !ctx.isHome && (
-          (ctx.category && ctx.category.id === suite.id) ||
-          suite.match.some(m => href.includes(m))
-        );
-        linksHtml += `
-          <a href="${root}${suite.path}" class="top-nav-link ${isActive ? "active" : ""}" title="${suite.name}">
-            <span class="nav-link-icon">${suite.icon}</span> ${suite.name}
-          </a>
-        `;
+      const existingSuiteLinks = navLinks.querySelectorAll(".top-nav-link");
+      const hasSuiteTabs = Array.from(existingSuiteLinks).some(link => {
+        const linkHref = link.getAttribute("href") || "";
+        return linkHref.includes("tactical-allocation") || linkHref.includes("portfolio-optimization");
       });
 
-      navLinks.innerHTML = linksHtml;
+      if (hasSuiteTabs) {
+        // Idempotent state update: avoid touching innerHTML to prevent flash and layout shifts
+        existingSuiteLinks.forEach(link => {
+          const linkHref = link.getAttribute("href") || "";
+          if (link.classList.contains("nav-home-link") || (linkHref.endsWith("index.html") && !linkHref.includes("/"))) {
+            link.classList.toggle("active", ctx.isHome);
+            return;
+          }
+          const matchedSuite = DOMAIN_SUITE_TABS.find(suite => linkHref.includes(suite.path) || linkHref.endsWith(suite.path));
+          if (matchedSuite) {
+            const isActive = !ctx.isHome && (
+              (ctx.category && ctx.category.id === matchedSuite.id) ||
+              matchedSuite.match.some(m => href.includes(m))
+            );
+            link.classList.toggle("active", isActive);
+          }
+        });
+      } else {
+        // Fallback: render suite links dynamically if missing from static HTML
+        const fontBtn = navLinks.querySelector("#font-scale-btn");
+        let linksHtml = `
+          <a href="${root}index.html" class="top-nav-link nav-home-link ${ctx.isHome ? "active" : ""}" title="Return to All Calculators">← All Tools</a>
+        `;
 
-      if (fontBtn) {
-        navLinks.appendChild(fontBtn);
+        DOMAIN_SUITE_TABS.forEach(suite => {
+          const isActive = !ctx.isHome && (
+            (ctx.category && ctx.category.id === suite.id) ||
+            suite.match.some(m => href.includes(m))
+          );
+          linksHtml += `
+            <a href="${root}${suite.path}" class="top-nav-link ${isActive ? "active" : ""}" title="${suite.name}">
+              <span class="nav-link-icon">${suite.icon}</span> ${suite.name}
+            </a>
+          `;
+        });
+
+        navLinks.innerHTML = linksHtml;
+
+        if (fontBtn) {
+          navLinks.appendChild(fontBtn);
+        }
       }
     }
 
