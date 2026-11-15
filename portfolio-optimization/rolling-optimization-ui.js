@@ -54,6 +54,7 @@ const state = {
   frequency: 'annually',
   goal: 'max-sharpe',
   baseline: 'equal',
+  covarianceEstimator: 'ledoit-wolf',
   riskFreeRate: 0.03,
   scaleType: 'linear', // 'linear' | 'log'
   lastResult: null,
@@ -68,6 +69,7 @@ function initDom() {
   elements.statusTotalMonths = document.getElementById('status-total-months');
   elements.statusLookbackVal = document.getElementById('status-lookback-val');
   elements.statusFreqVal = document.getElementById('status-freq-val');
+  elements.statusRollingCov = document.getElementById('status-rolling-cov');
   elements.statusTurnoverVal = document.getElementById('status-turnover-val');
 
   elements.configCard = document.getElementById('config-card');
@@ -78,6 +80,7 @@ function initDom() {
   elements.selectFrequency = document.getElementById('select-frequency');
   elements.selectGoal = document.getElementById('select-goal');
   elements.selectBaseline = document.getElementById('select-baseline');
+  elements.selectRollingCov = document.getElementById('select-rolling-cov');
   elements.inputRf = document.getElementById('input-rf');
 
   elements.assetTableBody = document.getElementById('asset-table-body');
@@ -239,6 +242,7 @@ function runOptimization() {
       frequency: state.frequency,
       goal: state.goal,
       baseline: state.baseline,
+      covarianceEstimator: state.covarianceEstimator,
       riskFreeRate: state.riskFreeRate,
       lowerBounds,
       upperBounds
@@ -246,6 +250,11 @@ function runOptimization() {
 
     const result = runRollingOptimization(assets, options);
     state.lastResult = result;
+
+    // Update Status Bar
+    if (elements.statusRollingCov) {
+      elements.statusRollingCov.textContent = state.covarianceEstimator === 'ledoit-wolf' ? 'Ledoit-Wolf Shrunk' : 'Sample Covariance';
+    }
 
     // Update Status Bar
     if (elements.statusTimelineRange) {
@@ -945,6 +954,13 @@ function init() {
   if (elements.selectBaseline) {
     elements.selectBaseline.addEventListener('change', (e) => {
       state.baseline = e.target.value;
+      runOptimization();
+    });
+  }
+
+  if (elements.selectRollingCov) {
+    elements.selectRollingCov.addEventListener('change', (e) => {
+      state.covarianceEstimator = e.target.value;
       runOptimization();
     });
   }

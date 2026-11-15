@@ -47,6 +47,7 @@ const state = {
   },
   goal: 'max-sharpe',
   baseline: 'equal',
+  covarianceEstimator: 'ledoit-wolf',
   targetValue: 0.10,
   riskFreeRate: 0.03,
   startDate: null,
@@ -63,6 +64,8 @@ const elements = {
   statusTotalMonths: document.getElementById('status-total-months'),
   statusGoalName: document.getElementById('status-goal-name'),
   statusBaselineName: document.getElementById('status-baseline-name'),
+  statusCovName: document.getElementById('status-cov-name'),
+  statusCovCond: document.getElementById('status-cov-cond'),
   statusRfRate: document.getElementById('status-rf-rate'),
   btnToggleConfig: document.getElementById('btn-toggle-config-panel'),
   configCard: document.getElementById('config-card'),
@@ -74,6 +77,7 @@ const elements = {
   btnOpenModal: document.getElementById('btn-open-asset-modal'),
   selectGoal: document.getElementById('select-opt-goal'),
   selectBaseline: document.getElementById('select-opt-baseline'),
+  selectCovEstimator: document.getElementById('select-cov-estimator'),
   wrapTargetVal: document.getElementById('wrap-target-val'),
   lblTargetVal: document.getElementById('lbl-target-val'),
   inputTargetVal: document.getElementById('input-target-val'),
@@ -181,6 +185,14 @@ function init() {
       if (elements.statusBaselineName) {
         elements.statusBaselineName.textContent = elements.selectBaseline.options[elements.selectBaseline.selectedIndex].text;
       }
+    });
+  }
+
+  // Covariance Estimator select change
+  if (elements.selectCovEstimator) {
+    elements.selectCovEstimator.addEventListener('change', () => {
+      state.covarianceEstimator = elements.selectCovEstimator.value;
+      runOptimization();
     });
   }
 
@@ -385,6 +397,9 @@ function syncInputsToState() {
   if (elements.selectBaseline) {
     state.baseline = elements.selectBaseline.value;
   }
+  if (elements.selectCovEstimator) {
+    state.covarianceEstimator = elements.selectCovEstimator.value || 'ledoit-wolf';
+  }
   if (elements.inputTargetVal) {
     state.targetValue = (parseFloat(elements.inputTargetVal.value) || 10.0) / 100;
   }
@@ -453,9 +468,21 @@ function runOptimization() {
     const stats = computeAssetStatistics(funds, {
       riskFreeRate: state.riskFreeRate,
       startDate: state.startDate,
-      endDate: state.endDate
+      endDate: state.endDate,
+      covarianceEstimator: state.covarianceEstimator
     });
     state.lastStats = stats;
+
+    // Update Covariance Status Pill
+    if (elements.statusCovName && elements.statusCovCond) {
+      if (state.covarianceEstimator === 'ledoit-wolf') {
+        elements.statusCovName.textContent = `Ledoit-Wolf (\u03B4* = ${stats.shrinkageIntensity.toFixed(3)})`;
+        elements.statusCovCond.textContent = `\u03BA = ${stats.shrunkConditionNumber.toFixed(1)} (-${stats.conditionImprovementPercent.toFixed(0)}%)`;
+      } else {
+        elements.statusCovName.textContent = 'Sample Covariance';
+        elements.statusCovCond.textContent = `\u03BA = ${stats.sampleConditionNumber.toFixed(1)} (Unshrunk)`;
+      }
+    }
 
     const optOptions = {
       riskFreeRate: state.riskFreeRate,

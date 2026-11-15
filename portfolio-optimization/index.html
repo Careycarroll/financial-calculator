@@ -111,6 +111,11 @@
           <strong id="status-rf-rate">3.00%</strong>
         </div>
         <div class="status-pill">
+          <span>Covariance:</span>
+          <strong id="status-cov-name">Ledoit-Wolf Shrunk</strong>
+          <span class="status-sub" id="status-cov-cond">&kappa; = --</span>
+        </div>
+        <div class="status-pill">
           <span>Universe:</span>
           <strong id="status-asset-count">3 Assets</strong>
         </div>
@@ -167,6 +172,13 @@
 
           <!-- Optimization Settings Grid -->
           <div class="settings-grid">
+            <div class="setting-item">
+              <label for="select-cov-estimator">Covariance Estimator</label>
+              <select id="select-cov-estimator" class="setting-select">
+                <option value="ledoit-wolf" selected>🔬 Ledoit-Wolf Shrunk (Institutional)</option>
+                <option value="sample">📊 Sample Covariance (Unshrunk)</option>
+              </select>
+            </div>
             <div class="setting-item">
               <label for="opt-rf-input">Risk-Free Rate (%)</label>
               <input type="number" id="opt-rf-input" class="setting-input" value="3.0" step="0.25" min="0" max="15" />

@@ -54,6 +54,7 @@ const state = {
   expectedMarketReturn: 0.08,
   riskFreeRate: 0.03,
   tau: 0.05,
+  covarianceEstimator: 'ledoit-wolf',
   views: [
     {
       id: 1,
@@ -74,6 +75,8 @@ const elements = {
   // Status Bar
   statusTimelineRange: document.getElementById('status-timeline-range'),
   statusTotalMonths: document.getElementById('status-total-months'),
+  statusCovName: document.getElementById('status-bl-cov-name'),
+  statusCovCond: document.getElementById('status-bl-cov-cond'),
   statusDeltaVal: document.getElementById('status-delta-val'),
   statusViewsCount: document.getElementById('status-views-count'),
   statusTauVal: document.getElementById('status-tau-val'),
@@ -86,6 +89,7 @@ const elements = {
   tableBenchmarkBody: document.getElementById('benchmark-rows-body'),
   btnOpenModal: document.getElementById('btn-open-asset-modal'),
   lblBenchmarkSum: document.getElementById('lbl-benchmark-sum'),
+  selectCovEstimator: document.getElementById('bl-cov-estimator'),
   inputMarketReturn: document.getElementById('bl-market-return'),
   inputRf: document.getElementById('bl-rf-input'),
   inputTau: document.getElementById('bl-tau-input'),
@@ -179,6 +183,14 @@ function init() {
   if (elements.btnRunBL) {
     elements.btnRunBL.addEventListener('click', () => {
       syncInputsToState();
+      runBlackLitterman();
+    });
+  }
+
+  // Covariance Estimator
+  if (elements.selectCovEstimator) {
+    elements.selectCovEstimator.addEventListener('change', () => {
+      state.covarianceEstimator = elements.selectCovEstimator.value || 'ledoit-wolf';
       runBlackLitterman();
     });
   }
@@ -542,6 +554,9 @@ function syncInputsToState() {
   if (elements.inputTau) {
     state.tau = Math.max(0.001, parseFloat(elements.inputTau.value) || 0.05);
   }
+  if (elements.selectCovEstimator) {
+    state.covarianceEstimator = elements.selectCovEstimator.value || 'ledoit-wolf';
+  }
 }
 
 // -------------------------------------------------------------------
@@ -567,9 +582,21 @@ function runBlackLitterman() {
   try {
     // 1. Asset Statistics & Covariance
     const stats = computeAssetStatistics(funds, {
-      riskFreeRate: state.riskFreeRate
+      riskFreeRate: state.riskFreeRate,
+      covarianceEstimator: state.covarianceEstimator
     });
     state.lastStats = stats;
+
+    // Update Covariance Status Pill
+    if (elements.statusCovName && elements.statusCovCond) {
+      if (state.covarianceEstimator === 'ledoit-wolf') {
+        elements.statusCovName.textContent = `Ledoit-Wolf (\u03B4* = ${stats.shrinkageIntensity.toFixed(3)})`;
+        elements.statusCovCond.textContent = `\u03BA = ${stats.shrunkConditionNumber.toFixed(1)} (-${stats.conditionImprovementPercent.toFixed(0)}%)`;
+      } else {
+        elements.statusCovName.textContent = 'Sample Covariance';
+        elements.statusCovCond.textContent = `\u03BA = ${stats.sampleConditionNumber.toFixed(1)} (Unshrunk)`;
+      }
+    }
 
     // 2. Format views to asset indices
     const tickerToIndex = new Map();
