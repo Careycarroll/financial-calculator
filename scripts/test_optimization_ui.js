@@ -227,6 +227,43 @@ await runTest('Test 5: efficient-frontier-ui.js executes runOptimization and cha
   });
 });
 
+// -----------------------------------------------------------------
+// Test 6: Educational Decision & Intuition Component Verification
+// -----------------------------------------------------------------
+await runTest('Test 6: Educational Decision & Intuition component elements, tabs and actions exist', () => {
+  const html = fs.readFileSync('portfolio-optimization/index.html', 'utf8');
+
+  // Verify core structural elements
+  const requiredEduIds = [
+    'executive-guide-frontier',
+    'executive-guide-toggle',
+    'executive-guide-arrow',
+    'executive-guide-body',
+    'btn-hide-edu-guide',
+    'edu-guide-restore-pill',
+    'btn-show-edu-guide',
+    'btn-load-worked-example',
+    'tab-worked-example',
+    'tab-expected-outputs',
+    'tab-variable-intuition'
+  ];
+
+  requiredEduIds.forEach(id => {
+    assert(html.includes(`id="${id}"`), `Missing required educational component ID: ${id}`);
+  });
+
+  // Verify tab contents and worked example tickers
+  assert(html.includes('VOO (S&amp;P 500 ETF)'), 'Missing VOO in worked example');
+  assert(html.includes('SCHD (Schwab US Dividend Equity)'), 'Missing SCHD in worked example');
+  assert(html.includes('BND (Total Bond Market)'), 'Missing BND in worked example');
+
+  // Verify variable intuition matrix
+  assert(html.includes('Investor Risk Aversion (A)'), 'Missing Risk Aversion row');
+  assert(html.includes('Covariance Estimator'), 'Missing Covariance row');
+  assert(html.includes('Ledoit-Wolf shrinkage dampens corner portfolios'), 'Missing Ledoit-Wolf explanation');
+  assert(html.includes('Complete portfolio <strong>C* slides down the CAL toward Cash'), 'Missing risk aversion intuition');
+});
+
 console.log(`\nTests passed: ${passed} / ${passed + failed}`);
 if (failed > 0) {
   process.exit(1);
