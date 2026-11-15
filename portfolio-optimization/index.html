@@ -180,8 +180,23 @@
               </select>
             </div>
             <div class="setting-item">
-              <label for="opt-rf-input">Risk-Free Rate (%)</label>
+              <label for="opt-rf-input">Risk-Free Rate (Rf %)</label>
               <input type="number" id="opt-rf-input" class="setting-input" value="3.0" step="0.25" min="0" max="15" />
+            </div>
+            <div class="setting-item">
+              <label for="input-risk-aversion">Investor Risk Aversion (A = <span id="lbl-risk-aversion-val">3.0</span>)</label>
+              <input type="range" id="input-risk-aversion" class="setting-range" min="1.0" max="10.0" step="0.5" value="3.0" style="width: 100%; margin-top: 0.4rem;" />
+            </div>
+            <div class="setting-item">
+              <label for="select-leverage-toggle">Allow Leverage (Borrowing)</label>
+              <select id="select-leverage-toggle" class="setting-select">
+                <option value="true" selected>⚡ Yes (y* &gt; 100% with Borrowing)</option>
+                <option value="false">🛡️ No (y* &le; 100% Lending Only)</option>
+              </select>
+            </div>
+            <div class="setting-item" id="wrap-borrow-rate">
+              <label for="input-borrow-rate">Borrowing Rate (%)</label>
+              <input type="number" id="input-borrow-rate" class="setting-input" value="4.0" step="0.25" min="0" max="25" />
             </div>
             <div class="setting-item">
               <label for="opt-start-date">Start Date</label>
@@ -272,6 +287,36 @@
               </div>
             </div>
           </div>
+
+          <!-- Optimal Complete Portfolio (Bodie CAL + Utility) Card -->
+          <div class="flagship-card cal-card">
+            <div class="card-title-row">
+              <h3>🎯 Optimal Complete Portfolio</h3>
+              <span class="card-pill cal" id="cal-card-pill">Bodie Utility (A=3.0)</span>
+            </div>
+            <div class="card-metrics-grid">
+              <div class="card-metric-box">
+                <div class="card-metric-label">Risky Share (y*)</div>
+                <div class="card-metric-value" id="cal-metric-ystar" style="color: #c084fc; font-weight: 800;">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Cash / T-Bills</div>
+                <div class="card-metric-value" id="cal-metric-cash">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Expected Utility (U*)</div>
+                <div class="card-metric-value" id="cal-metric-utility" style="color: #c084fc; font-weight: 800;">--</div>
+              </div>
+            </div>
+            <div class="card-donut-row">
+              <div class="donut-canvas-wrap">
+                <canvas id="canvas-donut-cal" width="130" height="130"></canvas>
+              </div>
+              <div class="donut-weights-table" id="cal-weights-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Charts Stack -->
@@ -288,6 +333,8 @@
                 <div class="legend-item"><span class="legend-swatch circle" style="background: #facc15;"></span> Tangency (Max Sharpe)</div>
                 <div class="legend-item"><span class="legend-swatch circle" style="background: #34d399;"></span> GMV (Min Volatility)</div>
                 <div class="legend-item"><span class="legend-swatch" style="border-top: 2px dashed #94a3b8; height: 0;"></span> Capital Allocation Line (CAL)</div>
+                <div class="legend-item"><span class="legend-swatch circle" style="background: #a855f7;"></span> Complete Portfolio (C*)</div>
+                <div class="legend-item"><span class="legend-swatch" style="border-top: 2px dashed #a855f7; height: 0;"></span> Indifference Curve (U*)</div>
                 <div class="legend-item"><span class="legend-swatch circle" style="background: #f43f5e;"></span> Individual Assets</div>
               </div>
             </div>

@@ -55,10 +55,45 @@
       <!-- Suite Sub-Navigation -->
       <nav class="suite-subnav" aria-label="Portfolio Optimization Suite Pages">
         <a href="index.html" class="suite-subnav-link active">📈 Efficient Frontier</a>
-        <a href="portfolio-optimization.html" class="suite-subnav-link">⚖️ Portfolio Optimization <span class="suite-subnav-badge">Page 2</span></a>
-        <a href="black-litterman.html" class="suite-subnav-link">🧠 Black-Litterman Model <span class="suite-subnav-badge">Page 3</span></a>
-        <a href="rolling-optimization.html" class="suite-subnav-link">🔄 Rolling Optimization <span class="suite-subnav-badge">Page 4</span></a>
+        <a href="portfolio-optimization.html" class="suite-subnav-link">⚖️ Portfolio Optimization</a>
+        <a href="black-litterman.html" class="suite-subnav-link">🧠 Black-Litterman Model</a>
+        <a href="rolling-optimization.html" class="suite-subnav-link">🔄 Rolling Optimization</a>
       </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-frontier" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: Markowitz Efficient Frontier, Tangency &amp; CAL</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>Optimal Risk-Return Efficiency</strong>
+              <p>Identify the mathematical boundary of portfolios offering maximum expected return for a given level of risk. Eliminate sub-optimal allocations that take uncompensated volatility.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>3-Step Frontier Setup</strong>
+              <p>1. <strong>Select Basket</strong>: Add assets across equities, bonds, real estate, and cash.<br>2. <strong>Set Risk-Free Rate</strong>: Configure baseline cash yield.<br>3. <strong>Inspect Tangency</strong>: Locate the Maximum Sharpe portfolio on the Capital Allocation Line.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>The Free Lunch of Diversification</strong>
+              <p>• <strong>Frontier Curvature</strong>: Imperfect correlations bend the frontier leftward, reducing volatility without sacrificing return.<br>• <strong>Global Minimum Volatility (GMV)</strong>: The absolute lowest risk portfolio possible.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+              <strong>Tangency vs Cash Lending</strong>
+              <p>• <strong>Tangency Portfolio</strong>: Mathematically superior risk-adjusted asset mix.<br>• <strong>Capital Allocation Line (CAL)</strong>: Blend Tangency portfolio with cash to reach exact target risk without suboptimal stock picking.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Dynamic Status & Control Bar -->
       <section class="status-summary-bar" aria-label="Timeline and Model Summary">
@@ -74,6 +109,11 @@
         <div class="status-pill">
           <span>Risk-Free Rate:</span>
           <strong id="status-rf-rate">3.00%</strong>
+        </div>
+        <div class="status-pill">
+          <span>Covariance:</span>
+          <strong id="status-cov-name">Ledoit-Wolf Shrunk</strong>
+          <span class="status-sub" id="status-cov-cond">&kappa; = --</span>
         </div>
         <div class="status-pill">
           <span>Universe:</span>
@@ -133,8 +173,30 @@
           <!-- Optimization Settings Grid -->
           <div class="settings-grid">
             <div class="setting-item">
-              <label for="opt-rf-input">Risk-Free Rate (%)</label>
+              <label for="select-cov-estimator">Covariance Estimator</label>
+              <select id="select-cov-estimator" class="setting-select">
+                <option value="ledoit-wolf" selected>🔬 Ledoit-Wolf Shrunk (Institutional)</option>
+                <option value="sample">📊 Sample Covariance (Unshrunk)</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label for="opt-rf-input">Risk-Free Rate (Rf %)</label>
               <input type="number" id="opt-rf-input" class="setting-input" value="3.0" step="0.25" min="0" max="15" />
+            </div>
+            <div class="setting-item">
+              <label for="input-risk-aversion">Investor Risk Aversion (A = <span id="lbl-risk-aversion-val">3.0</span>)</label>
+              <input type="range" id="input-risk-aversion" class="setting-range" min="1.0" max="10.0" step="0.5" value="3.0" style="width: 100%; margin-top: 0.4rem;" />
+            </div>
+            <div class="setting-item">
+              <label for="select-leverage-toggle">Allow Leverage (Borrowing)</label>
+              <select id="select-leverage-toggle" class="setting-select">
+                <option value="true" selected>⚡ Yes (y* &gt; 100% with Borrowing)</option>
+                <option value="false">🛡️ No (y* &le; 100% Lending Only)</option>
+              </select>
+            </div>
+            <div class="setting-item" id="wrap-borrow-rate">
+              <label for="input-borrow-rate">Borrowing Rate (%)</label>
+              <input type="number" id="input-borrow-rate" class="setting-input" value="4.0" step="0.25" min="0" max="25" />
             </div>
             <div class="setting-item">
               <label for="opt-start-date">Start Date</label>
@@ -225,6 +287,36 @@
               </div>
             </div>
           </div>
+
+          <!-- Optimal Complete Portfolio (Bodie CAL + Utility) Card -->
+          <div class="flagship-card cal-card">
+            <div class="card-title-row">
+              <h3>🎯 Optimal Complete Portfolio</h3>
+              <span class="card-pill cal" id="cal-card-pill">Bodie Utility (A=3.0)</span>
+            </div>
+            <div class="card-metrics-grid">
+              <div class="card-metric-box">
+                <div class="card-metric-label">Risky Share (y*)</div>
+                <div class="card-metric-value" id="cal-metric-ystar" style="color: #c084fc; font-weight: 800;">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Cash / T-Bills</div>
+                <div class="card-metric-value" id="cal-metric-cash">--</div>
+              </div>
+              <div class="card-metric-box">
+                <div class="card-metric-label">Expected Utility (U*)</div>
+                <div class="card-metric-value" id="cal-metric-utility" style="color: #c084fc; font-weight: 800;">--</div>
+              </div>
+            </div>
+            <div class="card-donut-row">
+              <div class="donut-canvas-wrap">
+                <canvas id="canvas-donut-cal" width="130" height="130"></canvas>
+              </div>
+              <div class="donut-weights-table" id="cal-weights-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Charts Stack -->
@@ -241,6 +333,8 @@
                 <div class="legend-item"><span class="legend-swatch circle" style="background: #facc15;"></span> Tangency (Max Sharpe)</div>
                 <div class="legend-item"><span class="legend-swatch circle" style="background: #34d399;"></span> GMV (Min Volatility)</div>
                 <div class="legend-item"><span class="legend-swatch" style="border-top: 2px dashed #94a3b8; height: 0;"></span> Capital Allocation Line (CAL)</div>
+                <div class="legend-item"><span class="legend-swatch circle" style="background: #a855f7;"></span> Complete Portfolio (C*)</div>
+                <div class="legend-item"><span class="legend-swatch" style="border-top: 2px dashed #a855f7; height: 0;"></span> Indifference Curve (U*)</div>
                 <div class="legend-item"><span class="legend-swatch circle" style="background: #f43f5e;"></span> Individual Assets</div>
               </div>
             </div>

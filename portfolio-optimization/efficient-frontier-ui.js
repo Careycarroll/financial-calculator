@@ -39,6 +39,9 @@ const state = {
     QQQ: { min: 0, max: 100 }
   },
   riskFreeRate: 0.03,
+  riskAversion: 3.0,
+  allowLeverage: true,
+  borrowingRate: 0.04,
   covarianceEstimator: 'ledoit-wolf',
   startDate: null,
   endDate: null,
@@ -68,6 +71,11 @@ const elements = {
   btnOpenModal: document.getElementById('btn-open-asset-modal'),
   selectCovEstimator: document.getElementById('select-cov-estimator'),
   inputRf: document.getElementById('opt-rf-input'),
+  inputRiskAversion: document.getElementById('input-risk-aversion'),
+  lblRiskAversionVal: document.getElementById('lbl-risk-aversion-val'),
+  selectLeverageToggle: document.getElementById('select-leverage-toggle'),
+  inputBorrowRate: document.getElementById('input-borrow-rate'),
+  wrapBorrowRate: document.getElementById('wrap-borrow-rate'),
   selectStartDate: document.getElementById('opt-start-date'),
   selectEndDate: document.getElementById('opt-end-date'),
   selectMcToggle: document.getElementById('opt-mc-toggle'),
@@ -85,6 +93,13 @@ const elements = {
   gmvMetricSharpe: document.getElementById('gmv-metric-sharpe'),
   canvasDonutGmv: document.getElementById('canvas-donut-gmv'),
   gmvWeightsList: document.getElementById('gmv-weights-list'),
+
+  calCardPill: document.getElementById('cal-card-pill'),
+  calMetricYstar: document.getElementById('cal-metric-ystar'),
+  calMetricCash: document.getElementById('cal-metric-cash'),
+  calMetricUtility: document.getElementById('cal-metric-utility'),
+  canvasDonutCal: document.getElementById('canvas-donut-cal'),
+  calWeightsList: document.getElementById('cal-weights-list'),
 
   // Canvas Charts
   containerFrontier: document.getElementById('container-frontier-chart'),
@@ -172,6 +187,42 @@ function init() {
     elements.inputRf.addEventListener('change', () => {
       state.riskFreeRate = Math.max(0, (parseFloat(elements.inputRf.value) || 3.0) / 100);
       elements.statusRfRate.textContent = `${(state.riskFreeRate * 100).toFixed(2)}%`;
+    });
+  }
+
+  // Risk Aversion input change
+  if (elements.inputRiskAversion) {
+    elements.inputRiskAversion.addEventListener('input', () => {
+      state.riskAversion = parseFloat(elements.inputRiskAversion.value) || 3.0;
+      if (elements.lblRiskAversionVal) {
+        elements.lblRiskAversionVal.textContent = state.riskAversion.toFixed(1);
+      }
+      if (state.lastStats && state.lastFrontier) {
+        runOptimization();
+      }
+    });
+  }
+
+  // Leverage toggle change
+  if (elements.selectLeverageToggle) {
+    elements.selectLeverageToggle.addEventListener('change', () => {
+      state.allowLeverage = elements.selectLeverageToggle.value === 'true';
+      if (elements.wrapBorrowRate) {
+        elements.wrapBorrowRate.style.display = state.allowLeverage ? 'block' : 'none';
+      }
+      if (state.lastStats && state.lastFrontier) {
+        runOptimization();
+      }
+    });
+  }
+
+  // Borrow rate input change
+  if (elements.inputBorrowRate) {
+    elements.inputBorrowRate.addEventListener('change', () => {
+      state.borrowingRate = Math.max(0, (parseFloat(elements.inputBorrowRate.value) || 4.0) / 100);
+      if (state.lastStats && state.lastFrontier) {
+        runOptimization();
+      }
     });
   }
 
@@ -446,7 +497,11 @@ function runOptimization() {
       riskFreeRate: state.riskFreeRate,
       lowerBounds,
       upperBounds,
-      numPoints: 45
+      numPoints: 45,
+      riskAversion: state.riskAversion,
+      allowLeverage: state.allowLeverage,
+      borrowingRate: state.borrowingRate
+    });
     });
     state.lastFrontier = frontierResult;
 
@@ -530,15 +585,124 @@ function renderFlagshipCards(frontierResult, stats) {
     }
   });
 
+  // Complete Portfolio Card Metrics (Bodie Chapter 6)
+  if (frontierResult.optimalComplete && elements.calMetricYstar) {
+    const cStar = frontierResult.optimalComplete;
+    if (elements.calCardPill) {
+      elements.calCardPill.textContent = `Bodie Utility (A = ${frontierResult.riskAversion.toFixed(1)})`;
+    }
+    elements.calMetricYstar.textContent = `${(cStar.yStar * 100).toFixed(1)}%`;
+    if (cStar.yStar > 1.0) {
+      elements.calMetricCash.textContent = `-${((cStar.yStar - 1.0) * 100).toFixed(1)}% (Margin)`;
+      elements.calMetricCash.style.color = '#f43f5e';
+    } else {
+      elements.calMetricCash.textContent = `${(cStar.cashWeight * 100).toFixed(1)}% (Cash)`;
+      elements.calMetricCash.style.color = '#38bdf8';
+    }
+    elements.calMetricUtility.textContent = `${(cStar.utility * 100).toFixed(2)}% (Ret: ${(cStar.completeReturn * 100).toFixed(1)}%)`;
+
+    // Render Complete Weights
+    if (elements.calWeightsList) {
+      elements.calWeightsList.innerHTML = '';
+
+      // Cash row
+      const cashRow = document.createElement('div');
+      cashRow.className = 'donut-weight-row';
+      const cashColor = cStar.yStar > 1.0 ? '#f43f5e' : '#38bdf8';
+      const cashLabel = cStar.yStar > 1.0 ? 'Borrowed Cash (Margin)' : 'Risk-Free Cash (T-Bills)';
+      cashRow.innerHTML = `
+        <div class="donut-weight-ticker">
+          <span class="asset-color-dot" style="background: ${cashColor};"></span>
+          <span>${cashLabel}</span>
+        </div>
+        <span class="donut-weight-val" style="color: ${cashColor}; font-weight:700;">${(cStar.cashWeight * 100).toFixed(1)}%</span>
+      `;
+      elements.calWeightsList.appendChild(cashRow);
+
+      // Risky Assets rows (scaled by yStar)
+      stats.tickers.forEach((ticker, idx) => {
+        const effWeight = cStar.yStar * tangencyPortfolio.weights[idx];
+        if (Math.abs(effWeight) > 0.0005) {
+          const color = ASSET_PALETTE[idx % ASSET_PALETTE.length];
+          const row = document.createElement('div');
+          row.className = 'donut-weight-row';
+          row.innerHTML = `
+            <div class="donut-weight-ticker">
+              <span class="asset-color-dot" style="background: ${color};"></span>
+              <span>${ticker}</span>
+            </div>
+            <span class="donut-weight-val">${(effWeight * 100).toFixed(1)}%</span>
+          `;
+          elements.calWeightsList.appendChild(row);
+        }
+      });
+    }
+  }
+
   renderDonuts();
 }
 
 function renderDonuts() {
   if (!state.lastFrontier || !state.lastStats) return;
-  const { tangencyPortfolio, gmvPortfolio } = state.lastFrontier;
+  const { tangencyPortfolio, gmvPortfolio, optimalComplete } = state.lastFrontier;
 
   drawDonut(elements.canvasDonutTangency, tangencyPortfolio.weights);
   drawDonut(elements.canvasDonutGmv, gmvPortfolio.weights);
+
+  if (elements.canvasDonutCal && optimalComplete) {
+    if (optimalComplete.yStar <= 1.0) {
+      const calWeights = [optimalComplete.cashWeight, ...tangencyPortfolio.weights.map(w => w * optimalComplete.yStar)];
+      drawDonutWithCash(elements.canvasDonutCal, calWeights);
+    } else {
+      drawDonut(elements.canvasDonutCal, tangencyPortfolio.weights);
+    }
+  }
+}
+
+function drawDonutWithCash(canvas, weights) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const size = 130;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+  ctx.resetTransform();
+  ctx.scale(dpr, dpr);
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const rOuter = 58;
+  const rInner = 36;
+  let startAngle = -Math.PI / 2;
+
+  // First slice is cash (#38bdf8), rest are asset palette
+  weights.forEach((w, idx) => {
+    if (w <= 0.0005) return;
+    const sliceAngle = w * (Math.PI * 2);
+    const endAngle = startAngle + sliceAngle;
+    const color = idx === 0 ? '#38bdf8' : ASSET_PALETTE[(idx - 1) % ASSET_PALETTE.length];
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rOuter, startAngle, endAngle);
+    ctx.arc(cx, cy, rInner, endAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fill();
+
+    startAngle = endAngle;
+  });
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CAL', cx, cy - 4);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '600 8px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.fillText('PORT', cx, cy + 9);
 }
 
 function drawDonut(canvas, weights) {
@@ -785,6 +949,52 @@ function renderFrontierChart() {
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
+  // 7. Draw Quadratic Indifference Curve (Bodie Chapter 6)
+  if (frontierResult.indifferenceCurve && frontierResult.indifferenceCurve.length > 1) {
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    frontierResult.indifferenceCurve.forEach(pt => {
+      if (pt.volatility <= maxX && pt.expectedReturn <= maxY && pt.expectedReturn >= minY) {
+        const px = xToPix(pt.volatility);
+        const py = yToPix(pt.expectedReturn);
+        if (!started) {
+          ctx.moveTo(px, py);
+          started = true;
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 8. Draw Complete Portfolio Point C*
+  const cStar = frontierResult.optimalComplete;
+  let cStarX = -1;
+  let cStarY = -1;
+  if (cStar && cStar.completeVolatility <= maxX && cStar.completeReturn <= maxY) {
+    cStarX = xToPix(cStar.completeVolatility);
+    cStarY = yToPix(cStar.completeReturn);
+    ctx.fillStyle = '#a855f7';
+    ctx.beginPath();
+    ctx.arc(cStarX, cStarY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Label C*
+    ctx.fillStyle = '#c084fc';
+    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`C* (y*=${(cStar.yStar * 100).toFixed(0)}%)`, cStarX + 10, cStarY - 4);
+  }
+
   // AbortController mousemove handler for tooltip
   if (canvas._controller) canvas._controller.abort();
   canvas._controller = new AbortController();
@@ -796,6 +1006,23 @@ function renderFrontierChart() {
 
     if (mouseX < pad.left || mouseX > pad.left + plotW || mouseY < pad.top || mouseY > pad.top + plotH) {
       elements.tooltipFrontier.style.display = 'none';
+      return;
+    }
+
+    // Check hit on C* Complete Portfolio point
+    if (cStarX > 0 && Math.hypot(mouseX - cStarX, mouseY - cStarY) < 18) {
+      elements.tooltipFrontier.innerHTML = `
+        <div style="font-weight:700; margin-bottom:4px; color:#c084fc;">🎯 Optimal Complete Portfolio (C*)</div>
+        <div>Risky Share (y*): <strong>${(cStar.yStar * 100).toFixed(1)}% Tangency</strong></div>
+        <div>Cash Share (1-y*): <strong>${(cStar.cashWeight * 100).toFixed(1)}%</strong></div>
+        <div>Expected Return: <strong>${(cStar.completeReturn * 100).toFixed(2)}%</strong></div>
+        <div>Volatility: <strong>${(cStar.completeVolatility * 100).toFixed(2)}%</strong></div>
+        <div>Expected Utility (U*): <strong>${(cStar.utility * 100).toFixed(2)}% (A = ${frontierResult.riskAversion.toFixed(1)})</strong></div>
+        <div>Sharpe Ratio: <strong>${cStar.completeSharpe.toFixed(3)}</strong></div>
+      `;
+      elements.tooltipFrontier.style.left = `${Math.min(width - 200, mouseX + 15)}px`;
+      elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
+      elements.tooltipFrontier.style.display = 'block';
       return;
     }
 

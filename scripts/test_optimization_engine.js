@@ -41,7 +41,11 @@ import {
   hierarchicalClustering,
   getQuasiDiag,
   getRecursiveBisectionWeights,
-  solveHRP
+  solveHRP,
+  calculateExpectedUtility,
+  solveOptimalCompletePortfolio,
+  calculateIndifferenceCurve,
+  solveMaxUtilityPortfolio
 } from '../portfolio-optimization/optimization-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 
@@ -436,5 +440,63 @@ assert(Math.abs(sumCollinear - 1.0) < 1e-5, 'Collinear HRP weights sum to 100%')
 assert(Math.abs(collinearHRP.weights[0] - collinearHRP.weights[1]) < 1e-5, `Collinear assets receive equal weights (${collinearHRP.weights[0].toFixed(4)} vs ${collinearHRP.weights[1].toFixed(4)})`);
 console.log(`Collinear assets weights: Asset 0: ${(collinearHRP.weights[0]*100).toFixed(2)}% | Asset 1: ${(collinearHRP.weights[1]*100).toFixed(2)}% | Asset 2: ${(collinearHRP.weights[2]*100).toFixed(2)}% | Asset 3: ${(collinearHRP.weights[3]*100).toFixed(2)}%`);
 console.log('✅ PASS: HRP is completely immune to collinearity & matrix singularity');
+
+// TEST 14: Capital Allocation Line (CAL), Complete Portfolio & CRRA Expected Utility (Bodie Chapter 6)
+console.log('\n--- TEST 14: Capital Allocation Line (CAL) & Expected Utility Theory ---');
+
+// 1. Bodie Utility equation U = E(r) - 0.5 * A * sigma^2
+const u1 = calculateExpectedUtility(0.10, 0.20, 4.0);
+assert(Math.abs(u1 - 0.02) < 1e-9, `Utility strictly matches formula: 0.10 - 0.5*4*0.04 = 0.02 (got ${u1})`);
+console.log('✅ PASS: Bodie expected utility formula U = E(r) - 0.5 * A * sigma^2 verified');
+
+// 2. Canonical Bodie Example (Chapter 6): Rf = 5%, Rp = 13%, Vol_p = 20%, A = 4
+const bodieA4 = solveOptimalCompletePortfolio(0.13, 0.20, 0.05, 4.0);
+assert(Math.abs(bodieA4.yStar - 0.50) < 1e-6, `Optimal risky share y* is 50.0% (got ${(bodieA4.yStar * 100).toFixed(1)}%)`);
+assert(Math.abs(bodieA4.cashWeight - 0.50) < 1e-6, `Risk-free cash weight is 50.0% (got ${(bodieA4.cashWeight * 100).toFixed(1)}%)`);
+assert(Math.abs(bodieA4.completeReturn - 0.09) < 1e-6, `Complete portfolio return is 9.0% (got ${(bodieA4.completeReturn * 100).toFixed(1)}%)`);
+assert(Math.abs(bodieA4.completeVolatility - 0.10) < 1e-6, `Complete portfolio volatility is 10.0% (got ${(bodieA4.completeVolatility * 100).toFixed(1)}%)`);
+assert(Math.abs(bodieA4.utility - 0.07) < 1e-6, `Complete portfolio expected utility is 7.0% (got ${(bodieA4.utility * 100).toFixed(2)}%)`);
+assert(Math.abs(bodieA4.completeSharpe - 0.40) < 1e-6, `Sharpe ratio of complete portfolio strictly matches tangency Sharpe (0.40 == ${bodieA4.completeSharpe.toFixed(2)})`);
+console.log('Bodie Chapter 6 Identity (A=4):');
+console.log(`  y* = ${(bodieA4.yStar*100).toFixed(1)}% | Cash = ${(bodieA4.cashWeight*100).toFixed(1)}% | Return = ${(bodieA4.completeReturn*100).toFixed(1)}% | Vol = ${(bodieA4.completeVolatility*100).toFixed(1)}% | Utility = ${(bodieA4.utility*100).toFixed(2)}%`);
+console.log('✅ PASS: Bodie textbook Chapter 6 complete portfolio allocation identity confirmed');
+
+// 3. Indifference curve tangency condition: dE/dSigma = A * sigma == Sp
+const indCurve = calculateIndifferenceCurve(bodieA4.utility, 4.0, 0.25);
+assert(indCurve.length >= 10, 'Generated indifference curve points');
+// Check point at sigma = 0.10 matches complete return 0.09
+const ptAt10 = indCurve.find(pt => Math.abs(pt.volatility - 0.10) < 0.015);
+assert(ptAt10 && Math.abs(ptAt10.expectedReturn - 0.09) < 0.005, 'Indifference curve touches CAL at (sigma_c, E(r_c))');
+// Derivative at sigma=0.10 is A * sigma = 4 * 0.10 = 0.40 (slope of CAL)
+const slopeIndifference = 4.0 * bodieA4.completeVolatility;
+assert(Math.abs(slopeIndifference - 0.40) < 1e-6, `Indifference slope (${slopeIndifference.toFixed(3)}) strictly equals CAL slope (0.400)`);
+console.log('✅ PASS: Indifference curve is mathematically tangent to the Capital Allocation Line at (sigma_c*, E(r_c*))');
+
+// 4. Leverage and Margin Borrowing (A=1)
+const bodieLeveraged = solveOptimalCompletePortfolio(0.13, 0.20, 0.05, 1.0, { allowLeverage: true, borrowingRate: 0.06 });
+assert(Math.abs(bodieLeveraged.yStar - 1.75) < 1e-6, `Leveraged risky share y* is 175% (got ${(bodieLeveraged.yStar * 100).toFixed(1)}%)`);
+assert(Math.abs(bodieLeveraged.cashWeight - (-0.75)) < 1e-6, `Borrowed cash weight is -75% (got ${(bodieLeveraged.cashWeight * 100).toFixed(1)}%)`);
+assert(Math.abs(bodieLeveraged.completeReturn - 0.1825) < 1e-6, `Leveraged return accounts for 6% borrow rate (got ${(bodieLeveraged.completeReturn * 100).toFixed(2)}%)`);
+assert(Math.abs(bodieLeveraged.utility - 0.12125) < 1e-6, `Leveraged utility is 12.125% (got ${(bodieLeveraged.utility * 100).toFixed(3)}%)`);
+console.log('Leveraged Portfolio (A=1, Borrowing Rate=6%):');
+console.log(`  y* = ${(bodieLeveraged.yStar*100).toFixed(1)}% | Borrowed Cash = ${(bodieLeveraged.cashWeight*100).toFixed(1)}% | Return = ${(bodieLeveraged.completeReturn*100).toFixed(2)}% | Vol = ${(bodieLeveraged.completeVolatility*100).toFixed(1)}%`);
+console.log('✅ PASS: Borrowing and leverage constraints correctly handle margin rates when y* > 100%');
+
+// 5. No-leverage boundary enforcement
+const noLeverage = solveOptimalCompletePortfolio(0.13, 0.20, 0.05, 1.0, { allowLeverage: false });
+assert(noLeverage.yStar === 1.0, 'No-leverage mode clamps y* to exactly 1.0');
+assert(noLeverage.cashWeight === 0.0, 'Cash weight clamped to 0.0');
+console.log('✅ PASS: Lending-only constraint strictly bounds y* in [0, 1]');
+
+// 6. Multi-Asset CRRA Max Utility Optimization on Real Market Data
+const utilCons = solveMaxUtilityPortfolio(lwStats.expectedReturns, lwStats.covarianceMatrix, 10.0, { riskFreeRate: 0.03 });
+const utilAgg = solveMaxUtilityPortfolio(lwStats.expectedReturns, lwStats.covarianceMatrix, 1.0, { riskFreeRate: 0.03 });
+assert(utilCons.weights.reduce((a, b) => a + b, 0) - 1.0 < 1e-5, 'Conservative utility weights sum to 1.0');
+assert(utilAgg.weights.reduce((a, b) => a + b, 0) - 1.0 < 1e-5, 'Aggressive utility weights sum to 1.0');
+assert(utilCons.volatility < utilAgg.volatility, `Conservative vol (${(utilCons.volatility*100).toFixed(1)}%) is less than aggressive (${(utilAgg.volatility*100).toFixed(1)}%)`);
+console.log(`Max Utility Optimization on Real Data:`);
+console.log(`  A = 10 (Conservative): Return = ${(utilCons.expectedReturn*100).toFixed(1)}% | Vol = ${(utilCons.volatility*100).toFixed(1)}% | Utility = ${(utilCons.utility*100).toFixed(2)}%`);
+console.log(`  A = 1  (Aggressive):   Return = ${(utilAgg.expectedReturn*100).toFixed(1)}% | Vol = ${(utilAgg.volatility*100).toFixed(1)}% | Utility = ${(utilAgg.utility*100).toFixed(2)}%`);
+console.log('✅ PASS: CRRA Expected Utility portfolio optimization smoothly adapts allocation across the risk aversion spectrum');
 
 console.log('\n🎉 ALL PORTFOLIO OPTIMIZATION TESTS PASSED SUCCESSFULLY!');

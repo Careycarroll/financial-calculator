@@ -969,13 +969,218 @@ export function generateEfficientFrontier(expectedReturns, covarianceMatrix, opt
     });
   }
 
+  // 7. Optimal Complete Portfolio & Indifference Curve (Bodie Chapter 6)
+  const riskAversion = typeof options.riskAversion === 'number' ? options.riskAversion : 3.0;
+  const optimalComplete = solveOptimalCompletePortfolio(
+    tangency.expectedReturn,
+    tangency.volatility,
+    rf,
+    riskAversion,
+    options
+  );
+
+  const indifferenceCurve = calculateIndifferenceCurve(
+    optimalComplete.utility,
+    riskAversion,
+    calEndVol
+  );
+
   return {
     gmvPortfolio: gmv,
     tangencyPortfolio: tangency,
     frontier,
     calLine,
+    optimalComplete,
+    indifferenceCurve,
+    riskAversion,
     transitionMap,
     numPoints: frontier.length
+  };
+}
+
+/**
+ * Calculates Bodie, Kane & Marcus' canonical expected utility:
+ * U = E(r) - 0.5 * A * sigma^2
+ *
+ * @param {number} expectedReturn - Decimal expected return (e.g. 0.10 for 10%)
+ * @param {number} volatility - Decimal standard deviation / volatility
+ * @param {number} riskAversion - Coefficient of risk aversion A (typically 1 to 10)
+ * @returns {number} Expected utility U
+ */
+export function calculateExpectedUtility(expectedReturn, volatility, riskAversion) {
+  const variance = volatility * volatility;
+  return expectedReturn - 0.5 * Math.max(0.01, riskAversion) * variance;
+}
+
+/**
+ * Solves the optimal allocation between the risky Tangency Portfolio and the
+ * risk-free asset (Cash / T-Bills) along the Capital Allocation Line (CAL):
+ * y* = (E(r_p) - r_f) / (A * sigma_p^2)
+ *
+ * References: Bodie, Kane & Marcus, Investments, Chapter 6.
+ *
+ * @param {number} tangencyReturn - E(r_p) of tangency portfolio
+ * @param {number} tangencyVol - sigma_p of tangency portfolio
+ * @param {number} riskFreeRate - r_f
+ * @param {number} riskAversion - Coefficient of risk aversion A
+ * @param {Object} [options={}]
+ * @param {boolean} [options.allowLeverage=true] - Whether borrowing / leverage is permitted
+ * @param {number} [options.maxLeverage=2.0] - Maximum leverage cap (e.g. 200%)
+ * @param {number} [options.borrowingRate] - Borrowing rate when y* > 1.0 (defaults to r_f)
+ * @returns {Object} Complete portfolio stats, y* risky share, cash share, and utility
+ */
+export function solveOptimalCompletePortfolio(tangencyReturn, tangencyVol, riskFreeRate, riskAversion, options = {}) {
+  const allowLeverage = options.allowLeverage !== false;
+  const maxLeverage = typeof options.maxLeverage === 'number' ? options.maxLeverage : 2.0;
+  const borrowingRate = typeof options.borrowingRate === 'number' ? options.borrowingRate : riskFreeRate;
+
+  const variance = tangencyVol * tangencyVol;
+  const riskPrem = tangencyReturn - riskFreeRate;
+  const A = Math.max(0.01, riskAversion);
+
+  if (variance <= 1e-12) {
+    return {
+      yStar: 0,
+      cashWeight: 1.0,
+      completeReturn: riskFreeRate,
+      completeVolatility: 0,
+      completeSharpe: 0,
+      utility: riskFreeRate,
+      borrowingRate
+    };
+  }
+
+  // Base unconstrained optimal risky weight
+  let yStar = riskPrem / (A * variance);
+
+  // If borrowing rate is higher than riskFreeRate and yStar > 1
+  if (yStar > 1.0 && borrowingRate > riskFreeRate) {
+    const borrowPrem = tangencyReturn - borrowingRate;
+    if (borrowPrem <= 0) {
+      yStar = 1.0;
+    } else {
+      yStar = borrowPrem / (A * variance);
+      if (yStar < 1.0) {
+        yStar = 1.0;
+      }
+    }
+  }
+
+  // Bounds
+  if (!allowLeverage) {
+    yStar = Math.min(1.0, Math.max(0, yStar));
+  } else {
+    yStar = Math.min(maxLeverage, Math.max(0, yStar));
+  }
+
+  const cashWeight = 1.0 - yStar;
+  let completeReturn;
+  if (yStar <= 1.0) {
+    completeReturn = riskFreeRate + yStar * riskPrem;
+  } else {
+    completeReturn = riskFreeRate + riskPrem + (yStar - 1.0) * (tangencyReturn - borrowingRate);
+  }
+
+  const completeVolatility = yStar * tangencyVol;
+  const utility = calculateExpectedUtility(completeReturn, completeVolatility, A);
+  const completeSharpe = completeVolatility > 1e-6 ? (completeReturn - riskFreeRate) / completeVolatility : 0;
+
+  return {
+    yStar,
+    cashWeight,
+    completeReturn,
+    completeVolatility,
+    completeSharpe,
+    utility,
+    borrowingRate
+  };
+}
+
+/**
+ * Calculates a quadratic investor indifference curve for constant utility level U0:
+ * E(r) = U0 + 0.5 * A * sigma^2
+ *
+ * @param {number} utility - Target utility level U0
+ * @param {number} riskAversion - Coefficient of risk aversion A
+ * @param {number} maxVol - Maximum volatility to plot
+ * @param {number} [numPoints=60] - Number of curve sample points
+ * @returns {Array<{volatility: number, expectedReturn: number}>} Curve points
+ */
+export function calculateIndifferenceCurve(utility, riskAversion, maxVol, numPoints = 60) {
+  const points = [];
+  const A = Math.max(0.01, riskAversion);
+  const step = maxVol / Math.max(10, numPoints);
+
+  for (let vol = 0; vol <= maxVol * 1.05; vol += step) {
+    const r = utility + 0.5 * A * vol * vol;
+    points.push({
+      volatility: vol,
+      expectedReturn: r
+    });
+  }
+  return points;
+}
+
+/**
+ * Solves the risky portfolio that maximizes quadratic investor expected utility
+ * under Constant Relative Risk Aversion (CRRA) preferences:
+ * Maximize U(w) = w^T mu - 0.5 * A * w^T Sigma w
+ * Subject to: sum(w_i) = 1, lower_i <= w_i <= upper_i
+ *
+ * @param {Array<number>} expectedReturns
+ * @param {Array<Array<number>>} covarianceMatrix
+ * @param {number} [riskAversion=3.0] - Coefficient of risk aversion A (typically 1 to 10)
+ * @param {Object} [options={}]
+ * @returns {Object} Portfolio stats maximizing investor utility
+ */
+export function solveMaxUtilityPortfolio(expectedReturns, covarianceMatrix, riskAversion = 3.0, options = {}) {
+  const n = expectedReturns.length;
+  const rf = typeof options.riskFreeRate === 'number' ? options.riskFreeRate : 0.03;
+  const A = Math.max(0.1, riskAversion);
+
+  const lower = Array.isArray(options.lowerBounds) && options.lowerBounds.length === n
+    ? options.lowerBounds
+    : new Array(n).fill(0);
+  const upper = Array.isArray(options.upperBounds) && options.upperBounds.length === n
+    ? options.upperBounds
+    : new Array(n).fill(1);
+
+  let w = new Array(n).fill(1 / n);
+  w = projectOntoSimplex(w, lower, upper);
+
+  const maxIter = 500;
+  const lr = 0.5;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const grad = new Array(n);
+    for (let i = 0; i < n; i++) {
+      let sigW_i = 0;
+      for (let j = 0; j < n; j++) {
+        sigW_i += covarianceMatrix[i][j] * w[j];
+      }
+      grad[i] = expectedReturns[i] - A * sigW_i;
+    }
+
+    const step = w.map((wi, i) => wi + lr * grad[i]);
+    const wNext = projectOntoSimplex(step, lower, upper);
+
+    let maxDiff = 0;
+    for (let i = 0; i < n; i++) {
+      maxDiff = Math.max(maxDiff, Math.abs(wNext[i] - w[i]));
+    }
+    w = wNext;
+    if (maxDiff < 1e-7) break;
+  }
+
+  const stats = calculatePortfolioStats(w, expectedReturns, covarianceMatrix, rf);
+  const utility = calculateExpectedUtility(stats.expectedReturn, stats.volatility, A);
+  const rc = calculateRiskContributions(w, covarianceMatrix);
+
+  return {
+    ...stats,
+    riskAversion: A,
+    utility,
+    riskContributions: rc
   };
 }
 
