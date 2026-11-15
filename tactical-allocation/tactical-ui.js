@@ -387,11 +387,14 @@ function renderGrowthChart(res) {
 
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const width = canvas.parentElement.clientWidth;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const width = Math.max(300, Math.floor(rect.width));
   const height = canvas.parentElement.clientHeight || 380;
 
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
 
@@ -486,9 +489,9 @@ function renderGrowthChart(res) {
   // Legend at Top
   let legendX = padding.left;
   const items = [
-    { label: `Tactical Strategy ($${formatCurrency(res.finalBalance)})`, color: '#38bdf8' },
-    { label: `S&P 500 ($${formatCurrency(res.spyFinalBalance)})`, color: '#fbbf24' },
-    { label: `60/40 Balanced ($${formatCurrency(res.b6040FinalBalance)})`, color: '#10b981' }
+    { label: `Tactical Strategy (${formatCurrency(res.finalBalance)})`, color: '#38bdf8' },
+    { label: `S&P 500 (${formatCurrency(res.spyFinalBalance)})`, color: '#fbbf24' },
+    { label: `60/40 Balanced (${formatCurrency(res.b6040FinalBalance)})`, color: '#10b981' }
   ];
 
   items.forEach(it => {
@@ -547,11 +550,14 @@ function renderAllocationAreaChart(res) {
 
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const width = canvas.parentElement.clientWidth;
-  const height = canvas.parentElement.clientHeight || 380;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const width = Math.max(300, Math.floor(rect.width));
+  const height = canvas.parentElement.clientHeight || 240;
 
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
 
@@ -709,11 +715,14 @@ function renderDrawdownChart(res) {
 
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const width = canvas.parentElement.clientWidth;
-  const height = canvas.parentElement.clientHeight || 380;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const width = Math.max(300, Math.floor(rect.width));
+  const height = canvas.parentElement.clientHeight || 280;
 
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
 
@@ -867,11 +876,14 @@ function renderAnnualReturnsChart(res) {
 
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const width = canvas.parentElement.clientWidth;
-  const height = canvas.parentElement.clientHeight || 320;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const width = Math.max(300, Math.floor(rect.width));
+  const height = canvas.parentElement.clientHeight || 280;
 
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
 
