@@ -9,6 +9,8 @@
 import {
   analyzeManagerPerformance,
   calculateBrinsonAttribution,
+  calculateMultiPeriodBrinson,
+  getBrinsonPresetMonthlyData,
   BRINSON_PRESETS
 } from './manager-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
@@ -30,6 +32,7 @@ const state = {
   brinsonPreset: 'active-growth',
   brinsonModel: 'brinson-fachler',
   brinsonFactors: '3-factor',
+  brinsonHorizon: '36',
   lastBrinson: null
 };
 
@@ -101,6 +104,15 @@ function initDom() {
   elements.selectBrinsonPreset = document.getElementById('select-brinson-preset');
   elements.selectBrinsonModel = document.getElementById('select-brinson-model');
   elements.selectBrinsonFactors = document.getElementById('select-brinson-factors');
+  elements.selectBrinsonHorizon = document.getElementById('select-brinson-horizon');
+  elements.brinsonMencheroBanner = document.getElementById('brinson-menchero-banner');
+  elements.brinsonMencheroDesc = document.getElementById('brinson-menchero-desc');
+  elements.brinsonResidualBadge = document.getElementById('brinson-residual-badge');
+  elements.wrapperBrinsonWaterfall = document.getElementById('wrapper-brinson-waterfall');
+  elements.containerBrinsonWaterfall = document.getElementById('container-brinson-waterfall');
+  elements.canvasBrinsonWaterfall = document.getElementById('canvas-brinson-waterfall');
+  elements.tooltipBrinsonWaterfall = document.getElementById('tooltip-brinson-waterfall');
+  elements.legendWaterfallInter = document.getElementById('legend-waterfall-inter');
   elements.brinsonMetricActive = document.getElementById('brinson-metric-active');
   elements.brinsonSubReturns = document.getElementById('brinson-sub-returns');
   elements.brinsonMetricAlloc = document.getElementById('brinson-metric-alloc');
@@ -283,15 +295,55 @@ function renderTrailingTable(result) {
 }
 
 // -------------------------------------------------------------------
-// Brinson Performance Attribution (Bodie Chapter 24)
+// Brinson Performance Attribution (Bodie Chapter 24 & Menchero Linking)
 // -------------------------------------------------------------------
 function renderBrinsonAttribution() {
   const presetKey = state.brinsonPreset || 'active-growth';
   const preset = BRINSON_PRESETS[presetKey] || BRINSON_PRESETS['active-growth'];
-  const attribution = calculateBrinsonAttribution(preset.sectors, { model: state.brinsonModel });
-  state.lastBrinson = attribution;
-
+  const isMultiPeriod = state.brinsonHorizon !== 'single';
   const is3Factor = state.brinsonFactors !== '2-factor';
+
+  let attribution;
+  if (isMultiPeriod) {
+    const months = parseInt(state.brinsonHorizon, 10) || 36;
+    const data = getBrinsonPresetMonthlyData(presetKey, months);
+    attribution = calculateMultiPeriodBrinson(data, {
+      model: state.brinsonModel,
+      decomposition: state.brinsonFactors
+    });
+
+    if (elements.wrapperBrinsonWaterfall) {
+      elements.wrapperBrinsonWaterfall.style.display = 'block';
+    }
+    if (elements.brinsonMencheroBanner) {
+      elements.brinsonMencheroBanner.style.display = 'flex';
+    }
+    if (elements.brinsonMencheroDesc) {
+      elements.brinsonMencheroDesc.textContent = `Compounding ${months} monthly attribution periods with exact zero-residual mathematical linking (A + S + I ≡ Rp - Rb).`;
+    }
+    if (elements.brinsonResidualBadge) {
+      const resPct = (attribution.residual * 100).toFixed(8);
+      elements.brinsonResidualBadge.textContent = `Residual: ${resPct}%`;
+      elements.brinsonResidualBadge.style.color = '#10b981';
+    }
+  } else {
+    attribution = calculateBrinsonAttribution(preset.sectors, { model: state.brinsonModel });
+    if (elements.wrapperBrinsonWaterfall) {
+      elements.wrapperBrinsonWaterfall.style.display = 'none';
+    }
+    if (elements.brinsonMencheroBanner) {
+      elements.brinsonMencheroBanner.style.display = 'flex';
+    }
+    if (elements.brinsonMencheroDesc) {
+      elements.brinsonMencheroDesc.textContent = `Single-period 1-year annual snapshot decomposition (Bodie, Kane & Marcus, Chapter 24).`;
+    }
+    if (elements.brinsonResidualBadge) {
+      elements.brinsonResidualBadge.textContent = `Single Period Snapshot`;
+      elements.brinsonResidualBadge.style.color = '#38bdf8';
+    }
+  }
+
+  state.lastBrinson = attribution;
 
   // Toggle interaction column visibility
   document.querySelectorAll('.col-brinson-inter').forEach(el => {
@@ -299,6 +351,9 @@ function renderBrinsonAttribution() {
   });
   if (elements.legendBrinsonInter) {
     elements.legendBrinsonInter.style.display = is3Factor ? 'flex' : 'none';
+  }
+  if (elements.legendWaterfallInter) {
+    elements.legendWaterfallInter.style.display = is3Factor ? 'flex' : 'none';
   }
 
   // Update Scorecards
@@ -399,6 +454,197 @@ function renderBrinsonAttribution() {
   }
 
   renderBrinsonBarsChart();
+  if (isMultiPeriod) {
+    renderBrinsonWaterfallChart();
+  }
+}
+
+// -------------------------------------------------------------------
+// Cumulative Active Return Trajectory & Factor Waterfall (Multi-Period)
+// -------------------------------------------------------------------
+function renderBrinsonWaterfallChart() {
+  const canvas = elements.canvasBrinsonWaterfall;
+  const container = elements.containerBrinsonWaterfall;
+  if (!canvas || !container || !state.lastBrinson || !state.lastBrinson.trajectory) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 25, right: 35, bottom: 45, left: 65 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  const traj = state.lastBrinson.trajectory;
+  const n = traj.length;
+  if (n === 0) return;
+
+  const is3Factor = state.brinsonFactors !== '2-factor';
+
+  let minVal = 0;
+  let maxVal = 0;
+  traj.forEach(pt => {
+    const selVal = is3Factor ? pt.cumSelLinked : (pt.cumSelLinked + pt.cumInterLinked);
+    const vals = is3Factor
+      ? [pt.cumActiveReturn, pt.cumAllocLinked, pt.cumSelLinked, pt.cumInterLinked]
+      : [pt.cumActiveReturn, pt.cumAllocLinked, selVal];
+    vals.forEach(v => {
+      if (v < minVal) minVal = v;
+      if (v > maxVal) maxVal = v;
+    });
+  });
+
+  const span = Math.max(0.02, Math.max(Math.abs(minVal), Math.abs(maxVal)) * 1.25);
+  const yMin = -span;
+  const yMax = span;
+
+  const xToPix = (idx) => pad.left + (idx / Math.max(1, n - 1)) * plotW;
+  const yToPix = (v) => pad.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+  const zeroY = yToPix(0);
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Fonts
+  const fontSm = window.CHART_FONTS ? window.CHART_FONTS.sm : '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  const fontMd = window.CHART_FONTS ? window.CHART_FONTS.md : '600 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = fontSm;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const nTicks = 4;
+  for (let k = -nTicks; k <= nTicks; k++) {
+    const v = (k / nTicks) * span;
+    const py = yToPix(v);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(`${(v * 100).toFixed(1)}%`, pad.left - 8, py);
+  }
+
+  // Zero Centerline
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(pad.left + plotW, zeroY);
+  ctx.stroke();
+
+  // Y-axis Label
+  ctx.save();
+  ctx.translate(16, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = fontMd;
+  ctx.textAlign = 'center';
+  ctx.fillText('Compounded Active Alpha (%)', 0, 0);
+  ctx.restore();
+
+  // X-axis Dates
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = fontSm;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const stepIdx = Math.max(1, Math.floor(n / 6));
+  for (let i = 0; i < n; i += stepIdx) {
+    ctx.fillText(traj[i].date, xToPix(i), pad.top + plotH + 8);
+  }
+  if ((n - 1) % stepIdx !== 0) {
+    ctx.fillText(traj[n - 1].date, xToPix(n - 1), pad.top + plotH + 8);
+  }
+
+  // Helper to draw smooth series
+  const drawLine = (valAccessor, color, lineWidth, dashed = false) => {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    if (dashed) ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    traj.forEach((pt, idx) => {
+      const x = xToPix(idx);
+      const y = yToPix(valAccessor(pt));
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  // Draw factor curves
+  drawLine(pt => pt.cumAllocLinked, '#38bdf8', 2.0); // Allocation (Cyan)
+  drawLine(pt => is3Factor ? pt.cumSelLinked : (pt.cumSelLinked + pt.cumInterLinked), '#10b981', 2.0); // Selection (Green)
+  if (is3Factor) {
+    drawLine(pt => pt.cumInterLinked, '#f59e0b', 1.5, true); // Interaction (Amber Dashed)
+  }
+  drawLine(pt => pt.cumActiveReturn, '#eab308', 3.0); // Total Active Return (Thick Gold)
+
+  // Interactive Tooltip
+  if (canvas._controller) canvas._controller.abort();
+  canvas._controller = new AbortController();
+
+  const handleMouseMove = rafThrottle((e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (mouseX < pad.left || mouseX > pad.left + plotW) {
+      elements.tooltipBrinsonWaterfall.style.display = 'none';
+      return;
+    }
+
+    const ratio = (mouseX - pad.left) / plotW;
+    const idx = Math.max(0, Math.min(n - 1, Math.round(ratio * (n - 1))));
+    const pt = traj[idx];
+
+    const cumActPct = (pt.cumActiveReturn * 100).toFixed(2);
+    const cumAllocPct = (pt.cumAllocLinked * 100).toFixed(2);
+    const selVal = is3Factor ? pt.cumSelLinked : (pt.cumSelLinked + pt.cumInterLinked);
+    const cumSelPct = (selVal * 100).toFixed(2);
+    const cumInterPct = (pt.cumInterLinked * 100).toFixed(2);
+
+    elements.tooltipBrinsonWaterfall.innerHTML = `
+      <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">Month ${pt.periodIndex}: ${pt.date}</div>
+      <div style="display:flex; justify-content:space-between; gap:12px; color: #eab308; font-weight:700;">
+        <span>Cum Active Alpha:</span>
+        <strong>${pt.cumActiveReturn >= 0 ? '+' : ''}${cumActPct}%</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; gap:12px; color: #38bdf8;">
+        <span>Cum Allocation (A):</span>
+        <strong>${pt.cumAllocLinked >= 0 ? '+' : ''}${cumAllocPct}%</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; gap:12px; color: #10b981;">
+        <span>Cum Selection (S):</span>
+        <strong>${selVal >= 0 ? '+' : ''}${cumSelPct}%</strong>
+      </div>
+      ${is3Factor ? `
+      <div style="display:flex; justify-content:space-between; gap:12px; color: #f59e0b;">
+        <span>Cum Interaction (I):</span>
+        <strong>${pt.cumInterLinked >= 0 ? '+' : ''}${cumInterPct}%</strong>
+      </div>` : ''}
+      <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: #94a3b8;">
+        Menchero Weight T_t: ${(pt.mencheroWeight).toFixed(4)} | Diff: ${(pt.cumSumLinked - pt.cumActiveReturn).toExponential(2)}
+      </div>
+    `;
+
+    elements.tooltipBrinsonWaterfall.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
+    elements.tooltipBrinsonWaterfall.style.top = `${Math.max(10, mouseY - 30)}px`;
+    elements.tooltipBrinsonWaterfall.style.display = 'block';
+  });
+
+  canvas.addEventListener('mousemove', handleMouseMove, { signal: canvas._controller.signal });
+  canvas.addEventListener('mouseleave', () => {
+    elements.tooltipBrinsonWaterfall.style.display = 'none';
+  }, { signal: canvas._controller.signal });
 }
 
 function renderBrinsonBarsChart() {
@@ -1389,6 +1635,12 @@ function init() {
       renderBrinsonAttribution();
     });
   }
+  if (elements.selectBrinsonHorizon) {
+    elements.selectBrinsonHorizon.addEventListener('change', (e) => {
+      state.brinsonHorizon = e.target.value;
+      renderBrinsonAttribution();
+    });
+  }
 
   // Debounced Window Resize
   let resizeTimer = null;
@@ -1399,7 +1651,12 @@ function init() {
         renderAnnualExcessChart();
         renderRollingExcessChart();
         renderRelativeDrawdownChart();
+      }
+      if (state.lastBrinson) {
         renderBrinsonBarsChart();
+        if (state.brinsonHorizon !== 'single') {
+          renderBrinsonWaterfallChart();
+        }
       }
     }, 250);
   });

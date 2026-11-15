@@ -454,6 +454,26 @@
                   <option value="2-factor">2-Factor (Alloc + Combined Sel)</option>
                 </select>
               </div>
+              <div>
+                <label for="select-brinson-horizon" class="form-help" style="margin-bottom: 2px;">Horizon:</label>
+                <select id="select-brinson-horizon" class="form-select form-select-sm">
+                  <option value="36" selected>Trailing 3Y (36M Compounded)</option>
+                  <option value="12">Trailing 1Y (12M Compounded)</option>
+                  <option value="60">Trailing 5Y (60M Compounded)</option>
+                  <option value="single">Single Period (Annual Snapshot)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Menchero Logarithmic Linking Status Pill -->
+          <div id="brinson-menchero-banner" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 0.6rem 0.9rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.82rem;">
+            <div>
+              <strong style="color: #38bdf8;">🔗 José Menchero Logarithmic Linking Active:</strong>
+              <span style="color: #cbd5e1;" id="brinson-menchero-desc">Compounding 36 monthly attribution periods with exact zero-residual mathematical linking (A + S + I ≡ Rp - Rb).</span>
+            </div>
+            <div style="font-family: monospace; font-size: 0.78rem; color: #10b981; background: rgba(16, 185, 129, 0.15); padding: 2px 8px; border-radius: 4px;" id="brinson-residual-badge">
+              Residual: 0.00000000%
             </div>
           </div>
 
@@ -478,6 +498,26 @@
               <span class="metric-label">Interaction Effect (I)</span>
               <strong class="metric-value highlight-amber" id="brinson-metric-inter">--</strong>
               <span class="metric-sub">Cross-Product Weight × Return</span>
+            </div>
+          </div>
+
+          <!-- Chart A: Cumulative Waterfall Trajectory (Multi-Period Only) -->
+          <div id="wrapper-brinson-waterfall" style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <div>
+                <h4 style="margin: 0; font-size: 0.95rem; color: #cbd5e1;">📈 Cumulative Active Return Trajectory &amp; Factor Waterfall (%)</h4>
+                <p style="margin: 0; font-size: 0.78rem; color: #94a3b8;">Evolution of compounded active return decomposed into Menchero-linked allocation and selection over time.</p>
+              </div>
+              <div class="chart-legend-row" style="margin: 0;">
+                <div class="legend-item"><span class="legend-swatch" style="background:#eab308;"></span> Cum Active Return</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#38bdf8;"></span> Cum Allocation (A)</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#10b981;"></span> Cum Selection (S)</div>
+                <div class="legend-item" id="legend-waterfall-inter"><span class="legend-swatch" style="background:#f59e0b;"></span> Cum Interaction (I)</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-brinson-waterfall" style="height: 320px;">
+              <canvas id="canvas-brinson-waterfall"></canvas>
+              <div id="tooltip-brinson-waterfall" class="opt-chart-tooltip"></div>
             </div>
           </div>
 
