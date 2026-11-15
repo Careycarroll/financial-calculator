@@ -29,7 +29,7 @@ function walk(dir) {
 }
 
 function getExpectedSuite(fileNorm) {
-  if (fileNorm.includes('portfolio-backtest/') || fileNorm.includes('asset-analytics/') || fileNorm.includes('dca-comparator/')) {
+  if (fileNorm.includes('portfolio-backtest/') || fileNorm.includes('asset-analytics/') || fileNorm.includes('dca-comparator/') || fileNorm.includes('fixed-income/')) {
     return 'Portfolio';
   }
   if (fileNorm.includes('tactical-allocation/')) {
