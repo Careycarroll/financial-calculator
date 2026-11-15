@@ -521,6 +521,9 @@ function drawDonut(canvas, weights) {
   const size = 130;
   canvas.width = size * dpr;
   canvas.height = size * dpr;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+  ctx.resetTransform();
   ctx.scale(dpr, dpr);
 
   const cx = size / 2;

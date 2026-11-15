@@ -496,7 +496,8 @@
 .card-donut-row {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  min-height: 140px;
 }
 
 .donut-canvas-wrap {
@@ -504,36 +505,61 @@
   height: 130px;
   flex-shrink: 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-canvas-wrap canvas {
+  width: 130px !important;
+  height: 130px !important;
+  display: block;
 }
 
 .donut-weights-table {
   flex-grow: 1;
-  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .donut-weight-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.3rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 0.35rem 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.donut-weight-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .donut-weight-row:last-child {
-  border-bottom: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .donut-weight-ticker {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-weight: 600;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #f8fafc;
 }
 
 .donut-weight-val {
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #f1f5f9;
+  color: #facc15;
+  font-size: 0.92rem;
 }
 
 /* Charts Containers */
