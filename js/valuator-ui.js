@@ -1,11 +1,14 @@
 import {
   formatLargeNumberRaw, formatRatio, formatRatioPlain, formatPercent, formatValuationCurrency
 } from "./formatting.js";
-import { evaluateStock } from "./valuator.js";
+import { evaluateStock, getDuPontPresets } from "./valuator.js";
 import {
   fetchStockData, getApiKeys, saveApiKey, removeApiKey,
   getUsageSummary, getRemainingCalls
 } from "./api-manager.js";
+
+// Active preset multi-year history cache
+let activePresetHistory = null;
 
 // ===================================================================
 // STOCK EVALUATOR — UI Controller
@@ -52,6 +55,16 @@ function initValuator() {
     manualEvaluateBtn.addEventListener("click", (event) => {
       event.preventDefault();
       runManualEvaluation();
+    });
+  }
+
+  // DuPont Archetype Preset Buttons
+  const presetContainer = document.getElementById("val-manual-presets");
+  if (presetContainer) {
+    presetContainer.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-preset]");
+      if (!btn) return;
+      loadDuPontPreset(btn.dataset.preset);
     });
   }
 
@@ -198,6 +211,7 @@ async function runEvaluation() {
   // Show loading
   showTile("tile-loading");
   hideTile("tile-verdict");
+  hideTile("tile-dupont");
   hideTile("tile-asset");
   hideTile("tile-income");
   hideTile("tile-multiples");
@@ -321,11 +335,27 @@ function runManualEvaluation() {
   }
 
   const data = {
-    provider: "Manual",
+    provider: activePresetHistory ? "Manual (DuPont Archetype Preset)" : "Manual",
     symbol: profile.symbol,
     profile,
-    income,
-    balance,
+    income: activePresetHistory && activePresetHistory.length > 0
+      ? activePresetHistory.map((h) => ({
+          calendarYear: h.year,
+          revenue: h.sales,
+          operatingIncome: h.ebit,
+          ebt: h.ebt,
+          netIncome: h.netIncome,
+          eps: h.netIncome / (profile.sharesOutstanding || 1),
+          weightedAvgShares: profile.sharesOutstanding,
+        }))
+      : income,
+    balance: activePresetHistory && activePresetHistory.length > 0
+      ? activePresetHistory.map((h) => ({
+          totalAssets: h.totalAssets,
+          totalEquity: h.totalEquity,
+          totalDebt: balance[0].totalDebt,
+        }))
+      : balance,
     cashflow,
     ratios: null,
     quote: null,
@@ -337,6 +367,7 @@ function runManualEvaluation() {
   showTile("tile-loading");
   hideTile("tile-links");
   hideTile("tile-verdict");
+  hideTile("tile-dupont");
   hideTile("tile-asset");
   hideTile("tile-income");
   hideTile("tile-multiples");
@@ -451,6 +482,7 @@ function renderResults(results) {
   hideTile("tile-loading");
 
   renderVerdict(results);
+  renderDuPont(results);
   renderAssetBased(results);
   renderIncomeBased(results);
   renderMultiples(results);
@@ -494,6 +526,329 @@ function renderVerdict(results) {
     `Data from ${results.provider}`;
 
   showTile("tile-verdict");
+}
+
+function loadDuPontPreset(presetId) {
+  const presets = getDuPontPresets();
+  const preset = presets.find((p) => p.id === presetId);
+  if (!preset) return;
+
+  activePresetHistory = preset.history || null;
+
+  // Set manual inputs
+  const d = preset.data;
+  document.getElementById("val-manual-ticker").value = preset.ticker;
+  document.getElementById("val-manual-company").value = preset.name;
+  document.getElementById("val-manual-price").value = d.price;
+  document.getElementById("val-manual-marketcap").value = d.marketCap;
+  document.getElementById("val-manual-shares").value = d.sharesOutstanding;
+  document.getElementById("val-manual-sector").value = preset.sector;
+  document.getElementById("val-manual-revenue").value = d.sales;
+  document.getElementById("val-manual-operating-income").value = d.ebit;
+  document.getElementById("val-manual-net-income").value = d.netIncome;
+  document.getElementById("val-manual-ebitda").value = Math.round(d.ebit * 1.15);
+  document.getElementById("val-manual-eps").value = (d.netIncome / d.sharesOutstanding).toFixed(2);
+  document.getElementById("val-manual-total-equity").value = d.totalEquity;
+  document.getElementById("val-manual-total-debt").value = d.totalDebt;
+  document.getElementById("val-manual-total-assets").value = d.totalAssets;
+
+  // Highlight active preset button
+  const buttons = document.querySelectorAll("#val-manual-presets .preset-btn");
+  buttons.forEach((btn) => {
+    btn.style.borderColor = btn.dataset.preset === presetId ? "#38bdf8" : "#334155";
+    btn.style.background = btn.dataset.preset === presetId ? "rgba(56, 189, 248, 0.15)" : "#1e293b";
+  });
+
+  // Automatically execute evaluation
+  runManualEvaluation();
+}
+
+function renderDuPont(results) {
+  const dupont = results.dupont?.current;
+  if (!dupont || dupont.ratios.roe === null) {
+    hideTile("tile-dupont");
+    return;
+  }
+
+  const stages = dupont.stages;
+  const ratios = dupont.ratios;
+  const quality = dupont.quality;
+
+  // Identity Badge
+  const identityBadge = document.getElementById("dupont-identity-badge");
+  if (identityBadge) {
+    identityBadge.textContent = ratios.identityResidual < 1e-9
+      ? "✓ Multiplicative Identity Verified (Δ < 10⁻¹²)"
+      : `Identity Residual: ${ratios.identityResidual.toExponential(2)}`;
+  }
+
+  // Quality Banner
+  const ratingBadge = document.getElementById("dupont-rating-badge");
+  if (ratingBadge) {
+    ratingBadge.textContent = quality.qualityRating;
+    ratingBadge.className = "val-verdict-badge";
+    if (quality.qualityScore >= 70) ratingBadge.classList.add("undervalued");
+    else if (quality.qualityScore <= 40) ratingBadge.classList.add("overvalued");
+    else ratingBadge.classList.add("fair");
+  }
+
+  const scoreEl = document.getElementById("dupont-quality-score");
+  if (scoreEl) {
+    scoreEl.textContent = `${quality.qualityScore} / 100`;
+  }
+
+  const driverEl = document.getElementById("dupont-primary-driver");
+  if (driverEl) {
+    driverEl.textContent = quality.primaryDriver;
+  }
+
+  const flagsContainer = document.getElementById("dupont-flags-container");
+  if (flagsContainer) {
+    flagsContainer.innerHTML = (quality.flags || []).map((f) => {
+      let bg = "rgba(56, 189, 248, 0.08)";
+      let border = "#38bdf8";
+      let icon = "ℹ️";
+      if (f.type === "positive") {
+        bg = "rgba(16, 185, 129, 0.12)";
+        border = "#10b981";
+        icon = "✅";
+      } else if (f.type === "warning") {
+        bg = "rgba(245, 158, 11, 0.12)";
+        border = "#f59e0b";
+        icon = "⚠️";
+      } else if (f.type === "danger") {
+        bg = "rgba(239, 68, 68, 0.12)";
+        border = "#ef4444";
+        icon = "🚨";
+      }
+      return `
+        <div style="background:${bg}; border-left:3px solid ${border}; border-radius:4px; padding:0.4rem 0.65rem; font-size:0.8rem; color:#cbd5e1;">
+          <strong style="color:#f8fafc;">${icon} ${f.title}</strong>: ${f.detail}
+        </div>
+      `;
+    }).join("");
+  }
+
+  // 5 Levers Card Displays
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  setText("dupont-val-tb", stages.taxBurden !== null ? `${(stages.taxBurden * 100).toFixed(1)}%` : "N/A");
+  setText("dupont-sub-tb", ratios.effectiveTaxRate !== null ? `Effective Tax: ${(ratios.effectiveTaxRate * 100).toFixed(1)}%` : "Tax Rate: N/A");
+
+  setText("dupont-val-ib", stages.interestBurden !== null ? `${(stages.interestBurden * 100).toFixed(1)}%` : "N/A");
+  setText("dupont-sub-ib", ratios.interestDrag !== null ? `Interest Drag: ${(ratios.interestDrag * 100).toFixed(1)}%` : "Drag: N/A");
+
+  setText("dupont-val-om", stages.operatingMargin !== null ? `${(stages.operatingMargin * 100).toFixed(1)}%` : "N/A");
+  setText("dupont-sub-om", "Core EBIT Margin");
+
+  setText("dupont-val-ato", stages.assetTurnover !== null ? `${stages.assetTurnover.toFixed(2)}x` : "N/A");
+  setText("dupont-sub-ato", "Capital Turnover");
+
+  setText("dupont-val-fl", stages.financialLeverage !== null ? `${stages.financialLeverage.toFixed(2)}x` : "N/A");
+  setText("dupont-sub-fl", ratios.debtToEquity !== null ? `Debt/Equity: ${ratios.debtToEquity.toFixed(2)}x` : "Equity Multiplier");
+
+  setText("dupont-val-roe", ratios.roe !== null ? `${(ratios.roe * 100).toFixed(1)}%` : "N/A");
+  setText("dupont-sub-roe", `Net ROA: ${(ratios.netROA * 100).toFixed(1)}% | EBIT ROA: ${(ratios.compoundROA * 100).toFixed(1)}%`);
+
+  // Interactive Canvas Chart
+  drawDuPontChart(results);
+
+  // Multi-Year History Table & Attribution
+  const multiYear = results.dupont?.multiYear;
+  const historySection = document.getElementById("dupont-history-section");
+  const historyTbody = document.getElementById("dupont-history-table-body");
+  const attribBanner = document.getElementById("dupont-attribution-banner");
+
+  if (historySection && historyTbody && multiYear && multiYear.periods && multiYear.periods.length > 1) {
+    historySection.style.display = "block";
+    historyTbody.innerHTML = multiYear.periods.map((p) => `
+      <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+        <td style="font-weight:700; color:#f8fafc; padding:0.4rem 0.5rem;">${p.year}</td>
+        <td style="text-align:right; font-weight:700; color:#38bdf8; padding:0.4rem 0.5rem;">${(p.ratios.roe * 100).toFixed(1)}%</td>
+        <td style="text-align:right; color:#cbd5e1; padding:0.4rem 0.5rem;">${(p.stages.taxBurden * 100).toFixed(1)}%</td>
+        <td style="text-align:right; color:#cbd5e1; padding:0.4rem 0.5rem;">${(p.stages.interestBurden * 100).toFixed(1)}%</td>
+        <td style="text-align:right; color:#34d399; font-weight:600; padding:0.4rem 0.5rem;">${(p.stages.operatingMargin * 100).toFixed(1)}%</td>
+        <td style="text-align:right; color:#fbbf24; font-weight:600; padding:0.4rem 0.5rem;">${p.stages.assetTurnover.toFixed(2)}x</td>
+        <td style="text-align:right; color:#f472b6; font-weight:600; padding:0.4rem 0.5rem;">${p.stages.financialLeverage.toFixed(2)}x</td>
+        <td style="text-align:right; color:#94a3b8; padding:0.4rem 0.5rem;">${(p.ratios.netROA * 100).toFixed(1)}%</td>
+        <td style="text-align:left; color:#e2e8f0; padding:0.4rem 0.5rem;">${p.quality.primaryDriver}</td>
+      </tr>
+    `).join("");
+
+    if (attribBanner && multiYear.attribution) {
+      const a = multiYear.attribution;
+      attribBanner.innerHTML = `
+        <div style="font-weight:700; color:#f8fafc; margin-bottom:0.25rem;">
+          📊 Multi-Year ROE Evolution (${a.baseYear} &rarr; ${a.latestYear}): 
+          <span style="color:${a.roeDelta >= 0 ? '#10b981' : '#ef4444'}">
+            ${a.roeDelta >= 0 ? '+' : ''}${(a.roeGrowthPct * 100).toFixed(1)}% ROE Growth
+          </span>
+        </div>
+        <div>
+          <strong>Bodie Logarithmic Driver Attribution:</strong>
+          Operating Margin contributed <span style="color:#34d399">${a.percentageContributions.operatingMargin.toFixed(1)}%</span>, 
+          Asset Turnover contributed <span style="color:#fbbf24">${a.percentageContributions.assetTurnover.toFixed(1)}%</span>, 
+          Financial Leverage contributed <span style="color:#f472b6">${a.percentageContributions.financialLeverage.toFixed(1)}%</span>, 
+          and Financing/Tax policy contributed <span style="color:#818cf8">${(a.percentageContributions.taxBurden + a.percentageContributions.interestBurden).toFixed(1)}%</span>.
+        </div>
+      `;
+    }
+  } else if (historySection) {
+    historySection.style.display = "none";
+  }
+
+  showTile("tile-dupont");
+}
+
+function drawDuPontChart(results) {
+  const canvas = document.getElementById("dupont-chart-canvas");
+  const container = document.getElementById("container-dupont-chart");
+  const tooltip = document.getElementById("tooltip-dupont-chart");
+  if (!canvas || !container || !results.dupont?.current) return;
+
+  const d = results.dupont.current;
+  const stages = d.stages;
+  const ratios = d.ratios;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = container.getBoundingClientRect();
+  const width = rect.width > 0 ? rect.width : 700;
+  const height = 280;
+
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext("2d");
+  ctx.resetTransform?.();
+  ctx.scale(dpr, dpr);
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Background
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, width, height);
+
+  const items = [
+    { label: "Tax Burden", sub: "Net/EBT", val: stages.taxBurden !== null ? stages.taxBurden : 0, display: stages.taxBurden !== null ? `${(stages.taxBurden * 100).toFixed(1)}%` : "N/A", color: "#38bdf8", benchmarkLabel: "79% (Corporate Tax)" },
+    { label: "Interest Burden", sub: "EBT/EBIT", val: stages.interestBurden !== null ? stages.interestBurden : 0, display: stages.interestBurden !== null ? `${(stages.interestBurden * 100).toFixed(1)}%` : "N/A", color: "#818cf8", benchmarkLabel: "85% (Interest Drain)" },
+    { label: "Operating Margin", sub: "EBIT/Sales", val: stages.operatingMargin !== null ? stages.operatingMargin : 0, display: stages.operatingMargin !== null ? `${(stages.operatingMargin * 100).toFixed(1)}%` : "N/A", color: "#34d399", benchmarkLabel: "15% (S&P Median)" },
+    { label: "Asset Turnover", sub: "Sales/Assets", val: stages.assetTurnover !== null ? stages.assetTurnover : 0, display: stages.assetTurnover !== null ? `${stages.assetTurnover.toFixed(2)}x` : "N/A", color: "#fbbf24", benchmarkLabel: "1.0x (Capital Turnover)" },
+    { label: "Financial Leverage", sub: "Assets/Equity", val: stages.financialLeverage !== null ? stages.financialLeverage : 0, display: stages.financialLeverage !== null ? `${stages.financialLeverage.toFixed(2)}x` : "N/A", color: "#f472b6", benchmarkLabel: "2.0x (Prudent Gearing)" },
+    { label: "Return on Equity", sub: "∏ Stages 1-5", val: ratios.roe !== null ? ratios.roe : 0, display: ratios.roe !== null ? `${(ratios.roe * 100).toFixed(1)}%` : "N/A", color: "#38bdf8", isResult: true, benchmarkLabel: "15% (Cost of Capital)" },
+  ];
+
+  const pad = { top: 35, right: 30, bottom: 45, left: 30 };
+  const chartW = width - pad.left - pad.right;
+  const chartH = height - pad.top - pad.bottom;
+  const colW = chartW / items.length;
+  const barW = Math.min(colW * 0.55, 60);
+
+  items.forEach((it, idx) => {
+    let maxVal = 1.0;
+    if (idx === 0 || idx === 1) maxVal = Math.max(1.1, it.val * 1.15);
+    else if (idx === 2) maxVal = Math.max(0.40, it.val * 1.2);
+    else if (idx === 3) maxVal = Math.max(2.5, it.val * 1.2);
+    else if (idx === 4) maxVal = Math.max(4.0, it.val * 1.2);
+    else if (idx === 5) maxVal = Math.max(0.40, it.val * 1.2);
+
+    const ratio = Math.min(1.0, Math.max(0.06, Math.abs(it.val) / maxVal));
+    const barH = ratio * chartH;
+    const x = pad.left + idx * colW + (colW - barW) / 2;
+    const y = pad.top + (chartH - barH);
+
+    it.bounds = { x, y, w: barW, h: barH };
+
+    // Track
+    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+    ctx.beginPath();
+    ctx.roundRect(x, pad.top, barW, chartH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Bar
+    const grad = ctx.createLinearGradient(0, y, 0, pad.top + chartH);
+    grad.addColorStop(0, it.color);
+    grad.addColorStop(1, `${it.color}33`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = it.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + barW, y);
+    ctx.stroke();
+
+    // Value
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(it.display, x + barW / 2, y - 5);
+
+    // Label
+    ctx.fillStyle = it.isResult ? "#38bdf8" : "#94a3b8";
+    ctx.font = it.isResult ? "bold 10px -apple-system, sans-serif" : "9px -apple-system, sans-serif";
+    ctx.textBaseline = "top";
+    ctx.fillText(it.label, x + barW / 2, pad.top + chartH + 8);
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = "8px -apple-system, sans-serif";
+    ctx.fillText(it.sub, x + barW / 2, pad.top + chartH + 22);
+
+    // Operator symbol
+    if (idx < items.length - 1) {
+      ctx.fillStyle = idx === items.length - 2 ? "#38bdf8" : "#475569";
+      ctx.font = "bold 14px -apple-system, sans-serif";
+      ctx.textBaseline = "middle";
+      const sym = idx === items.length - 2 ? "=" : "×";
+      ctx.fillText(sym, pad.left + (idx + 1) * colW, pad.top + chartH / 2);
+    }
+  });
+
+  // Mouse Interaction
+  if (canvas._controller) canvas._controller.abort();
+  canvas._controller = new AbortController();
+  const { signal } = canvas._controller;
+
+  canvas.addEventListener("mousemove", (e) => {
+    const r = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    const my = e.clientY - r.top;
+
+    let hovered = null;
+    for (const it of items) {
+      if (it.bounds && mx >= it.bounds.x && mx <= it.bounds.x + it.bounds.w && my >= pad.top && my <= pad.top + chartH) {
+        hovered = it;
+        break;
+      }
+    }
+
+    if (hovered && tooltip) {
+      tooltip.style.display = "block";
+      tooltip.style.left = `${Math.min(width - 220, Math.max(10, mx + 15))}px`;
+      tooltip.style.top = `${Math.max(10, my - 50)}px`;
+      tooltip.innerHTML = `
+        <div style="font-weight:700; color:${hovered.color}; margin-bottom:2px;">${hovered.label}</div>
+        <div style="font-size:0.75rem; color:#cbd5e1;">Current Value: <strong>${hovered.display}</strong></div>
+        <div style="font-size:0.72rem; color:#94a3b8;">Formula: ${hovered.sub}</div>
+        <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">Benchmark: ${hovered.benchmarkLabel}</div>
+      `;
+    } else if (tooltip) {
+      tooltip.style.display = "none";
+    }
+  }, { signal });
+
+  canvas.addEventListener("mouseleave", () => {
+    if (tooltip) tooltip.style.display = "none";
+  }, { signal });
 }
 
 function renderAssetBased(results) {

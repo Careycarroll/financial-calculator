@@ -1,4 +1,8 @@
 import { formatLargeNumberRaw, formatRatioPlain, formatPercent, formatValuationCurrency, calculateSimpleGrowthRates } from "./formatting.js";
+import { calculateDuPont5Stage, calculateMultiYearDuPont, getDuPontPresets, assessEarningsQuality } from "./dupont-engine.js";
+
+// Re-export DuPont utilities for external callers and tests
+export { calculateDuPont5Stage, calculateMultiYearDuPont, getDuPontPresets, assessEarningsQuality };
 
 // ===================================================================
 // STOCK VALUATOR — Multi-Method Valuation Engine
@@ -228,6 +232,32 @@ export function evaluateStock(data) {
     evToInvestedCapital,
     investedCapital,
     roic,
+  };
+
+  // =================================================================
+  // 5-STAGE DUPONT ROE DECOMPOSITION & QUALITY OF EARNINGS
+  // =================================================================
+
+  const dupontCurrent = calculateDuPont5Stage({
+    netIncome: income.netIncome,
+    ebt: income.ebt !== undefined ? income.ebt : income.pretaxIncome,
+    ebit: income.operatingIncome !== undefined ? income.operatingIncome : income.ebit,
+    sales: income.revenue || income.sales,
+    totalAssets: balance.totalAssets,
+    totalEquity: balance.totalEquity,
+    totalDebt: balance.totalDebt,
+    interestExpense: interestExpense,
+    incomeTaxExpense: income.incomeTaxExpense
+  });
+
+  const dupontMultiYear = calculateMultiYearDuPont(
+    Array.isArray(data.income) ? data.income : [income],
+    Array.isArray(data.balance) ? data.balance : [balance]
+  );
+
+  results.dupont = {
+    current: dupontCurrent,
+    multiYear: dupontMultiYear
   };
 
   // =================================================================
