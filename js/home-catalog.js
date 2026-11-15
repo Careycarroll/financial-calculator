@@ -247,6 +247,18 @@ export const TOOLS_CATALOG = [
     keywords: ["fixed income", "bond", "yield to maturity", "ytm", "duration", "macaulay duration", "modified duration", "convexity", "dv01", "immunization", "treasury", "fabozzi", "bodie"]
   },
   {
+    id: "yield-curve",
+    title: "Term Structure & Forward Rates Studio",
+    shortTitle: "Term Structure Studio",
+    path: "fixed-income/yield-curve.html",
+    icon: "📈",
+    badge: "STUDIO",
+    desc: "Theoretical zero-coupon spot curve bootstrapping, implied 1-year forward curves, arbitrary horizon forward loan pricing, and Liquidity Preference Theory diagnostics.",
+    suiteId: "portfolio",
+    workflowId: "quant-risk",
+    keywords: ["yield curve", "term structure", "spot rate", "forward rate", "bootstrapping", "expectations hypothesis", "liquidity preference", "treasury", "bodie", "rates"]
+  },
+  {
     id: "asset-class-allocation",
     title: "Backtest Asset Class Allocation Studio",
     shortTitle: "Asset Class Backtest",
