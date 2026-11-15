@@ -196,8 +196,22 @@
             <div class="val-manual-panel">
               <h3>Manual valuation inputs</h3>
               <p class="form-hint">
-                Enter the values needed for the calculation engine.
+                Enter the values needed for the calculation engine or load an institutional archetype preset.
               </p>
+
+              <!-- Quick Presets -->
+              <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-weight: 700; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem;">
+                  Quick Company Presets (DuPont &amp; Valuation):
+                </label>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="val-manual-presets">
+                  <button type="button" class="preset-btn" data-preset="aapl" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">🍎 Apple (High Margin &amp; ROE)</button>
+                  <button type="button" class="preset-btn" data-preset="cost" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">🛒 Costco (High Asset Turnover)</button>
+                  <button type="button" class="preset-btn" data-preset="nee" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">⚡ NextEra (Leveraged Utility)</button>
+                  <button type="button" class="preset-btn" data-preset="leveraged-distress" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">⚠️ High Debt Retailer (Leverage Warning)</button>
+                </div>
+              </div>
+
               <div class="manual-input-grid">
                 <div class="manual-input-group">
                   <label for="val-manual-ticker">Ticker</label>
@@ -355,6 +369,121 @@
               </div>
               <div class="val-verdict-provider">
                 <span id="val-data-provider">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5-Stage DuPont ROE Decomposition -->
+        <div class="hidden" id="tile-dupont">
+          <div class="results-panel" style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+              <div>
+                <h2>🔬 5-Stage DuPont ROE Decomposition</h2>
+                <p class="form-hint" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #94a3b8;">
+                  Bodie Chapter 19.4 Operational Diagnostics: Decomposes Return on Equity (ROE) into 5 core multiplicative levers to isolate organic profitability from debt gearing.
+                </p>
+              </div>
+              <div id="dupont-identity-badge" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 0.3rem 0.65rem; border-radius: 6px; font-weight: 600;">
+                ✓ Multiplicative Identity Verified (&Delta; &lt; 10⁻¹²)
+              </div>
+            </div>
+
+            <!-- Quality of Earnings Banner -->
+            <div id="dupont-quality-banner" style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.6rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">Quality of Earnings:</span>
+                  <span id="dupont-rating-badge" class="val-verdict-badge" style="padding: 0.25rem 0.75rem; font-size: 0.85rem;">—</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">Quality Score:</span>
+                  <strong id="dupont-quality-score" style="font-size: 1.1rem; color: #38bdf8;">-- / 100</strong>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; font-size: 0.85rem; color: #cbd5e1;">
+                <span>Primary ROE Driver:</span>
+                <strong id="dupont-primary-driver" style="color: #fbbf24;">—</strong>
+              </div>
+              <div id="dupont-flags-container" style="display: flex; flex-direction: column; gap: 0.4rem;">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <!-- 5-Stage Multiplicative Architecture Flow -->
+            <div class="dupont-flow-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+              <div class="dupont-card" style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.85rem; text-align: center;">
+                <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">1. Tax Burden</div>
+                <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 0.4rem;">Net Income / EBT</div>
+                <div id="dupont-val-tb" style="font-size: 1.2rem; font-weight: 800; color: #38bdf8;">--</div>
+                <div id="dupont-sub-tb" style="font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem;">Tax: --%</div>
+              </div>
+              <div class="dupont-card" style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.85rem; text-align: center;">
+                <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">2. Interest Burden</div>
+                <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 0.4rem;">EBT / EBIT</div>
+                <div id="dupont-val-ib" style="font-size: 1.2rem; font-weight: 800; color: #818cf8;">--</div>
+                <div id="dupont-sub-ib" style="font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem;">Drag: --%</div>
+              </div>
+              <div class="dupont-card" style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.85rem; text-align: center;">
+                <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">3. Operating Margin</div>
+                <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 0.4rem;">EBIT / Sales</div>
+                <div id="dupont-val-om" style="font-size: 1.2rem; font-weight: 800; color: #34d399;">--%</div>
+                <div id="dupont-sub-om" style="font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem;">EBIT Margin</div>
+              </div>
+              <div class="dupont-card" style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.85rem; text-align: center;">
+                <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">4. Asset Turnover</div>
+                <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 0.4rem;">Sales / Assets</div>
+                <div id="dupont-val-ato" style="font-size: 1.2rem; font-weight: 800; color: #fbbf24;">--x</div>
+                <div id="dupont-sub-ato" style="font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem;">Capital Velocity</div>
+              </div>
+              <div class="dupont-card" style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.85rem; text-align: center;">
+                <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">5. Financial Leverage</div>
+                <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 0.4rem;">Assets / Equity</div>
+                <div id="dupont-val-fl" style="font-size: 1.2rem; font-weight: 800; color: #f472b6;">--x</div>
+                <div id="dupont-sub-fl" style="font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem;">Equity Multiplier</div>
+              </div>
+              <div class="dupont-card" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 0.85rem; text-align: center;">
+                <div style="font-size: 0.75rem; color: #38bdf8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">Return on Equity (ROE)</div>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 0.4rem;">&prod; (Stages 1&ndash;5)</div>
+                <div id="dupont-val-roe" style="font-size: 1.2rem; font-weight: 800; color: #38bdf8;">--%</div>
+                <div id="dupont-sub-roe" style="font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem;">Net ROA: --%</div>
+              </div>
+            </div>
+
+            <!-- Interactive DuPont Chart -->
+            <div style="margin-bottom: 1.25rem;">
+              <h3 style="font-size: 0.95rem; margin: 0 0 0.5rem; color: #e2e8f0;">📊 DuPont Component Relative Scaling &amp; Profit Bridge</h3>
+              <div class="canvas-wrapper chart-container" id="container-dupont-chart" style="height: 280px; position: relative; background: #0f172a; border: 1px solid #334155; border-radius: 8px; overflow: hidden;">
+                <canvas id="dupont-chart-canvas"></canvas>
+                <div id="tooltip-dupont-chart" class="canvas-tooltip chart-tooltip" style="display: none; position: absolute; pointer-events: none; z-index: 10;"></div>
+              </div>
+            </div>
+
+            <!-- Historical Multi-Year Trend (if available) -->
+            <div id="dupont-history-section" style="display: none; margin-top: 1rem;">
+              <h3 style="font-size: 0.95rem; margin: 0 0 0.5rem; color: #e2e8f0;">📈 Multi-Year Historical DuPont Decomposition &amp; Log Attribution</h3>
+              <div style="overflow-x: auto;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                  <thead>
+                    <tr>
+                      <th style="text-align: left;">Year</th>
+                      <th style="text-align: right;">ROE</th>
+                      <th style="text-align: right;">Tax Burden</th>
+                      <th style="text-align: right;">Interest Burden</th>
+                      <th style="text-align: right;">Operating Margin</th>
+                      <th style="text-align: right;">Asset Turnover</th>
+                      <th style="text-align: right;">Leverage (A/E)</th>
+                      <th style="text-align: right;">Net ROA</th>
+                      <th style="text-align: left;">Primary Driver</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dupont-history-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+              <div id="dupont-attribution-banner" style="margin-top: 0.75rem; font-size: 0.8rem; color: #94a3b8; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.6rem 0.85rem;">
+                <!-- Populated by JS -->
               </div>
             </div>
           </div>
