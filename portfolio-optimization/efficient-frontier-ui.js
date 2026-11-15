@@ -256,9 +256,131 @@ function init() {
   });
 
   // Initial setup
+  initEducationGuide();
   renderAssetTable();
   updateTimelineSelects();
   runOptimization();
+}
+
+// -------------------------------------------------------------------
+// Educational Decision & Intuition Framework Guide
+// -------------------------------------------------------------------
+function initEducationGuide() {
+  const guideCard = document.getElementById('executive-guide-frontier');
+  const guideToggle = document.getElementById('executive-guide-toggle');
+  const guideArrow = document.getElementById('executive-guide-arrow');
+  const guideBody = document.getElementById('executive-guide-body');
+  const btnHide = document.getElementById('btn-hide-edu-guide');
+  const restorePill = document.getElementById('edu-guide-restore-pill');
+  const btnShow = document.getElementById('btn-show-edu-guide');
+  const btnLoadExample = document.getElementById('btn-load-worked-example');
+  const tabButtons = document.querySelectorAll('.edu-tab-btn');
+  const tabPanes = document.querySelectorAll('.edu-tab-pane');
+
+  if (!guideCard) return;
+
+  // Restore persistence
+  try {
+    const isHidden = localStorage.getItem('fc_frontier_edu_hidden') === 'true';
+    if (isHidden) {
+      guideCard.style.display = 'none';
+      if (restorePill) restorePill.style.display = 'block';
+    }
+
+    const isCollapsed = localStorage.getItem('fc_frontier_edu_collapsed') === 'true';
+    if (isCollapsed && guideToggle && guideArrow && guideBody) {
+      guideToggle.classList.remove('open');
+      guideArrow.classList.remove('open');
+      guideBody.classList.remove('open');
+      guideBody.style.display = 'none';
+    }
+  } catch (e) {
+    // Graceful fallback if localStorage is unavailable
+  }
+
+  // Toggle Collapse / Expand
+  if (guideToggle && guideArrow && guideBody) {
+    guideToggle.addEventListener('click', (e) => {
+      if (e.target && e.target.closest('#btn-hide-edu-guide')) return;
+
+      const isOpen = guideToggle.classList.contains('open');
+      if (isOpen) {
+        guideToggle.classList.remove('open');
+        guideArrow.classList.remove('open');
+        guideBody.classList.remove('open');
+        guideBody.style.display = 'none';
+        try { localStorage.setItem('fc_frontier_edu_collapsed', 'true'); } catch (err) {}
+      } else {
+        guideToggle.classList.add('open');
+        guideArrow.classList.add('open');
+        guideBody.classList.add('open');
+        guideBody.style.display = 'block';
+        try { localStorage.removeItem('fc_frontier_edu_collapsed'); } catch (err) {}
+      }
+    });
+  }
+
+  // Hide Guide completely
+  if (btnHide && guideCard && restorePill) {
+    btnHide.addEventListener('click', (e) => {
+      e.stopPropagation();
+      guideCard.style.display = 'none';
+      restorePill.style.display = 'block';
+      try { localStorage.setItem('fc_frontier_edu_hidden', 'true'); } catch (err) {}
+    });
+  }
+
+  // Restore Guide
+  if (btnShow && guideCard && restorePill) {
+    btnShow.addEventListener('click', () => {
+      guideCard.style.display = 'block';
+      restorePill.style.display = 'none';
+      try { localStorage.removeItem('fc_frontier_edu_hidden'); } catch (err) {}
+    });
+  }
+
+  // Educational Tabs
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-tab');
+      tabButtons.forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      tabPanes.forEach(p => p.classList.remove('active'));
+
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      const targetPane = document.getElementById(targetTab);
+      if (targetPane) targetPane.classList.add('active');
+    });
+  });
+
+  // Load Worked Example Action
+  if (btnLoadExample) {
+    btnLoadExample.addEventListener('click', () => {
+      applyPreset(['VOO', 'SCHD', 'BND']);
+      if (elements.inputRf) elements.inputRf.value = '3.0';
+      if (elements.inputRiskAversion) {
+        elements.inputRiskAversion.value = '3.0';
+        if (elements.lblRiskAversionVal) elements.lblRiskAversionVal.textContent = '3.0';
+      }
+      if (elements.selectCovEstimator) elements.selectCovEstimator.value = 'ledoit-wolf';
+      if (elements.selectLeverageToggle) elements.selectLeverageToggle.value = 'no';
+      if (elements.wrapBorrowRate) elements.wrapBorrowRate.style.display = 'none';
+
+      document.querySelectorAll('.btn-preset').forEach(b => {
+        b.classList.toggle('active', b.dataset.preset === 'three-fund');
+      });
+
+      runOptimization();
+
+      const flagshipGrid = document.querySelector('.flagship-cards-grid');
+      if (flagshipGrid) {
+        flagshipGrid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  }
 }
 
 // -------------------------------------------------------------------

@@ -755,3 +755,164 @@
     height: 380px;
   }
 }
+
+/* ===================================================================
+   EDUCATIONAL DECISION & INTUITION COMPONENT (PILOT)
+   =================================================================== */
+.edu-framework-card {
+  margin-bottom: 1.25rem;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.edu-tabs-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0 1rem;
+  background: rgba(15, 23, 42, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+}
+
+.edu-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.edu-tab-btn:hover {
+  color: #f8fafc;
+}
+
+.edu-tab-btn.active {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+}
+
+.edu-tab-pane {
+  display: none;
+  padding: 1.25rem;
+}
+
+.edu-tab-pane.active {
+  display: block;
+}
+
+.edu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.edu-card {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.edu-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.edu-card-desc {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.edu-sensitivity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.edu-sensitivity-table th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  background: rgba(15, 23, 42, 0.8);
+  color: #cbd5e1;
+  border-bottom: 1px solid #334155;
+  font-weight: 700;
+}
+
+.edu-sensitivity-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.edu-sensitivity-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.edu-badge-param {
+  display: inline-block;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.edu-badge-action {
+  display: inline-block;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.btn-load-example {
+  background: #0284c7;
+  color: #fff;
+  border: none;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.btn-load-example:hover {
+  background: #0369a1;
+}
+
+.btn-toggle-guide-visibility {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-guide-visibility:hover {
+  color: #f8fafc;
+  border-color: #64748b;
+}
