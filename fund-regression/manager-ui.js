@@ -7,7 +7,9 @@
  */
 
 import {
-  analyzeManagerPerformance
+  analyzeManagerPerformance,
+  calculateBrinsonAttribution,
+  BRINSON_PRESETS
 } from './manager-engine.js';
 import { PRESET_BENCHMARKS } from '../dca-comparator/preset-funds.js';
 import { openAssetModal } from '../js/asset-modal.js';
@@ -22,7 +24,13 @@ const state = {
   rollingMonths: 36,
   confidenceLevel: 0.80,
   useDRIP: true,
-  lastResult: null
+  lastResult: null,
+
+  // Brinson Performance Attribution
+  brinsonPreset: 'active-growth',
+  brinsonModel: 'brinson-fachler',
+  brinsonFactors: '3-factor',
+  lastBrinson: null
 };
 
 // DOM Elements Cache
@@ -88,6 +96,24 @@ function initDom() {
   elements.colManagerRet = document.getElementById('col-manager-ret');
   elements.colBenchRet = document.getElementById('col-bench-ret');
   elements.btnExportCsv = document.getElementById('btn-export-csv');
+
+  // Brinson Attribution Elements
+  elements.selectBrinsonPreset = document.getElementById('select-brinson-preset');
+  elements.selectBrinsonModel = document.getElementById('select-brinson-model');
+  elements.selectBrinsonFactors = document.getElementById('select-brinson-factors');
+  elements.brinsonMetricActive = document.getElementById('brinson-metric-active');
+  elements.brinsonSubReturns = document.getElementById('brinson-sub-returns');
+  elements.brinsonMetricAlloc = document.getElementById('brinson-metric-alloc');
+  elements.brinsonSubAllocPct = document.getElementById('brinson-sub-alloc-pct');
+  elements.brinsonMetricSelect = document.getElementById('brinson-metric-select');
+  elements.brinsonSubSelectPct = document.getElementById('brinson-sub-select-pct');
+  elements.brinsonMetricInter = document.getElementById('brinson-metric-inter');
+  elements.canvasBrinsonBars = document.getElementById('canvas-brinson-bars');
+  elements.containerBrinsonBars = document.getElementById('container-brinson-bars');
+  elements.tooltipBrinsonBars = document.getElementById('tooltip-brinson-bars');
+  elements.legendBrinsonInter = document.getElementById('legend-brinson-inter');
+  elements.brinsonTableBody = document.getElementById('brinson-table-body');
+  elements.brinsonTableFoot = document.getElementById('brinson-table-foot');
 }
 
 // -------------------------------------------------------------------
@@ -164,6 +190,7 @@ function runAnalysis() {
     renderHighlightCards(result);
     renderSkillConfidence(result);
     renderTrailingTable(result);
+    renderBrinsonAttribution();
     renderAnnualExcessChart();
     renderRollingExcessChart();
     renderRelativeDrawdownChart();
@@ -253,6 +280,298 @@ function renderTrailingTable(result) {
     `;
     elements.trailingTableBody.appendChild(tr);
   });
+}
+
+// -------------------------------------------------------------------
+// Brinson Performance Attribution (Bodie Chapter 24)
+// -------------------------------------------------------------------
+function renderBrinsonAttribution() {
+  const presetKey = state.brinsonPreset || 'active-growth';
+  const preset = BRINSON_PRESETS[presetKey] || BRINSON_PRESETS['active-growth'];
+  const attribution = calculateBrinsonAttribution(preset.sectors, { model: state.brinsonModel });
+  state.lastBrinson = attribution;
+
+  const is3Factor = state.brinsonFactors !== '2-factor';
+
+  // Toggle interaction column visibility
+  document.querySelectorAll('.col-brinson-inter').forEach(el => {
+    el.style.display = is3Factor ? '' : 'none';
+  });
+  if (elements.legendBrinsonInter) {
+    elements.legendBrinsonInter.style.display = is3Factor ? 'flex' : 'none';
+  }
+
+  // Update Scorecards
+  if (elements.brinsonMetricActive) {
+    const act = attribution.activeReturn * 100;
+    elements.brinsonMetricActive.textContent = `${act >= 0 ? '+' : ''}${act.toFixed(2)}%`;
+  }
+  if (elements.brinsonSubReturns) {
+    elements.brinsonSubReturns.textContent = `Portfolio: ${(attribution.portfolioReturn * 100).toFixed(2)}% | Benchmark: ${(attribution.benchmarkReturn * 100).toFixed(2)}%`;
+  }
+  if (elements.brinsonMetricAlloc) {
+    const alloc = attribution.totalAllocation * 100;
+    elements.brinsonMetricAlloc.textContent = `${alloc >= 0 ? '+' : ''}${alloc.toFixed(2)}%`;
+  }
+  if (elements.brinsonSubAllocPct) {
+    const pct = attribution.activeReturn !== 0 ? ((attribution.totalAllocation / attribution.activeReturn) * 100).toFixed(1) : '0.0';
+    elements.brinsonSubAllocPct.textContent = `${pct}% of Active Alpha`;
+  }
+  if (elements.brinsonMetricSelect) {
+    const selVal = is3Factor ? attribution.totalSelection : attribution.totalCombinedSelection;
+    const sel = selVal * 100;
+    elements.brinsonMetricSelect.textContent = `${sel >= 0 ? '+' : ''}${sel.toFixed(2)}%`;
+  }
+  if (elements.brinsonSubSelectPct) {
+    const selVal = is3Factor ? attribution.totalSelection : attribution.totalCombinedSelection;
+    const pct = attribution.activeReturn !== 0 ? ((selVal / attribution.activeReturn) * 100).toFixed(1) : '0.0';
+    elements.brinsonSubSelectPct.textContent = `${pct}% of Active Alpha`;
+  }
+  if (elements.brinsonMetricInter) {
+    if (is3Factor) {
+      const inter = attribution.totalInteraction * 100;
+      elements.brinsonMetricInter.textContent = `${inter >= 0 ? '+' : ''}${inter.toFixed(2)}%`;
+      elements.brinsonMetricInter.parentElement.style.opacity = '1';
+    } else {
+      elements.brinsonMetricInter.textContent = 'Merged in Sel';
+      elements.brinsonMetricInter.parentElement.style.opacity = '0.5';
+    }
+  }
+
+  // Populate Table
+  if (elements.brinsonTableBody) {
+    elements.brinsonTableBody.innerHTML = '';
+    attribution.rows.forEach(row => {
+      const tr = document.createElement('tr');
+      const dW = row.activeWeight * 100;
+      const dWColor = dW > 0 ? '#38bdf8' : (dW < 0 ? '#f43f5e' : '#94a3b8');
+
+      const alloc = row.allocation * 100;
+      const allocColor = alloc > 0 ? '#38bdf8' : (alloc < 0 ? '#f43f5e' : '#94a3b8');
+
+      const selVal = is3Factor ? row.selection : row.combinedSelection;
+      const sel = selVal * 100;
+      const selColor = sel > 0 ? '#10b981' : (sel < 0 ? '#f43f5e' : '#94a3b8');
+
+      const inter = row.interaction * 100;
+      const interColor = inter > 0 ? '#f59e0b' : (inter < 0 ? '#f43f5e' : '#94a3b8');
+
+      const tot = row.totalEffect * 100;
+      const totColor = tot > 0 ? '#eab308' : (tot < 0 ? '#f43f5e' : '#94a3b8');
+
+      tr.innerHTML = `
+        <td style="font-weight: 600; color: #f8fafc;">${row.name}</td>
+        <td class="num">${(row.portfolioWeight * 100).toFixed(1)}%</td>
+        <td class="num">${(row.benchmarkWeight * 100).toFixed(1)}%</td>
+        <td class="num" style="color: ${dWColor}; font-weight: 600;">${dW >= 0 ? '+' : ''}${dW.toFixed(1)}%</td>
+        <td class="num">${(row.portfolioReturn * 100).toFixed(2)}%</td>
+        <td class="num">${(row.benchmarkReturn * 100).toFixed(2)}%</td>
+        <td class="num" style="color: ${allocColor}; font-weight: 600;">${alloc >= 0 ? '+' : ''}${alloc.toFixed(2)}%</td>
+        <td class="num" style="color: ${selColor}; font-weight: 600;">${sel >= 0 ? '+' : ''}${sel.toFixed(2)}%</td>
+        <td class="num col-brinson-inter" style="color: ${interColor}; font-weight: 600; ${is3Factor ? '' : 'display:none;'}">${inter >= 0 ? '+' : ''}${inter.toFixed(2)}%</td>
+        <td class="num" style="color: ${totColor}; font-weight: 700;">${tot >= 0 ? '+' : ''}${tot.toFixed(2)}%</td>
+      `;
+      elements.brinsonTableBody.appendChild(tr);
+    });
+  }
+
+  // Populate Table Foot (Totals)
+  if (elements.brinsonTableFoot) {
+    const totAlloc = attribution.totalAllocation * 100;
+    const totSel = (is3Factor ? attribution.totalSelection : attribution.totalCombinedSelection) * 100;
+    const totInter = attribution.totalInteraction * 100;
+    const totAct = attribution.activeReturn * 100;
+
+    elements.brinsonTableFoot.innerHTML = `
+      <tr style="border-top: 2px solid #475569; font-weight: 700; background: rgba(30, 41, 59, 0.6);">
+        <td>Total / Portfolio Attribution</td>
+        <td class="num">100.0%</td>
+        <td class="num">100.0%</td>
+        <td class="num">0.0%</td>
+        <td class="num">${(attribution.portfolioReturn * 100).toFixed(2)}%</td>
+        <td class="num">${(attribution.benchmarkReturn * 100).toFixed(2)}%</td>
+        <td class="num" style="color: #38bdf8;">${totAlloc >= 0 ? '+' : ''}${totAlloc.toFixed(2)}%</td>
+        <td class="num" style="color: #10b981;">${totSel >= 0 ? '+' : ''}${totSel.toFixed(2)}%</td>
+        <td class="num col-brinson-inter" style="color: #f59e0b; ${is3Factor ? '' : 'display:none;'}">${totInter >= 0 ? '+' : ''}${totInter.toFixed(2)}%</td>
+        <td class="num highlight-gold" style="font-size: 0.95rem;">${totAct >= 0 ? '+' : ''}${totAct.toFixed(2)}%</td>
+      </tr>
+    `;
+  }
+
+  renderBrinsonBarsChart();
+}
+
+function renderBrinsonBarsChart() {
+  const canvas = elements.canvasBrinsonBars;
+  const container = elements.containerBrinsonBars;
+  if (!canvas || !container || !state.lastBrinson) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = container.getBoundingClientRect();
+  const width = Math.max(300, Math.floor(rect.width));
+  const height = container.clientHeight || 320;
+
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext('2d');
+  ctx.resetTransform();
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 25, right: 30, bottom: 60, left: 65 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  const data = state.lastBrinson.rows;
+  const n = data.length;
+  if (n === 0) return;
+
+  const is3Factor = state.brinsonFactors !== '2-factor';
+  const barsPerGroup = is3Factor ? 4 : 3;
+
+  let minVal = 0;
+  let maxVal = 0;
+  data.forEach(d => {
+    const sel = is3Factor ? d.selection : d.combinedSelection;
+    const vals = is3Factor
+      ? [d.allocation, d.selection, d.interaction, d.totalEffect]
+      : [d.allocation, sel, d.totalEffect];
+    vals.forEach(v => {
+      if (v < minVal) minVal = v;
+      if (v > maxVal) maxVal = v;
+    });
+  });
+
+  const span = Math.max(0.02, Math.max(Math.abs(minVal), Math.abs(maxVal)) * 1.2);
+  const yMin = -span;
+  const yMax = span;
+
+  const yToPix = (v) => pad.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+  const zeroY = yToPix(0);
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  const yStep = span > 0.05 ? 0.02 : 0.01;
+  for (let v = 0; v <= yMax; v += yStep) {
+    const py = yToPix(v);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(`${(v * 100).toFixed(1)}%`, pad.left - 8, py);
+  }
+  for (let v = -yStep; v >= yMin; v -= yStep) {
+    const py = yToPix(v);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(`${(v * 100).toFixed(1)}%`, pad.left - 8, py);
+  }
+
+  // Zero axis line
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(pad.left + plotW, zeroY);
+  ctx.stroke();
+
+  // Render Bars
+  const groupW = plotW / n;
+  const barW = Math.max(4, Math.min(18, (groupW * 0.75) / barsPerGroup));
+  const innerPad = 2;
+  const hitBoxes = [];
+
+  data.forEach((d, groupIdx) => {
+    const groupCenterX = pad.left + (groupIdx + 0.5) * groupW;
+    const totalGroupBarW = barsPerGroup * barW + (barsPerGroup - 1) * innerPad;
+    const startX = groupCenterX - totalGroupBarW / 2;
+
+    const selVal = is3Factor ? d.selection : d.combinedSelection;
+    const barItems = is3Factor ? [
+      { val: d.allocation, color: '#38bdf8', label: 'Allocation Effect (A)' },
+      { val: d.selection, color: '#10b981', label: 'Selection Effect (S)' },
+      { val: d.interaction, color: '#f59e0b', label: 'Interaction Effect (I)' },
+      { val: d.totalEffect, color: '#eab308', label: 'Total Contribution' }
+    ] : [
+      { val: d.allocation, color: '#38bdf8', label: 'Allocation Effect (A)' },
+      { val: selVal, color: '#10b981', label: 'Combined Selection (S+I)' },
+      { val: d.totalEffect, color: '#eab308', label: 'Total Contribution' }
+    ];
+
+    barItems.forEach((b, bIdx) => {
+      const bx = startX + bIdx * (barW + innerPad);
+      const by = b.val >= 0 ? yToPix(b.val) : zeroY;
+      const bh = Math.max(1, Math.abs(yToPix(b.val) - zeroY));
+
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.rect(bx, by, barW, bh);
+      ctx.fill();
+
+      hitBoxes.push({
+        x: bx,
+        y: Math.min(by, by + bh),
+        w: barW,
+        h: Math.max(bh, 5),
+        sector: d.name,
+        label: b.label,
+        color: b.color,
+        val: b.val
+      });
+    });
+
+    // Sector Label below
+    ctx.save();
+    ctx.translate(groupCenterX, pad.top + plotH + 12);
+    ctx.rotate(-Math.PI / 4.5);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const shortName = d.name.length > 14 ? d.name.slice(0, 13) + '…' : d.name;
+    ctx.fillText(shortName, 0, 0);
+    ctx.restore();
+  });
+
+  // Tooltip interaction
+  if (canvas._controller) canvas._controller.abort();
+  canvas._controller = new AbortController();
+
+  const handleMouseMove = rafThrottle((e) => {
+    const r = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - r.left;
+    const mouseY = e.clientY - r.top;
+
+    const hit = hitBoxes.find(b => mouseX >= b.x - 2 && mouseX <= b.x + b.w + 2 && mouseY >= b.y - 4 && mouseY <= b.y + b.h + 4);
+    if (hit) {
+      elements.tooltipBrinsonBars.innerHTML = `
+        <div style="font-weight: 700; color: #f8fafc; margin-bottom: 2px;">${hit.sector}</div>
+        <div style="color: ${hit.color};">${hit.label}: <strong>${hit.val >= 0 ? '+' : ''}${(hit.val * 100).toFixed(2)}%</strong></div>
+      `;
+      elements.tooltipBrinsonBars.style.left = `${Math.min(width - 200, mouseX + 15)}px`;
+      elements.tooltipBrinsonBars.style.top = `${Math.max(10, mouseY - 30)}px`;
+      elements.tooltipBrinsonBars.style.display = 'block';
+    } else {
+      elements.tooltipBrinsonBars.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('mousemove', handleMouseMove, { signal: canvas._controller.signal });
+  canvas.addEventListener('mouseleave', () => {
+    elements.tooltipBrinsonBars.style.display = 'none';
+  }, { signal: canvas._controller.signal });
 }
 
 // -------------------------------------------------------------------
@@ -1051,6 +1370,26 @@ function init() {
     });
   }
 
+  // Brinson Attribution Selectors
+  if (elements.selectBrinsonPreset) {
+    elements.selectBrinsonPreset.addEventListener('change', (e) => {
+      state.brinsonPreset = e.target.value;
+      renderBrinsonAttribution();
+    });
+  }
+  if (elements.selectBrinsonModel) {
+    elements.selectBrinsonModel.addEventListener('change', (e) => {
+      state.brinsonModel = e.target.value;
+      renderBrinsonAttribution();
+    });
+  }
+  if (elements.selectBrinsonFactors) {
+    elements.selectBrinsonFactors.addEventListener('change', (e) => {
+      state.brinsonFactors = e.target.value;
+      renderBrinsonAttribution();
+    });
+  }
+
   // Debounced Window Resize
   let resizeTimer = null;
   window.addEventListener('resize', () => {
@@ -1060,6 +1399,7 @@ function init() {
         renderAnnualExcessChart();
         renderRollingExcessChart();
         renderRelativeDrawdownChart();
+        renderBrinsonBarsChart();
       }
     }, 250);
   });

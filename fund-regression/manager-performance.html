@@ -422,6 +422,109 @@
           </div>
         </section>
 
+        <!-- Brinson Performance Attribution (Bodie Chapter 24) -->
+        <section class="card mb-4" id="section-brinson-attribution">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3>🔍 Brinson Performance Attribution</h3>
+              <p class="chart-subtitle">
+                Decomposes active excess return into <strong>Asset Allocation</strong>, <strong>Security Selection</strong>, and <strong>Interaction</strong> effects (Bodie Chapter 24).
+              </p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <div>
+                <label for="select-brinson-preset" class="form-help" style="margin-bottom: 2px;">Attribution Universe:</label>
+                <select id="select-brinson-preset" class="form-select form-select-sm">
+                  <option value="active-growth" selected>US Growth vs S&amp;P 500 (GICS Sectors)</option>
+                  <option value="global-multi-asset">Global Multi-Asset vs 60/40</option>
+                  <option value="value-dividend">Value / Dividend vs S&amp;P 500</option>
+                </select>
+              </div>
+              <div>
+                <label for="select-brinson-model" class="form-help" style="margin-bottom: 2px;">Model Framework:</label>
+                <select id="select-brinson-model" class="form-select form-select-sm">
+                  <option value="brinson-fachler" selected>Brinson-Fachler (BF / Industry Standard)</option>
+                  <option value="brinson-hood-beebower">Brinson-Hood-Beebower (BHB)</option>
+                </select>
+              </div>
+              <div>
+                <label for="select-brinson-factors" class="form-help" style="margin-bottom: 2px;">Decomposition:</label>
+                <select id="select-brinson-factors" class="form-select form-select-sm">
+                  <option value="3-factor" selected>3-Factor (Alloc + Sel + Inter)</option>
+                  <option value="2-factor">2-Factor (Alloc + Combined Sel)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Attribution Scorecards Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="metric-card">
+              <span class="metric-label">Active Excess Return</span>
+              <strong class="metric-value highlight-gold" id="brinson-metric-active">--</strong>
+              <span class="metric-sub" id="brinson-sub-returns">Rp: -- | Rb: --</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Asset Allocation Effect (A)</span>
+              <strong class="metric-value highlight-cyan" id="brinson-metric-alloc">--</strong>
+              <span class="metric-sub" id="brinson-sub-alloc-pct">--% of Alpha</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Security Selection Effect (S)</span>
+              <strong class="metric-value highlight-green" id="brinson-metric-select">--</strong>
+              <span class="metric-sub" id="brinson-sub-select-pct">--% of Alpha</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Interaction Effect (I)</span>
+              <strong class="metric-value highlight-amber" id="brinson-metric-inter">--</strong>
+              <span class="metric-sub">Cross-Product Weight × Return</span>
+            </div>
+          </div>
+
+          <!-- Attribution Chart -->
+          <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="margin: 0; font-size: 0.95rem; color: #cbd5e1;">Active Sector Contribution Breakdown (%)</h4>
+              <div class="chart-legend-row" style="margin: 0;">
+                <div class="legend-item"><span class="legend-swatch" style="background:#38bdf8;"></span> Allocation (A)</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#10b981;"></span> Selection (S)</div>
+                <div class="legend-item" id="legend-brinson-inter"><span class="legend-swatch" style="background:#f59e0b;"></span> Interaction (I)</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#eab308;"></span> Total Active</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-brinson-bars" style="height: 320px;">
+              <canvas id="canvas-brinson-bars"></canvas>
+              <div id="tooltip-brinson-bars" class="opt-chart-tooltip"></div>
+            </div>
+          </div>
+
+          <!-- Attribution Detailed Table -->
+          <div class="table-responsive">
+            <table class="opt-data-table" id="brinson-table">
+              <thead>
+                <tr>
+                  <th>Sector / Asset Class</th>
+                  <th class="num">Portfolio Wt (Wp)</th>
+                  <th class="num">Benchmark Wt (Wb)</th>
+                  <th class="num">Active Wt (ΔW)</th>
+                  <th class="num">Portfolio Ret (Rp)</th>
+                  <th class="num">Benchmark Ret (Rb)</th>
+                  <th class="num highlight-cyan">Allocation Effect</th>
+                  <th class="num highlight-green">Selection Effect</th>
+                  <th class="num highlight-amber col-brinson-inter">Interaction Effect</th>
+                  <th class="num highlight-gold">Total Contribution</th>
+                </tr>
+              </thead>
+              <tbody id="brinson-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+              <tfoot id="brinson-table-foot">
+                <!-- Injected via JS -->
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
         <!-- Charts Layout -->
         <section class="charts-section">
           <!-- Chart 1: Annual Excess Returns Bar Chart -->
