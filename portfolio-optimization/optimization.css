@@ -406,7 +406,13 @@
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flagship-card:hover,
+.flagship-card:focus-within {
+  z-index: 30;
 }
 
 .flagship-card.tangency-card {
@@ -586,6 +592,12 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.chart-card:hover,
+.chart-card:focus-within {
+  z-index: 30;
 }
 
 .chart-card-header {
@@ -662,6 +674,12 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.data-card:hover,
+.data-card:focus-within {
+  z-index: 30;
 }
 
 .data-card-title {
@@ -733,17 +751,21 @@
 .opt-chart-tooltip {
   position: absolute;
   pointer-events: none;
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   color: #f8fafc;
   padding: 0.65rem 0.85rem;
   border-radius: 6px;
   font-size: 0.78rem;
-  line-height: 1.4;
-  z-index: 10;
+  line-height: 1.45;
+  z-index: 20;
   display: none;
-  white-space: nowrap;
+  white-space: normal;
+  width: max-content;
+  max-width: 280px;
+  box-sizing: border-box;
+  word-break: break-word;
 }
 
 /* Responsive adjustments */
@@ -953,9 +975,10 @@
   visibility: hidden;
   opacity: 0;
   position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
+  top: calc(100% + 8px);
+  bottom: auto;
+  left: -8px;
+  transform: translateY(-4px);
   width: 290px;
   max-width: 85vw;
   background: #0f172a;
@@ -977,19 +1000,20 @@
 .info-explainer .info-popover::after {
   content: '';
   position: absolute;
-  top: 100%;
-  left: 50%;
+  bottom: 100%;
+  top: auto;
+  left: 16px;
   margin-left: -6px;
   border-width: 6px;
   border-style: solid;
-  border-color: #0f172a transparent transparent transparent;
+  border-color: transparent transparent #0f172a transparent;
 }
 
 .info-explainer:hover .info-popover,
 .info-explainer:focus .info-popover {
   visibility: visible;
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 .info-popover-title {
@@ -1019,15 +1043,14 @@
   line-height: 1.4;
 }
 
-/* Align popover to left or right when near container edges */
-.card-title-row .info-explainer .info-popover {
-  left: 0;
-  transform: translateY(4px);
-}
-.card-title-row .info-explainer:hover .info-popover,
-.card-title-row .info-explainer:focus .info-popover {
-  transform: translateY(0);
-}
-.card-title-row .info-explainer .info-popover::after {
-  left: 12px;
+/* Responsive edge adjustment for info popover */
+@media (max-width: 768px) {
+  .status-pill:last-child .info-explainer .info-popover {
+    left: auto;
+    right: -10px;
+  }
+  .status-pill:last-child .info-explainer .info-popover::after {
+    left: auto;
+    right: 16px;
+  }
 }

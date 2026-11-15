@@ -1103,9 +1103,29 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
       return;
     }
 
+    const showFrontierTooltip = (html) => {
+      elements.tooltipFrontier.innerHTML = html;
+      elements.tooltipFrontier.style.display = 'block';
+      const tipW = elements.tooltipFrontier.offsetWidth || 280;
+      const tipH = elements.tooltipFrontier.offsetHeight || 160;
+
+      let leftPos = mouseX + 15;
+      if (mouseX + tipW + 20 > width) {
+        leftPos = Math.max(10, mouseX - tipW - 15);
+      }
+      let topPos = mouseY - 40;
+      if (topPos + tipH + 15 > height) {
+        topPos = Math.max(10, height - tipH - 15);
+      }
+      topPos = Math.max(10, topPos);
+
+      elements.tooltipFrontier.style.left = `${leftPos}px`;
+      elements.tooltipFrontier.style.top = `${topPos}px`;
+    };
+
     // Check hit on C* Complete Portfolio point
     if (cStarX > 0 && Math.hypot(mouseX - cStarX, mouseY - cStarY) < 18) {
-      elements.tooltipFrontier.innerHTML = `
+      showFrontierTooltip(`
         <div style="font-weight:700; margin-bottom:4px; color:#c084fc;">🎯 Optimal Complete Portfolio (C*)</div>
         <div>Risky Share (y*): <strong>${(cStar.yStar * 100).toFixed(1)}% Tangency</strong></div>
         <div>Cash Share (1-y*): <strong>${(cStar.cashWeight * 100).toFixed(1)}%</strong></div>
@@ -1116,10 +1136,7 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
         <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
           💡 Bodie Utility Maximizer: Balances return vs variance risk penalty for risk aversion A = ${frontierResult.riskAversion.toFixed(1)}. Slides toward cash if A increases; slides into leverage if A decreases.
         </div>
-      `;
-      elements.tooltipFrontier.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
-      elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
-      elements.tooltipFrontier.style.display = 'block';
+      `);
       return;
     }
 
@@ -1140,7 +1157,7 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
       const sharpe = (ret - state.riskFreeRate) / Math.max(0.0001, vol);
       const color = ASSET_PALETTE[hitAssetIdx % ASSET_PALETTE.length];
 
-      elements.tooltipFrontier.innerHTML = `
+      showFrontierTooltip(`
         <div style="font-weight:700; color:${color}; margin-bottom:4px;">🏛️ Individual Asset: ${ticker}</div>
         <div>Expected Ann. Return: <strong>${(ret * 100).toFixed(2)}%</strong></div>
         <div>Annualized Volatility: <strong>${(vol * 100).toFixed(2)}%</strong></div>
@@ -1148,10 +1165,7 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
         <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
           💡 Notice this asset lies inside/below the efficient frontier. Holding ${ticker} alone takes uncompensated risk compared to an efficient frontier blend.
         </div>
-      `;
-      elements.tooltipFrontier.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
-      elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
-      elements.tooltipFrontier.style.display = 'block';
+      `);
       return;
     }
 
@@ -1189,7 +1203,7 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
         return `<div><span style="color:${color};">●</span> ${t}: <strong>${(w * 100).toFixed(1)}%</strong></div>`;
       }).join('');
 
-      elements.tooltipFrontier.innerHTML = `
+      showFrontierTooltip(`
         <div style="font-weight:700; margin-bottom:4px; color:#38bdf8;">${labelHeader}</div>
         <div>Expected Return: <strong>${(closestPoint.expectedReturn * 100).toFixed(2)}%</strong></div>
         <div>Volatility: <strong>${(closestPoint.volatility * 100).toFixed(2)}%</strong></div>
@@ -1200,11 +1214,7 @@ function renderFrontierChart(frontierResult = state.lastFrontier) {
         <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
           ${takeaway}
         </div>
-      `;
-
-      elements.tooltipFrontier.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
-      elements.tooltipFrontier.style.top = `${Math.max(10, mouseY - 40)}px`;
-      elements.tooltipFrontier.style.display = 'block';
+      `);
     } else {
       elements.tooltipFrontier.style.display = 'none';
     }
@@ -1381,7 +1391,27 @@ function renderTransitionChart() {
       return `<div><span style="color:${color};">●</span> ${t}: <strong>${(w * 100).toFixed(1)}%</strong></div>`;
     }).join('');
 
-    elements.tooltipTransition.innerHTML = `
+    const showTransitionTooltip = (html) => {
+      elements.tooltipTransition.innerHTML = html;
+      elements.tooltipTransition.style.display = 'block';
+      const tipW = elements.tooltipTransition.offsetWidth || 280;
+      const tipH = elements.tooltipTransition.offsetHeight || 160;
+
+      let leftPos = mouseX + 15;
+      if (mouseX + tipW + 20 > width) {
+        leftPos = Math.max(10, mouseX - tipW - 15);
+      }
+      let topPos = mouseY - 30;
+      if (topPos + tipH + 15 > height) {
+        topPos = Math.max(10, height - tipH - 15);
+      }
+      topPos = Math.max(10, topPos);
+
+      elements.tooltipTransition.style.left = `${leftPos}px`;
+      elements.tooltipTransition.style.top = `${topPos}px`;
+    };
+
+    showTransitionTooltip(`
       <div style="font-weight:700; margin-bottom:4px; color:#38bdf8;">Frontier Point #${closestStep + 1}</div>
       <div>Volatility: <strong>${(activeVol * 100).toFixed(2)}%</strong></div>
       <div>Return: <strong>${(activeReturn * 100).toFixed(2)}%</strong></div>
@@ -1392,11 +1422,7 @@ function renderTransitionChart() {
       <div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#cbd5e1; line-height:1.4;">
         📊 Asset Substitution: At ${(activeVol * 100).toFixed(1)}% volatility, weights dynamically shift between risk-reducing anchors and return drivers.
       </div>
-    `;
-
-    elements.tooltipTransition.style.left = `${Math.min(width - 240, mouseX + 15)}px`;
-    elements.tooltipTransition.style.top = `${Math.max(10, mouseY - 30)}px`;
-    elements.tooltipTransition.style.display = 'block';
+    `);
   });
 
   canvas.addEventListener('mousemove', handleMouseMove, { signal: canvas._controller.signal });
