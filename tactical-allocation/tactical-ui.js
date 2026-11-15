@@ -635,20 +635,27 @@ function renderAllocationAreaChart(res) {
     prevAccumulated = currAccumulated;
   });
 
-  // Legend at Top
+  // Legend at Top with Responsive Row Wrapping
   let legendX = padding.left;
+  let legendY = 16;
   heldAssets.forEach(assetId => {
     const name = getAssetName(assetId);
     const color = getAssetColor(assetId);
+    const itemWidth = ctx.measureText(name).width + 28;
+
+    if (legendX + itemWidth > width - padding.right && legendX > padding.left) {
+      legendX = padding.left;
+      legendY += 18;
+    }
 
     ctx.fillStyle = color;
-    ctx.fillRect(legendX, 12, 12, 12);
+    ctx.fillRect(legendX, legendY - 6, 12, 12);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = fonts.sm;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(name, legendX + 16, 18);
-    legendX += ctx.measureText(name).width + 28;
+    ctx.fillText(name, legendX + 16, legendY);
+    legendX += itemWidth;
   });
 
   // Mouse Interactivity

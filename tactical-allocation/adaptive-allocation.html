@@ -42,15 +42,6 @@
     </nav>
 
     <div class="tactical-container">
-      <!-- Header -->
-      <header class="tactical-header">
-        <h1>⚖️ Adaptive Asset Allocation Model (ReSolve)</h1>
-        <p class="tactical-tagline">
-          Backtest Adam Butler, Mike Philbrick, and Rodrigo Gordillo's Adaptive Asset Allocation model across 54 years (1972–Present).
-          Pairs cross-sectional momentum ranking with Inverse Volatility (Risk Parity) weighting to maximize risk-adjusted compounding while suppressing tail risk.
-        </p>
-      </header>
-
       <!-- Suite Sub-Navigation -->
       <nav class="suite-subnav" aria-label="Tactical Asset Allocation Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
         <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Hub</a>
@@ -61,6 +52,15 @@
         <a href="adaptive-allocation.html" class="suite-subnav-link active" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Adaptive Allocation</a>
         <a href="target-volatility.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Target Volatility</a>
       </nav>
+
+      <!-- Header -->
+      <header class="tactical-header">
+        <h1>⚖️ Adaptive Asset Allocation Model (ReSolve)</h1>
+        <p class="tactical-tagline">
+          Backtest Adam Butler, Mike Philbrick, and Rodrigo Gordillo's Adaptive Asset Allocation model across 54 years (1972–Present).
+          Pairs cross-sectional momentum ranking with Inverse Volatility (Risk Parity) weighting to maximize risk-adjusted compounding while suppressing tail risk.
+        </p>
+      </header>
 
       <!-- Executive Decision Framework (Collapsible) -->
       <section class="cheat-sheet-card" id="executive-guide-tactical" style="margin-bottom: 1.25rem;">
@@ -135,7 +135,7 @@
           </div>
           <div>
             <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc;" id="banner-signal-title">
-              Current Target Holding: Top 3 Adaptive Risk Parity Leaders
+              Current Allocation (2026-08): 38% Intermediate Treasury (10Y) + 33% Gold + 29% Total US Stock Market
             </div>
             <div style="font-size: 0.8rem; color: #94a3b8;" id="banner-signal-sub">
               Capital allocated dynamically across momentum leaders weighted by inverse trailing volatility.
@@ -347,13 +347,11 @@
                 <th style="text-align: left;">Portfolio Strategy</th>
                 <th style="text-align: right;">Final Balance</th>
                 <th style="text-align: right;">CAGR</th>
-                <th style="text-align: right;">StDev (Vol)</th>
-                <th style="text-align: right;">Best Year</th>
-                <th style="text-align: right;">Worst Year</th>
+                <th style="text-align: right;">Annual Volatility</th>
+                <th style="text-align: right;">Sharpe Ratio</th>
+                <th style="text-align: right;">Sortino Ratio</th>
                 <th style="text-align: right;">Max Drawdown</th>
-                <th style="text-align: right;">Sharpe (3%)</th>
-                <th style="text-align: right;">Sortino</th>
-                <th style="text-align: right;">Market Corr</th>
+                <th style="text-align: right;">Win Rate</th>
               </tr>
             </thead>
             <tbody id="mpt-scorecard-table-body">

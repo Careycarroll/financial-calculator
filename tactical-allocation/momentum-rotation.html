@@ -42,16 +42,6 @@
     </nav>
 
     <div class="tactical-container">
-      <!-- Header -->
-      <header class="tactical-header">
-        <h1>🔄 Momentum Rotation Model (Relative Strength Top-N)</h1>
-        <p class="tactical-tagline">
-          Backtest cross-sectional relative strength momentum across multi-asset universes (1972–Present).
-          Ranks candidate asset classes by trailing returns and dynamically allocates capital to the top N performers,
-          filtered by an absolute trend hurdle to prevent holding assets in sustained declines.
-        </p>
-      </header>
-
       <!-- Suite Sub-Navigation -->
       <nav class="suite-subnav" aria-label="Tactical Asset Allocation Suite Pages" style="display:flex; align-items:center; gap:0.5rem; background:#0f172a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.35rem 0.5rem; margin-bottom:1.25rem; overflow-x:auto;">
         <a href="index.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚡ Tactical Hub</a>
@@ -62,6 +52,16 @@
         <a href="adaptive-allocation.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">⚖️ Adaptive Allocation</a>
         <a href="target-volatility.html" class="suite-subnav-link" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.85rem; font-size:0.83rem; font-weight:600; color:#94a3b8; text-decoration:none; border-radius:6px; white-space:nowrap;">🎯 Target Volatility</a>
       </nav>
+
+      <!-- Header -->
+      <header class="tactical-header">
+        <h1>🔄 Momentum Rotation Model (Relative Strength Top-N)</h1>
+        <p class="tactical-tagline">
+          Backtest cross-sectional relative strength momentum across multi-asset universes (1972–Present).
+          Ranks candidate asset classes by trailing returns and dynamically allocates capital to the top N performers,
+          filtered by an absolute trend hurdle to prevent holding assets in sustained declines.
+        </p>
+      </header>
 
       <!-- Executive Decision Framework (Collapsible) -->
       <section class="cheat-sheet-card" id="executive-guide-tactical" style="margin-bottom: 1.25rem;">
@@ -351,13 +351,11 @@
                 <th style="text-align: left;">Portfolio Strategy</th>
                 <th style="text-align: right;">Final Balance</th>
                 <th style="text-align: right;">CAGR</th>
-                <th style="text-align: right;">StDev (Vol)</th>
-                <th style="text-align: right;">Best Year</th>
-                <th style="text-align: right;">Worst Year</th>
+                <th style="text-align: right;">Annual Volatility</th>
+                <th style="text-align: right;">Sharpe Ratio</th>
+                <th style="text-align: right;">Sortino Ratio</th>
                 <th style="text-align: right;">Max Drawdown</th>
-                <th style="text-align: right;">Sharpe (3%)</th>
-                <th style="text-align: right;">Sortino</th>
-                <th style="text-align: right;">Market Corr</th>
+                <th style="text-align: right;">Win Rate</th>
               </tr>
             </thead>
             <tbody id="mpt-scorecard-table-body">
