@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Term Structure &amp; Forward Rates — Financial Calculator</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/common-calculator.css" />
+    <link rel="stylesheet" href="./fixed-income.css" />
+    <script src="../js/font-scale.js"></script>
+    <script src="../js/nav.js"></script>
+  </head>
+  <body class="fixed-income-page">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="top-nav-inner">
+        <div class="top-nav-left">
+          <a href="../index.html" class="top-nav-logo">Financial Calculator</a>
+          <span class="nav-breadcrumb-sep">/</span>
+          <div class="nav-category-dropdown">
+            <button class="nav-category-btn" id="navCategoryBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Switch suite or jump between tools">
+              <span class="nav-category-icon">🏛️</span>
+              <span class="nav-category-label">Portfolio &amp; Allocation</span>
+              <svg class="nav-category-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M2.5 4.5L6 8L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu" id="navDropdownMenu" role="menu"></div>
+          </div>
+        </div>
+        <div class="top-nav-links">
+          <a href="../index.html" class="top-nav-link nav-home-link">← All Tools</a>
+          <a href="../portfolio-backtest/index.html" class="top-nav-link active">💼 Portfolio</a>
+          <a href="../tactical-allocation/index.html" class="top-nav-link">⚡ Tactical Allocation</a>
+          <a href="../portfolio-optimization/portfolio-optimization.html" class="top-nav-link">⚖️ Optimization</a>
+          <a href="../fund-regression/index.html" class="top-nav-link">📈 Factor Analysis</a>
+          <a href="../monte-carlo/index.html" class="top-nav-link">🎲 Monte Carlo</a>
+          <a href="../pages/drawdown-engine.html" class="top-nav-link">🛡️ Retirement</a>
+          <button id="font-scale-btn" class="font-scale-btn" aria-label="Cycle font size" title="Font size: medium">A</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page-container fixed-income-container">
+      <!-- Header -->
+      <header class="studio-header">
+        <h1>📈 Term Structure &amp; Forward Rates Studio</h1>
+        <p class="studio-tagline">
+          Theoretical zero-coupon spot curve bootstrapping, implied 1-year forward rate derivation,
+          arbitrary horizon forward loan pricing ($f_{t_1, t_2}$), and term structure hypothesis diagnostics (Bodie Chapter 15).
+        </p>
+      </header>
+
+      <!-- Suite Subnav -->
+      <nav class="suite-subnav" aria-label="Fixed Income Studio Sub-Navigation">
+        <a href="index.html" class="suite-subnav-link">🏛️ Bond Valuation &amp; Sensitivity</a>
+        <a href="yield-curve.html" class="suite-subnav-link active">📈 Term Structure &amp; Forward Rates</a>
+        <a href="../monte-carlo/asset-liability.html" class="suite-subnav-link">⚖️ Asset-Liability Modeling</a>
+        <a href="../tactical-allocation/market-valuation.html" class="suite-subnav-link">📊 Treasury Yield Curve</a>
+      </nav>
+
+      <!-- Executive Decision Framework (Collapsible) -->
+      <section class="cheat-sheet-card" id="executive-guide-yield-curve" style="margin-bottom: 1.25rem;">
+        <div class="cheat-sheet-header open" id="executive-guide-toggle">
+          <div class="cheat-sheet-title">
+            <span>💡 Executive Decision Framework: The Term Structure of Interest Rates</span>
+            <span class="cheat-sheet-sub">Click to collapse / expand guide</span>
+          </div>
+          <span class="cheat-sheet-arrow open" id="executive-guide-arrow">▼</span>
+        </div>
+        <div class="cheat-sheet-body" id="executive-guide-body">
+          <div class="cheat-sheet-grid">
+            <div class="cheat-item">
+              <div class="cheat-badge scale-uncorr">🎯 Executive Purpose</div>
+              <strong>De-Convoluting Yield Curves</strong>
+              <p>Market Treasury quotes are par coupon yields, not true zero-coupon spot rates. Bootstrapping strips out intermediate coupon reinvestment noise to reveal the pure time-value of money.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-moderate">📋 How to Use</div>
+              <strong>3-Step Term Structure Workflow</strong>
+              <p>1. <strong>Select Regime</strong>: Pick Current Treasury, Steep Normal (2018), or Inverted (2023).<br>2. <strong>Compare Curves</strong>: Contrast Par vs. Spot vs. 1Y Forward.<br>3. <strong>Price Forward Loans</strong>: Solve exact break-even rates for future borrowing windows.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-overlap">🔍 What to Expect</div>
+              <strong>Curve Order Theorem (Bodie Ch. 15)</strong>
+              <p>• <strong>Upward Sloping</strong>: Forward Curve &gt; Spot Curve &gt; Par Curve.<br>• <strong>Inverted (Recession)</strong>: Forward Curve &lt; Spot Curve &lt; Par Curve.<br>• <strong>Flat Curve</strong>: Forward = Spot = Par.</p>
+            </div>
+            <div class="cheat-item">
+              <div class="cheat-badge scale-hedge">💡 Executive Output Decoder</div>
+              <strong>Liquidity Preference vs. Expectations</strong>
+              <p>• <strong>Pure Expectations</strong>: Forward rates represent consensus market forecasts of future spot rates.<br>• <strong>Liquidity Preference</strong>: Forward rates include a positive term premium ($L_t$) compensating investors for interest rate volatility.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Regime Presets Bar -->
+      <div class="fi-card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+        <div class="presets-wrap" style="margin: 0;">
+          <span class="presets-label">Historical Yield Curve Regimes:</span>
+          <div class="presets-buttons">
+            <button class="btn-preset btn-preset-curve active" data-preset="current-treasury" type="button">Current Benchmark</button>
+            <button class="btn-preset btn-preset-curve" data-preset="steep-normal" type="button">Steep Normal (2018)</button>
+            <button class="btn-preset btn-preset-curve" data-preset="inverted-2023" type="button">Deeply Inverted (2023)</button>
+            <button class="btn-preset btn-preset-curve" data-preset="flat-2019" type="button">Flat Transition (2019)</button>
+            <button class="btn-preset btn-preset-curve" data-preset="zirp-2020" type="button">ZIRP Pandemic (2020)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Layout Grid -->
+      <div class="fi-layout-grid">
+        <!-- Configuration Column -->
+        <div class="fi-card">
+          <div class="fi-card-header">
+            <h3 class="fi-card-title">
+              <span>⚙️</span>
+              <span>Par Yield Anchor Points</span>
+            </h3>
+            <span class="fi-badge">US Treasuries</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="fi-form-group">
+              <label for="par-3m">3-Month Par (%)</label>
+              <input type="number" id="par-3m" class="fi-input inp-par-tenor" data-tenor="0.25" value="4.50" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-1y">1-Year Par (%)</label>
+              <input type="number" id="par-1y" class="fi-input inp-par-tenor" data-tenor="1" value="4.35" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-2y">2-Year Par (%)</label>
+              <input type="number" id="par-2y" class="fi-input inp-par-tenor" data-tenor="2" value="4.25" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-3y">3-Year Par (%)</label>
+              <input type="number" id="par-3y" class="fi-input inp-par-tenor" data-tenor="3" value="4.28" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-5y">5-Year Par (%)</label>
+              <input type="number" id="par-5y" class="fi-input inp-par-tenor" data-tenor="5" value="4.35" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-7y">7-Year Par (%)</label>
+              <input type="number" id="par-7y" class="fi-input inp-par-tenor" data-tenor="7" value="4.42" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-10y">10-Year Par (%)</label>
+              <input type="number" id="par-10y" class="fi-input inp-par-tenor" data-tenor="10" value="4.50" step="0.05" />
+            </div>
+            <div class="fi-form-group">
+              <label for="par-20y">20-Year Par (%)</label>
+              <input type="number" id="par-20y" class="fi-input inp-par-tenor" data-tenor="20" value="4.75" step="0.05" />
+            </div>
+          </div>
+          <div class="fi-form-group">
+            <label for="par-30y">30-Year Par (%)</label>
+            <input type="number" id="par-30y" class="fi-input inp-par-tenor" data-tenor="30" value="4.65" step="0.05" />
+          </div>
+
+          <!-- Forward Contract Workbench -->
+          <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1.25rem;">
+            <div class="fi-card-header" style="padding-bottom: 0.5rem; margin-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 0.95rem; color: #f8fafc;">🔮 Arbitrary Forward Rate Solver</h4>
+              <span class="fi-badge gold">Forward Contract</span>
+            </div>
+            <p class="fi-input-hint" style="margin-bottom: 0.75rem;">Solve implied break-even borrowing rate between Year $t_1$ and Year $t_2$.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div class="fi-form-group">
+                <label for="forward-t1">Start Horizon $t_1$ (Yrs)</label>
+                <input type="number" id="forward-t1" class="fi-input" value="1" min="0.5" max="25" step="0.5" />
+              </div>
+              <div class="fi-form-group">
+                <label for="forward-t2">End Horizon $t_2$ (Yrs)</label>
+                <input type="number" id="forward-t2" class="fi-input" value="5" min="1" max="30" step="0.5" />
+              </div>
+            </div>
+            <div class="kpi-box" style="margin-top: 0.5rem; background: #0f172a;">
+              <span class="kpi-label">Implied Forward Rate ($f_{t_1, t_2}$)</span>
+              <span class="kpi-val highlight-gold" id="res-fwd-rate">--</span>
+              <span class="kpi-sub" id="res-fwd-term">--</span>
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #94a3b8; margin-top: 0.4rem;">
+                <span>Start: <strong id="res-fwd-spot1">--</strong></span>
+                <span>End: <strong id="res-fwd-spot2">--</strong></span>
+                <span>DF: <strong id="res-fwd-df">--</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytical Charts & Results Column -->
+        <div class="fi-results-column">
+          <!-- Top KPI Scorecards -->
+          <div class="metrics-row">
+            <div class="kpi-box">
+              <span class="kpi-label">10Y – 2Y Spread</span>
+              <span class="kpi-val highlight-blue" id="kpi-10_2-spread">+25 bps</span>
+              <span class="kpi-sub">Benchmark Curve Slope</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">Curve Structure</span>
+              <div style="margin-top: 0.25rem;">
+                <span class="fi-badge" id="kpi-curve-regime">Normal</span>
+              </div>
+              <span class="kpi-sub" id="term-structure-explanation">Forward &gt; Spot &gt; Par</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">10-Year Spot Rate ($z_{10}$)</span>
+              <span class="kpi-val highlight-gold" id="kpi-spot-10y">4.52%</span>
+              <span class="kpi-sub">Pure Zero-Coupon Yield</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">1Y Forward in 10Y ($f_{9,10}$)</span>
+              <span class="kpi-val highlight-green" id="kpi-forward-10y">4.75%</span>
+              <span class="kpi-sub">1-Year Forward Rate</span>
+            </div>
+          </div>
+
+          <!-- Canvas Chart: Par vs Spot vs Forward -->
+          <div class="fi-card" style="margin-bottom: 1.5rem;">
+            <div class="fi-card-header">
+              <h3 class="fi-card-title">
+                <span>📊</span>
+                <span>Term Structure Comparison: Par Yield vs. Spot vs. 1-Year Forward</span>
+              </h3>
+              <span class="fi-badge">High-DPI Vector Grid</span>
+            </div>
+            <div class="canvas-container" style="height: 340px;">
+              <canvas id="canvas-term-structure"></canvas>
+            </div>
+          </div>
+
+          <!-- Liquidity Preference Theory Decomposition Table -->
+          <div class="fi-card">
+            <div class="fi-card-header">
+              <h3 class="fi-card-title">
+                <span>⚖️</span>
+                <span>Term Structure Theory Decomposition: Expectations vs. Liquidity Premium</span>
+              </h3>
+              <span class="fi-badge gold">Bodie Ch. 15 Framework</span>
+            </div>
+            <p class="studio-tagline" style="font-size: 0.82rem; margin-bottom: 1rem;">
+              Under the Liquidity Preference Theory, forward rates ($f_t$) equal the market's expected future spot rate ($E[r_t]$) plus a maturity term premium ($L_t$) for bearing price volatility.
+            </p>
+            <div class="fi-table-wrap">
+              <table class="fi-table">
+                <thead>
+                  <tr>
+                    <th>Forward Tenor</th>
+                    <th>Implied 1Y Forward ($f_{t-1, t}$)</th>
+                    <th>Estimated Term Premium ($L_t$)</th>
+                    <th>Expected Spot Rate ($E[r_t]$)</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-term-theories">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UI Logic Script -->
+    <script type="module" src="./yield-curve-ui.js"></script>
+    <script src="../js/prefetch.js"></script>
+  </body>
+</html>

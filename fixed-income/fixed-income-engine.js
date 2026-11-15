@@ -516,3 +516,244 @@ export function calculateLiabilityImmunization({
       : `Cannot immunize: Liability duration (${liabilityDuration.toFixed(2)}Y) lies outside available bond bounds (${D1.toFixed(2)}Y to ${D2.toFixed(2)}Y).`
   };
 }
+
+// ===================================================================
+// 3. Term Structure of Interest Rates & Forward Curves (Bodie Ch. 15)
+// ===================================================================
+
+/**
+ * Linearly interpolates yield values for arbitrary integer or fractional tenors.
+ * @param {Array<{tenor: number, yield: number}>} curve - Known anchor points sorted by tenor
+ * @param {number} targetTenor - Desired tenor to interpolate
+ * @returns {number} Interpolated yield
+ */
+export function interpolateYield(curve, targetTenor) {
+  if (!curve || !curve.length) return 0;
+  if (curve.length === 1) return curve[0].yield;
+  if (targetTenor <= curve[0].tenor) return curve[0].yield;
+  if (targetTenor >= curve[curve.length - 1].tenor) return curve[curve.length - 1].yield;
+
+  for (let i = 0; i < curve.length - 1; i++) {
+    const p1 = curve[i];
+    const p2 = curve[i + 1];
+    if (targetTenor >= p1.tenor && targetTenor <= p2.tenor) {
+      const frac = (targetTenor - p1.tenor) / (p2.tenor - p1.tenor);
+      return p1.yield + frac * (p2.yield - p1.yield);
+    }
+  }
+
+  return curve[curve.length - 1].yield;
+}
+
+/**
+ * Bootstraps theoretical zero-coupon spot rates (z_t) from par yield curve data.
+ * Par bond pricing identity: Par = sum_{i=1}^{N-1} [C / (1 + z_i/m)^i] + (C + Par) / (1 + z_N/m)^N
+ * 
+ * @param {Array<{tenor: number, parYield: number}>} parPoints - Market par yields (e.g. 1Y: 4.5%, 2Y: 4.6%, etc.)
+ * @param {Object} [options]
+ * @param {number} [options.frequency=2] - Coupon frequency per year (2 for semi-annual Treasuries)
+ * @param {number} [options.maxTenor=30] - Maximum horizon in years to bootstrap
+ * @returns {Array<{tenor: number, parYield: number, spotRate: number, discountFactor: number}>}
+ */
+export function bootstrapSpotCurve(parPoints, { frequency = 2, maxTenor = 30 } = {}) {
+  const m = Math.max(1, parseInt(frequency, 10) || 2);
+  const sortedPoints = [...parPoints].sort((a, b) => a.tenor - b.tenor);
+  const minTenor = Math.max(0.5, sortedPoints[0]?.tenor || 1);
+  const upperTenor = Math.min(maxTenor, sortedPoints[sortedPoints.length - 1]?.tenor || 30);
+
+  // Map of tenor (years) -> spot rate
+  const spotMap = new Map();
+  const results = [];
+
+  // Generate continuous annual or semi-annual grid from minTenor to upperTenor
+  const step = 1 / m;
+  const totalSteps = Math.round((upperTenor - minTenor) / step);
+
+  for (let s = 0; s <= totalSteps; s++) {
+    const tenor = parseFloat((minTenor + s * step).toFixed(4));
+    const parYield = interpolateYield(sortedPoints.map(p => ({ tenor: p.tenor, yield: p.parYield })), tenor);
+    const n = Math.round(tenor * m);
+    const par = 100;
+    const c = (par * parYield) / m;
+
+    let spotRate;
+
+    if (n === 1) {
+      // First period: Zero-coupon identity (Par = (Par + C) / (1 + z_1/m))
+      // => z_1/m = (Par + C) / Par - 1 = C / Par = parYield / m => z_1 = parYield
+      spotRate = parYield;
+    } else {
+      // Intermediate periods sum of discounted coupons
+      let pvCoupons = 0;
+      for (let i = 1; i < n; i++) {
+        const pastTenor = parseFloat((i / m).toFixed(4));
+        const pastSpot = spotMap.get(pastTenor) || parYield;
+        const df = Math.pow(1 + pastSpot / m, -i);
+        pvCoupons += c * df;
+      }
+
+      // Par = pvCoupons + (Par + C) / (1 + z_N/m)^N
+      // (1 + z_N/m)^N = (Par + C) / (Par - pvCoupons)
+      const denom = par - pvCoupons;
+      if (denom > 0) {
+        const periodicSpot = Math.pow((par + c) / denom, 1 / n) - 1;
+        spotRate = periodicSpot * m;
+      } else {
+        spotRate = parYield;
+      }
+    }
+
+    spotMap.set(tenor, spotRate);
+
+    // Record integer year tenors or anchor tenors
+    if (Math.abs(tenor - Math.round(tenor)) < 1e-4) {
+      const integerTenor = Math.round(tenor);
+      const discountFactor = Math.pow(1 + spotRate / m, -integerTenor * m);
+      results.push({
+        tenor: integerTenor,
+        parYield,
+        spotRate,
+        discountFactor
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Calculates implied forward interest rates from a zero-coupon spot curve.
+ * Formula between t1 and t2: (1 + z_t2)^t2 = (1 + z_t1)^t1 * (1 + f_{t1,t2})^(t2 - t1)
+ * => f_{t1,t2} = [ (1 + z_t2)^t2 / (1 + z_t1)^t1 ]^(1 / (t2 - t1)) - 1
+ * 
+ * @param {Array<{tenor: number, spotRate: number}>} spotCurve - Annual spot rates
+ * @returns {Array<{tenor: number, spotRate: number, forwardRate1Y: number}>} Consecutive 1-year forward rates (f_{t-1, t})
+ */
+export function calculateForwardCurve(spotCurve) {
+  if (!spotCurve || spotCurve.length < 2) return [];
+
+  const sorted = [...spotCurve].sort((a, b) => a.tenor - b.tenor);
+
+  return sorted.map((pt, idx) => {
+    if (idx === 0) {
+      // For t=1, 1-year forward rate equals the 1-year spot rate: f_{0,1} = z_1
+      return {
+        tenor: pt.tenor,
+        spotRate: pt.spotRate,
+        forwardRate1Y: pt.spotRate
+      };
+    }
+
+    const prev = sorted[idx - 1];
+    const t1 = prev.tenor;
+    const t2 = pt.tenor;
+    const dt = t2 - t1;
+
+    // (1 + z2)^t2 / (1 + z1)^t1
+    const compoundRatio = Math.pow(1 + pt.spotRate, t2) / Math.pow(1 + prev.spotRate, t1);
+    const forwardRate = Math.pow(Math.max(0.0001, compoundRatio), 1 / dt) - 1;
+
+    return {
+      tenor: pt.tenor,
+      spotRate: pt.spotRate,
+      forwardRate1Y: forwardRate
+    };
+  });
+}
+
+/**
+ * Calculates a specific forward rate between any two arbitrary periods t1 and t2 (t2 > t1).
+ * @param {Array<{tenor: number, spotRate: number}>} spotCurve
+ * @param {number} t1 - Start horizon in years
+ * @param {number} t2 - End horizon in years
+ * @returns {{t1: number, t2: number, forwardRate: number, spot1: number, spot2: number, forwardDiscountFactor: number}}
+ */
+export function getSpecificForwardRate(spotCurve, t1, t2) {
+  if (t2 <= t1) {
+    throw new Error('End period t2 must be strictly greater than start period t1.');
+  }
+
+  const spotMap = spotCurve.map(p => ({ tenor: p.tenor, yield: p.spotRate }));
+  const z1 = interpolateYield(spotMap, t1);
+  const z2 = interpolateYield(spotMap, t2);
+  const dt = t2 - t1;
+
+  const compoundRatio = Math.pow(1 + z2, t2) / Math.pow(1 + z1, t1);
+  const forwardRate = Math.pow(Math.max(0.0001, compoundRatio), 1 / dt) - 1;
+  const forwardDiscountFactor = Math.pow(1 + forwardRate, -dt);
+
+  return {
+    t1,
+    t2,
+    forwardRate,
+    spot1: z1,
+    spot2: z2,
+    forwardDiscountFactor
+  };
+}
+
+/**
+ * Evaluates the three classical term structure theories (Bodie Chapter 15).
+ * 1. Pure Expectations Hypothesis: Expected Future Rate = Forward Rate (Liquidity Premium = 0)
+ * 2. Liquidity Preference Theory: Forward Rate = Expected Future Rate + Term Premium L_t (L_t > 0)
+ * 3. Market Segmentation / Preferred Habitat: Relative supply/demand shifts yield spreads across tenors
+ * 
+ * @param {Array<{tenor: number, parYield: number, spotRate: number}>} spotCurve
+ * @param {Array<{tenor: number, forwardRate1Y: number}>} forwardCurve
+ * @param {number} [liquiditySlope=0.0010] - Stylized term premium slope per year (+10 bps/yr)
+ * @returns {Object} Comprehensive term structure diagnostic report
+ */
+export function analyzeTermStructureTheories(spotCurve, forwardCurve, { liquiditySlope = 0.0010 } = {}) {
+  if (!spotCurve.length || !forwardCurve.length) return null;
+
+  const shortRate = spotCurve[0].spotRate;
+  const longRate = spotCurve[spotCurve.length - 1].spotRate;
+  const spreadSlope = longRate - shortRate;
+
+  // Determine curve regime
+  let regime;
+  if (spreadSlope > 0.0075) {
+    regime = {
+      type: 'Normal (Upward Sloping)',
+      badge: 'positive',
+      summary: 'Long-term rates exceed short-term rates. Forward curve lies ABOVE the spot curve, which lies ABOVE the par curve.'
+    };
+  } else if (spreadSlope < -0.0025) {
+    regime = {
+      type: 'Inverted (Recession Warning)',
+      badge: 'warning',
+      summary: 'Short-term rates exceed long-term rates. Forward curve lies BELOW the spot curve. Historically precedes macroeconomic recessions.'
+    };
+  } else {
+    regime = {
+      type: 'Flat / Transitioning',
+      badge: 'neutral',
+      summary: 'Yields are uniform across maturities. Spot, par, and forward curves are tightly aligned.'
+    };
+  }
+
+  // Decompose forward curve under Liquidity Preference Theory
+  const forwardDecomposition = forwardCurve.map(f => {
+    // Stylized liquidity premium growing with tenor: L_t = min(0.025, liquiditySlope * (tenor - 1)^0.85)
+    const termYears = Math.max(0, f.tenor - 1);
+    const liquidityPremium = Math.min(0.025, liquiditySlope * Math.pow(termYears, 0.85));
+    const expectedSpotRate = f.forwardRate1Y - liquidityPremium;
+
+    return {
+      tenor: f.tenor,
+      forwardRate: f.forwardRate1Y,
+      liquidityPremium,
+      expectedSpotRate
+    };
+  });
+
+  return {
+    regime,
+    shortRate,
+    longRate,
+    spreadSlope,
+    spreadSlopeBps: Math.round(spreadSlope * 10000),
+    forwardDecomposition
+  };
+}
+
