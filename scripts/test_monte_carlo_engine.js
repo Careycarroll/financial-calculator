@@ -226,6 +226,24 @@ assert(almResult.liabilityPVTrajectory[0] > 0, `Initial liability PV is positive
 assert(almResult.annualOutflowsByYear !== null, 'Annual outflows tracked');
 assert(almResult.annualOutflowsByYear[5] === 140000, `Year 5 outflow combines recurring $40k + lump $100k = $140k (Actual: $${almResult.annualOutflowsByYear[5]})`);
 
+// --- TEST 10: High-DPI Canvas Constraints & Styling Audit ---
+console.log('\n--- TEST 10: High-DPI Canvas Constraints & Styling Audit ---');
+import fs from 'fs';
+import path from 'path';
+
+const mcCss = fs.readFileSync(path.resolve('monte-carlo/monte-carlo.css'), 'utf-8');
+const simUi = fs.readFileSync(path.resolve('monte-carlo/simulation-ui.js'), 'utf-8');
+const goalsUi = fs.readFileSync(path.resolve('monte-carlo/goals-ui.js'), 'utf-8');
+const almUi = fs.readFileSync(path.resolve('monte-carlo/alm-ui.js'), 'utf-8');
+
+assert(mcCss.includes('.donut-canvas-wrap canvas') && mcCss.includes('width: 140px !important'), 'monte-carlo.css enforces 140px canvas style width');
+assert(mcCss.includes('#donut-canvas-assets') && mcCss.includes('width: 220px !important'), 'monte-carlo.css enforces 220px ALM canvas style width');
+assert(mcCss.includes('.donut-legend-item:hover'), 'monte-carlo.css has interactive hover styling on legend pills');
+
+assert(simUi.includes('canvas.style.width') && simUi.includes('ctx.resetTransform()'), 'simulation-ui.js resets DPR transform and sets explicit style width');
+assert(goalsUi.includes('canvas.style.width') && goalsUi.includes('ctx.resetTransform()'), 'goals-ui.js resets DPR transform and sets explicit style width');
+assert(almUi.includes('canvas.style.width') && almUi.includes('ctx.resetTransform()'), 'alm-ui.js resets DPR transform and sets explicit style width');
+
 console.log('\n=============================================');
 if (failed === 0) {
   console.log(`🎉 ALL ${passed} MONTE CARLO ENGINE TESTS PASSED SUCCESSFULLY!`);

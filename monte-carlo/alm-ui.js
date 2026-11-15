@@ -503,6 +503,7 @@ function renderDonutChart() {
   canvas.height = h * dpr;
   canvas.style.width = `${w}px`;
   canvas.style.height = `${h}px`;
+  ctx.resetTransform();
   ctx.scale(dpr, dpr);
 
   ctx.clearRect(0, 0, w, h);
@@ -534,9 +535,11 @@ function renderDonutChart() {
 
     legendHtml += `
       <div class="donut-legend-item">
-        <span class="donut-legend-color" style="background: ${color};"></span>
-        <span class="donut-legend-ticker">${item.ticker}</span>
-        <span class="donut-legend-pct">${wt}%</span>
+        <div class="donut-legend-left">
+          <span class="donut-legend-dot" style="background: ${color};"></span>
+          <span class="donut-ticker">${item.ticker}</span>
+        </div>
+        <span class="donut-legend-pct" style="color: ${color};">${wt}%</span>
       </div>
     `;
   });
