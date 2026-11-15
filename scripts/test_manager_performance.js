@@ -19,7 +19,10 @@ import {
   computeManagerSkillConfidence,
   analyzeManagerPerformance,
   calculateBrinsonAttribution,
-  BRINSON_PRESETS
+  BRINSON_PRESETS,
+  calculateMencheroWeights,
+  calculateMultiPeriodBrinson,
+  getBrinsonPresetMonthlyData
 } from '../fund-regression/manager-engine.js';
 
 console.log('=== RUNNING MANAGER PERFORMANCE ANALYSIS ENGINE TESTS ===\n');
@@ -215,5 +218,88 @@ console.log('✅ PASS: 2-factor Brinson decomposition (Allocation + Combined Sel
   assert(res.identityVerified, `Preset ${key} verified with zero residual`);
 });
 console.log('✅ PASS: All institutional attribution presets validated with zero residual');
+
+// --- TEST 12: Menchero Multi-Period Compounded Brinson Attribution (Issue #129) ---
+console.log('\n--- TEST 12: Menchero Multi-Period Compounded Attribution & L\'Hôpital Limits ---');
+
+// 1. Menchero Weight Scaling & Exact Additivity
+const syntheticPeriods = [
+  { portfolioReturn: 0.045, benchmarkReturn: 0.020 },
+  { portfolioReturn: -0.015, benchmarkReturn: 0.010 },
+  { portfolioReturn: 0.035, benchmarkReturn: -0.005 },
+  { portfolioReturn: -0.020, benchmarkReturn: -0.025 }
+];
+const mencheroRes = calculateMencheroWeights(syntheticPeriods);
+assert.strictEqual(mencheroRes.weights.length, 4, '4 Menchero weights generated');
+let linkedActiveSum = 0;
+syntheticPeriods.forEach((p, idx) => {
+  linkedActiveSum += mencheroRes.weights[idx] * (p.portfolioReturn - p.benchmarkReturn);
+});
+assert(Math.abs(linkedActiveSum - mencheroRes.cumulativeActive) < 1e-14,
+  `Menchero linked active return strictly matches cumulative active return: diff=${Math.abs(linkedActiveSum - mencheroRes.cumulativeActive)}`);
+console.log(`✅ PASS: Menchero logarithmic linking exact additivity verified (diff < 1e-14)`);
+
+// 2. L'Hôpital Boundary Check: Zero Active Period (Rp_t == Rb_t)
+const equalPeriod = [
+  { portfolioReturn: 0.03, benchmarkReturn: 0.03 },
+  { portfolioReturn: 0.05, benchmarkReturn: 0.02 }
+];
+const lhopitalPeriodRes = calculateMencheroWeights(equalPeriod);
+assert(Number.isFinite(lhopitalPeriodRes.weights[0]), 'L\'Hopital period limit is finite');
+assert(Number.isFinite(lhopitalPeriodRes.weights[1]), 'Second weight is finite');
+let lhopitalSum = equalPeriod[0].portfolioReturn - equalPeriod[0].benchmarkReturn;
+let lhopitalLinkedSum = lhopitalPeriodRes.weights[0] * (equalPeriod[0].portfolioReturn - equalPeriod[0].benchmarkReturn)
+  + lhopitalPeriodRes.weights[1] * (equalPeriod[1].portfolioReturn - equalPeriod[1].benchmarkReturn);
+assert(Math.abs(lhopitalLinkedSum - lhopitalPeriodRes.cumulativeActive) < 1e-14, 'L\'Hopital period condition holds');
+console.log('✅ PASS: L\'Hopital boundary condition for identical period returns verified');
+
+// 3. L'Hôpital Boundary Check: Zero Cumulative Active Return (Rp == Rb)
+const zeroActiveCum = [
+  { portfolioReturn: 0.04, benchmarkReturn: 0.02 },
+  { portfolioReturn: 0.02, benchmarkReturn: 0.04 }
+];
+const zeroCumRes = calculateMencheroWeights(zeroActiveCum);
+assert(zeroCumRes.weights.every(w => Number.isFinite(w)), 'Weights with zero cumulative active return are all finite');
+assert(Math.abs(zeroCumRes.cumulativeActive) < 1e-12, 'Cumulative active return is zero');
+console.log('✅ PASS: L\'Hopital boundary condition for zero cumulative active return verified');
+
+// 4. Multi-Period Brinson Attribution on 60-Month Presets
+['active-growth', 'global-multi-asset', 'value-dividend'].forEach(presetKey => {
+  [12, 36, 60].forEach(horizon => {
+    const data = getBrinsonPresetMonthlyData(presetKey, horizon);
+    assert.strictEqual(data.length, horizon, `${presetKey} data length matches horizon ${horizon}`);
+
+    // Brinson-Fachler 3-Factor
+    const bfMulti = calculateMultiPeriodBrinson(data, { model: 'brinson-fachler', decomposition: '3-factor' });
+    assert(bfMulti.identityVerified, `${presetKey} ${horizon}M BF multi-period identity verified (residual < 1e-10)`);
+    assert(Math.abs(bfMulti.residual) < 1e-12, `Residual is under 1e-12 (got ${bfMulti.residual})`);
+    assert.strictEqual(bfMulti.trajectory.length, horizon, `Trajectory has ${horizon} points`);
+
+    // Verify sector additivity
+    const sumSecAlloc = bfMulti.sectors.reduce((acc, s) => acc + s.allocation, 0);
+    const sumSecSel = bfMulti.sectors.reduce((acc, s) => acc + s.selection, 0);
+    const sumSecInter = bfMulti.sectors.reduce((acc, s) => acc + s.interaction, 0);
+    assert(Math.abs(sumSecAlloc - bfMulti.totalAllocation) < 1e-12, 'Sector allocation sum matches total allocation');
+    assert(Math.abs(sumSecSel - bfMulti.totalSelection) < 1e-12, 'Sector selection sum matches total selection');
+    assert(Math.abs(sumSecInter - bfMulti.totalInteraction) < 1e-12, 'Sector interaction sum matches total interaction');
+
+    // Trajectory endpoint check
+    const lastPoint = bfMulti.trajectory[bfMulti.trajectory.length - 1];
+    assert(Math.abs(lastPoint.cumActiveReturn - bfMulti.cumulativeActive) < 1e-12, 'Trajectory end active matches cumulative active');
+    assert(Math.abs(lastPoint.cumAllocLinked - bfMulti.totalAllocation) < 1e-12, 'Trajectory end allocation matches total allocation');
+    assert(Math.abs(lastPoint.cumSelLinked - bfMulti.totalSelection) < 1e-12, 'Trajectory end selection matches total selection');
+
+    // Brinson-Hood-Beebower equivalence
+    const bhbMulti = calculateMultiPeriodBrinson(data, { model: 'brinson-hood-beebower' });
+    assert(bhbMulti.identityVerified, `${presetKey} ${horizon}M BHB multi-period identity verified`);
+    assert(Math.abs(bhbMulti.totalAllocation - bfMulti.totalAllocation) < 1e-12, 'BHB multi-period allocation strictly equals BF');
+    assert(Math.abs(bhbMulti.totalSelection - bfMulti.totalSelection) < 1e-12, 'BHB multi-period selection strictly equals BF');
+
+    // 2-Factor decomposition
+    assert(Math.abs(bfMulti.totalCombinedSelection - (bfMulti.totalSelection + bfMulti.totalInteraction)) < 1e-12,
+      'Combined selection equals selection + interaction');
+  });
+});
+console.log('✅ PASS: Multi-period Menchero Brinson attribution validated across all horizons (1Y, 3Y, 5Y) and presets');
 
 console.log('\n🎉 ALL MANAGER PERFORMANCE ENGINE TESTS PASSED SUCCESSFULLY!');
