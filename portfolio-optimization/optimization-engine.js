@@ -1127,6 +1127,316 @@ export function solveRiskParity(expectedReturns, covarianceMatrix, options = {})
 }
 
 /**
+ * Computes the Pearson correlation matrix from a covariance matrix.
+ *
+ * @param {Array<Array<number>>} covarianceMatrix - N x N covariance matrix
+ * @returns {Array<Array<number>>} N x N correlation matrix with values in [-1, 1]
+ */
+export function calculateCorrelationMatrix(covarianceMatrix) {
+  const n = covarianceMatrix.length;
+  const corr = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) {
+        corr[i][j] = 1.0;
+      } else {
+        const denom = Math.sqrt(Math.max(1e-16, covarianceMatrix[i][i] * covarianceMatrix[j][j]));
+        corr[i][j] = denom > 0 ? Math.max(-1, Math.min(1, covarianceMatrix[i][j] / denom)) : 0;
+      }
+    }
+  }
+  return corr;
+}
+
+/**
+ * Computes correlation distance metric matrix:
+ * d_{i,j} = sqrt(0.5 * (1 - rho_{i,j}))
+ *
+ * @param {Array<Array<number>>} corrMatrix - N x N correlation matrix
+ * @returns {Array<Array<number>>} N x N distance matrix in [0, 1]
+ */
+export function correlationDistanceMatrix(corrMatrix) {
+  const n = corrMatrix.length;
+  const dist = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) {
+        dist[i][j] = 0;
+      } else {
+        const rho = Math.max(-1, Math.min(1, corrMatrix[i][j]));
+        dist[i][j] = Math.sqrt(Math.max(0, 0.5 * (1 - rho)));
+      }
+    }
+  }
+  return dist;
+}
+
+/**
+ * Computes Euclidean distance matrix between rows of distance matrix D:
+ * \tilde{D}_{i,j} = sqrt(sum_k (d_{i,k} - d_{j,k})^2)
+ *
+ * @param {Array<Array<number>>} distMatrix - N x N correlation distance matrix
+ * @returns {Array<Array<number>>} N x N Euclidean distance matrix
+ */
+export function euclideanDistanceMatrix(distMatrix) {
+  const n = distMatrix.length;
+  const D_tilde = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      let sumSq = 0;
+      for (let k = 0; k < n; k++) {
+        const diff = distMatrix[i][k] - distMatrix[j][k];
+        sumSq += diff * diff;
+      }
+      const d = Math.sqrt(sumSq);
+      D_tilde[i][j] = d;
+      D_tilde[j][i] = d;
+    }
+  }
+  return D_tilde;
+}
+
+/**
+ * Performs Hierarchical Agglomerative Clustering (HAC).
+ *
+ * @param {Array<Array<number>>} distMatrix - N x N distance matrix
+ * @param {('single'|'complete'|'average')} [linkageMethod='single']
+ * @returns {Array<[number, number, number, number]>} Linkage matrix of size (N-1) x 4:
+ *   [cluster1, cluster2, distance, memberCount]
+ */
+export function hierarchicalClustering(distMatrix, linkageMethod = 'single') {
+  const n = distMatrix.length;
+  if (n <= 1) return [];
+
+  const linkage = [];
+  const clusterMembers = {};
+  for (let i = 0; i < n; i++) {
+    clusterMembers[i] = [i];
+  }
+  const activeClusters = new Set(Array.from({ length: n }, (_, i) => i));
+
+  for (let k = 0; k < n - 1; k++) {
+    const activeArr = Array.from(activeClusters);
+    let minD = Infinity;
+    let bestPair = [-1, -1];
+
+    for (let i = 0; i < activeArr.length; i++) {
+      const u = activeArr[i];
+      for (let j = i + 1; j < activeArr.length; j++) {
+        const v = activeArr[j];
+        const memU = clusterMembers[u];
+        const memV = clusterMembers[v];
+        let d;
+        if (linkageMethod === 'complete') {
+          let maxPairD = -Infinity;
+          for (const iu of memU) {
+            for (const iv of memV) {
+              if (distMatrix[iu][iv] > maxPairD) maxPairD = distMatrix[iu][iv];
+            }
+          }
+          d = maxPairD;
+        } else if (linkageMethod === 'average') {
+          let sumPairD = 0;
+          for (const iu of memU) {
+            for (const iv of memV) {
+              sumPairD += distMatrix[iu][iv];
+            }
+          }
+          d = sumPairD / (memU.length * memV.length);
+        } else {
+          // 'single' linkage
+          let minPairD = Infinity;
+          for (const iu of memU) {
+            for (const iv of memV) {
+              if (distMatrix[iu][iv] < minPairD) minPairD = distMatrix[iu][iv];
+            }
+          }
+          d = minPairD;
+        }
+
+        if (d < minD) {
+          minD = d;
+          bestPair = [Math.min(u, v), Math.max(u, v)];
+        }
+      }
+    }
+
+    const [u, v] = bestPair;
+    const newClusterId = n + k;
+    const newMembers = [...clusterMembers[u], ...clusterMembers[v]];
+    clusterMembers[newClusterId] = newMembers;
+    linkage.push([u, v, minD, newMembers.length]);
+
+    activeClusters.delete(u);
+    activeClusters.delete(v);
+    activeClusters.add(newClusterId);
+  }
+
+  return linkage;
+}
+
+/**
+ * Extracts quasi-diagonal leaf order from a hierarchical clustering linkage tree.
+ *
+ * @param {Array<[number, number, number, number]>} linkage - (N-1) x 4 linkage matrix
+ * @param {number} numAssets - Number of leaf assets N
+ * @returns {Array<number>} Quasi-diagonal asset indices
+ */
+export function getQuasiDiag(linkage, numAssets) {
+  if (numAssets <= 1) return [0];
+  let order = [2 * numAssets - 2];
+  while (order.some(id => id >= numAssets)) {
+    const nextOrder = [];
+    for (const id of order) {
+      if (id >= numAssets) {
+        const row = linkage[id - numAssets];
+        nextOrder.push(row[0]);
+        nextOrder.push(row[1]);
+      } else {
+        nextOrder.push(id);
+      }
+    }
+    order = nextOrder;
+  }
+  return order;
+}
+
+/**
+ * Computes cluster variance using inverse-variance allocations for sub-assets:
+ * V_C = w_C^T * Sigma_C * w_C
+ *
+ * @param {Array<Array<number>>} covarianceMatrix - Full covariance matrix
+ * @param {Array<number>} clusterIndices - Indices of assets in this cluster
+ * @returns {number} Cluster variance V_C
+ */
+export function getClusterVariance(covarianceMatrix, clusterIndices) {
+  const k = clusterIndices.length;
+  if (k === 0) return 0;
+  if (k === 1) return Math.max(1e-12, covarianceMatrix[clusterIndices[0]][clusterIndices[0]]);
+
+  let invVarSum = 0;
+  const invVars = new Array(k);
+  for (let i = 0; i < k; i++) {
+    const idx = clusterIndices[i];
+    const diag = Math.max(1e-12, covarianceMatrix[idx][idx]);
+    invVars[i] = 1 / diag;
+    invVarSum += invVars[i];
+  }
+  const subWeights = invVars.map(v => v / invVarSum);
+
+  let clusterVar = 0;
+  for (let i = 0; i < k; i++) {
+    const idx_i = clusterIndices[i];
+    for (let j = 0; j < k; j++) {
+      const idx_j = clusterIndices[j];
+      clusterVar += subWeights[i] * subWeights[j] * covarianceMatrix[idx_i][idx_j];
+    }
+  }
+  return Math.max(1e-12, clusterVar);
+}
+
+/**
+ * Performs recursive bisection capital allocation along the quasi-diagonal leaf order.
+ *
+ * @param {Array<Array<number>>} covarianceMatrix - N x N covariance matrix
+ * @param {Array<number>} quasiDiag - Quasi-diagonal leaf order
+ * @returns {Array<number>} Weights of assets summing to 1.0
+ */
+export function getRecursiveBisectionWeights(covarianceMatrix, quasiDiag) {
+  const n = quasiDiag.length;
+  if (n <= 1) return [1.0];
+
+  const assetWeights = new Array(n).fill(1.0);
+  let clusters = [quasiDiag.slice()];
+
+  while (clusters.length > 0) {
+    const nextClusters = [];
+    for (const cluster of clusters) {
+      if (cluster.length <= 1) continue;
+
+      const mid = Math.floor(cluster.length / 2);
+      const c1 = cluster.slice(0, mid);
+      const c2 = cluster.slice(mid);
+
+      const v1 = getClusterVariance(covarianceMatrix, c1);
+      const v2 = getClusterVariance(covarianceMatrix, c2);
+
+      const totalV = v1 + v2;
+      const alpha = totalV > 1e-12 ? 1 - (v1 / totalV) : 0.5;
+
+      for (const idx of c1) {
+        assetWeights[idx] *= alpha;
+      }
+      for (const idx of c2) {
+        assetWeights[idx] *= (1 - alpha);
+      }
+
+      if (c1.length > 1) nextClusters.push(c1);
+      if (c2.length > 1) nextClusters.push(c2);
+    }
+    clusters = nextClusters;
+  }
+
+  const sumW = assetWeights.reduce((a, b) => a + b, 0);
+  return assetWeights.map(w => w / (sumW || 1));
+}
+
+/**
+ * Solves the Hierarchical Risk Parity (HRP) asset allocation problem (López de Prado, 2016).
+ * Replaces matrix inversion with machine learning tree clustering and recursive bisection.
+ *
+ * @param {Array<number>} expectedReturns - Annualized expected returns of assets
+ * @param {Array<Array<number>>} covarianceMatrix - N x N covariance matrix
+ * @param {Array<Array<number>>} [correlationMatrix=null] - Optional N x N correlation matrix
+ * @param {Object} [options={}]
+ * @param {number} [options.riskFreeRate=0.03]
+ * @param {('single'|'complete'|'average')} [options.linkageMethod='single']
+ * @returns {Object} HRP portfolio statistics, weights, dendrogram linkage, and quasi-diagonal order
+ */
+export function solveHRP(expectedReturns, covarianceMatrix, correlationMatrix = null, options = {}) {
+  const n = expectedReturns.length;
+  const rf = typeof options.riskFreeRate === 'number' ? options.riskFreeRate : 0.03;
+  const linkageMethod = options.linkageMethod || 'single';
+
+  if (n === 0) {
+    return { weights: [], expectedReturn: 0, volatility: 0, sharpeRatio: 0, riskContributions: [] };
+  }
+  if (n === 1) {
+    const w = [1.0];
+    const stats = calculatePortfolioStats(w, expectedReturns, covarianceMatrix, rf);
+    return {
+      ...stats,
+      weights: w,
+      linkage: [],
+      quasiDiag: [0],
+      riskContributions: [1.0]
+    };
+  }
+
+  const corr = correlationMatrix || calculateCorrelationMatrix(covarianceMatrix);
+  const dist = correlationDistanceMatrix(corr);
+  const D_tilde = euclideanDistanceMatrix(dist);
+  const linkage = hierarchicalClustering(D_tilde, linkageMethod);
+  const quasiDiag = getQuasiDiag(linkage, n);
+  const weights = getRecursiveBisectionWeights(covarianceMatrix, quasiDiag);
+
+  const stats = calculatePortfolioStats(weights, expectedReturns, covarianceMatrix, rf);
+  const rc = calculateRiskContributions(weights, covarianceMatrix);
+
+  return {
+    ...stats,
+    weights,
+    linkage,
+    quasiDiag,
+    correlationMatrix: corr,
+    correlationDistanceMatrix: dist,
+    euclideanDistanceMatrix: D_tilde,
+    linkageMethod,
+    riskContributions: rc
+  };
+}
+
+/**
  * Calculates historical Conditional Value-at-Risk (CVaR / Expected Shortfall)
  * at confidence level 1 - alpha (default 95% confidence, alpha = 0.05).
  *

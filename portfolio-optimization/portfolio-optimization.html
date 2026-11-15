@@ -177,6 +177,7 @@
                 <option value="max-sharpe" selected>🎯 Mean Variance - Maximize Sharpe Ratio</option>
                 <option value="min-vol">🛡️ Mean Variance - Minimize Volatility (GMV)</option>
                 <option value="risk-parity">⚖️ Risk Parity (Equal Risk Contribution / ERC)</option>
+                <option value="hrp">🌳 Hierarchical Risk Parity (HRP / Machine Learning)</option>
                 <option value="min-cvar">🔻 Tail Risk - Minimize Conditional Value-at-Risk (95% CVaR)</option>
                 <option value="target-return">📈 Mean Variance - Minimize Volatility for Target Return</option>
                 <option value="target-vol">📉 Mean Variance - Maximize Return for Target Volatility</option>
@@ -315,6 +316,25 @@
 
         <!-- Charts Stack -->
         <section class="charts-stack">
+          <!-- Hierarchical Risk Parity (HRP) Dendrogram Tree Card -->
+          <div class="chart-card" id="card-dendrogram-chart" style="display: none;">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <span>🌳</span>
+                <span>Hierarchical Clustering Dendrogram (HRP Asset Tree)</span>
+              </div>
+              <div class="chart-legend">
+                <div class="legend-item"><span class="legend-swatch" style="background: #38bdf8;"></span> Correlation Distance Tree</div>
+                <div class="legend-item"><span class="legend-swatch" style="background: #10b981;"></span> Quasi-Diagonal Leaf Order</div>
+                <div class="legend-item"><span class="legend-swatch" style="background: #facc15;"></span> Bisection Split Nodes</div>
+              </div>
+            </div>
+            <div class="chart-canvas-container" id="container-dendrogram-chart" style="height: 320px;">
+              <canvas id="canvas-dendrogram-chart"></canvas>
+              <div class="opt-chart-tooltip" id="tooltip-dendrogram"></div>
+            </div>
+          </div>
+
           <!-- Side-by-Side Allocation & Risk Contribution Comparison Chart -->
           <div class="chart-card">
             <div class="chart-card-header">
